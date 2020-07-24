@@ -1,28 +1,29 @@
 import os
 from PyQt5 import QtWidgets
+import configparser
 
 class Configuration:
     """Handles, holds, and manipulates configuration bits and settings."""
 
-    def __init__(self, GUI, fileName, tabName, sectionName, channelName, channelAddress, i2c = ''):
+    def __init__(self, GUI, chipName, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
         self.GUI = GUI
-        self.fileName = fileName
-        self.tabName =  tabName
-        self.sectionName = sectionName
-        self.channelName = channelName
-        self.address = int(channelAddress)
-        self.isI2C = bool(i2c)
+        self.chipName =  chipName
+        self.defaultCfgFile = cfgFileName
+        self.specialCfgFile = specFileName
+        self.lpgbtMaster = lpgbtMaster
+        self.i2cMaster = i2cMaster
+        self.i2cAddress = i2cAddress
 
-        self.settings = None # filled with a dict in readCfgFile
-        self.total = None # filled with int in readCfgFile
-        self.bits = None # filled with string in updateConfigurationBits
+        self.sections = {} # filled with a dict in readCfgFile
+        # self.total = None # filled with int in readCfgFile
+        # self.bits = None # filled with string in updateConfigurationBits
 
         self.readCfgFile()
         self.updated = True
 
 
     def __eq__(self, other):
-        return self.settings == other.settings
+        return self.sections == other.sections
 
 
     def __ne__(self, other):
@@ -34,61 +35,92 @@ class Configuration:
         Class implementation of deepcopy
         Reference: https://stackoverflow.com/questions/6279305/typeerror-cannot-deepcopy-this-pattern-object
         """
-        return Configuration(self.GUI,self.fileName,self.tabName,self.sectionName,self.channelName,self.isI2C)
+        return Configuration(self.GUI, self.chipName, self.defaultCfgFile, self.specialCfgFile, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
 
 
     def clone(self):
         return self.__deepcopy__()
 
 
-    def getSetting(self, name):
+    def getSetting(self, section, setting):
         """Searches for setting based on name. Returns if found."""
         try:
-            return self.settings[name]
+            return self.sections[section][setting]
         except KeyError:
-            self.GUI.showError(f"Configuration setting {name} requested, but not found.")
+            self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found.")
             return ''
 
 
-    def setConfiguration(self, name, value):
+    def setConfiguration(self, section, setting, value):
         """Sets a specific setting value in the list. Regenerates bits attribute."""
         try:
-            self.settings[name] = value
+            self.sections[setting][setting] = value
         except KeyError:
-            self.GUI.showError(f"Configuration setting {name} requested, but not found. Nothing has been changed")
+            self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found. Nothing has been changed")
         self.updateConfigurationBits()
 
 
-    def getConfiguration(self, name):
+    def getConfiguration(self, section, setting):
         """Returns the value of given named setting."""
         try:
-            return self.settings[name].value
+            return self.sections[section][setting].value
         except KeyError:
-            self.GUI.showError(f"Configuration setting {name} requested, but not found. Nothing has been changed")
+            self.GUI.showError(f"Configuration setting value {setting} in {section} requested, but not found.")
             return ''
 
 
     def updateConfigurationBits(self, fileName = ''):
         """Updates the bits attribute"""
-        if not self.settings:
+        if not self.sections:
             if not fileName:
                 self.GUI.showError('No configuration settings loaded and no file specified.')
             else:
-                self.readCfgFile()
-        self.bits = "".join([setting.value for setting in self.settings.values()]).zfill(self.total)
+                self.readCfgFile(fileName)
+        for section in self.sections:
+            self.sections[section].bits = "".join([setting.value for setting in self.sections[section].values()]).zfill(self.sections[section].total)
 
 
-    def sendUpdatedConfiguration(self, isI2C = False):
+    def sendUpdatedConfiguration(self):
         """Sends updated bits to chip."""
         pass
 
 
-    def readCfgFile(self):
-        pass
+    def readCfgFile(self, fileName = ''):
+        """Reads default and special config files, then populates the sections dict with section objects"""
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        if fileName:
+            config.read([self.defaultCfgFile, fileName])
+        else:
+            config.read([self.defaultCfgFile, self.specialCfgFile])
+
+        for section in config["Categories"]:
+            template, internalAddr = [x.strip() for x in config["Categories"][section].split(',')]
+            self.sections[section] = Section(config, template, internalAddr)
 
 
 
-class Settings:
-    def __init__(self):
-        pass
+class Section(dict):
+    """Dictionary-like class that stores name:value pairs for every setting in a section
+       Also stores total number of bits in a section, the bits as one string, and the internal address"""
+    def __init__(self, config, template, internalAddr):
+        super(Section, self).__init__()
+        try:
+            for (key, value) in config[template].items():
+                if key == "Total":
+                    self.total = int(value)
+                else:
+                    self.update({key: value})
+        except KeyError:
+            ### lpGBT has many settings we don't care about, so fill them with 0's
+            self.total = 8
+            self.update({"Fill": "00000000"})
+        self.bits = "".join([setting.value for setting in self.values()]).zfill(self.total)
+        self.address = internalAddr
+
+
+
+# class Setting:
+#     def __init__(self, config, value):
+#         pass
 
