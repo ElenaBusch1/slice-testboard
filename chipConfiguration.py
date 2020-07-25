@@ -5,21 +5,18 @@ import configparser
 class Configuration:
     """Handles, holds, and manipulates configuration bits and settings."""
 
-    def __init__(self, GUI, chipName, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
+    def __init__(self, GUI, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
         self.GUI = GUI
-        self.chipName =  chipName
-        self.defaultCfgFile = cfgFileName
-        self.specialCfgFile = specFileName
+        self.defaultCfgFile = os.path.join(os.path.abspath("."), "config", cfgFileName)
+        self.specialCfgFile = os.path.join(os.path.abspath("."), "config", specFileName)
         self.lpgbtMaster = lpgbtMaster
         self.i2cMaster = i2cMaster
         self.i2cAddress = i2cAddress
 
         self.sections = {} # filled with a dict in readCfgFile
-        # self.total = None # filled with int in readCfgFile
-        # self.bits = None # filled with string in updateConfigurationBits
 
         self.readCfgFile()
-        self.updated = True
+        # self.updated = True
 
 
     def __eq__(self, other):
@@ -35,7 +32,7 @@ class Configuration:
         Class implementation of deepcopy
         Reference: https://stackoverflow.com/questions/6279305/typeerror-cannot-deepcopy-this-pattern-object
         """
-        return Configuration(self.GUI, self.chipName, self.defaultCfgFile, self.specialCfgFile, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
+        return Configuration(self.GUI, self.defaultCfgFile, self.specialCfgFile, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
 
 
     def clone(self):
@@ -95,7 +92,7 @@ class Configuration:
             config.read([self.defaultCfgFile, self.specialCfgFile])
 
         for section in config["Categories"]:
-            template, internalAddr = [x.strip() for x in config["Categories"][section].split(',')]
+            template, internalAddr, *_ = [x.strip() for x in config["Categories"][section].split(',')]
             self.sections[section] = Section(config, template, internalAddr)
 
 
@@ -115,7 +112,7 @@ class Section(dict):
             ### lpGBT has many settings we don't care about, so fill them with 0's
             self.total = 8
             self.update({"Fill": "00000000"})
-        self.bits = "".join([setting.value for setting in self.values()]).zfill(self.total)
+        self.bits = "".join([setting for setting in self.values()]).zfill(self.total)
         self.address = internalAddr
 
 

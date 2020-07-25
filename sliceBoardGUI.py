@@ -18,6 +18,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.chips = {}
         self.chipsConfig = os.path.join(os.path.abspath("."), "config", "chips.cfg")
 
+        self.startup()
+
+
+    def startup(self):
+        self.setupConfigurations()
+
 
     def setupConfigurations(self):
         config = configparser.ConfigParser()
@@ -26,4 +32,4 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         for chip in config["Chips"]:
             cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chip].split(',')]
-            self.chips[chip] = CC.Configuration(self, chip, cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr)
+            self.chips[chip] = CC.Configuration(self, cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr)
