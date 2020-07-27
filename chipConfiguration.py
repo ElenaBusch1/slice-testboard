@@ -2,10 +2,11 @@ import os
 from PyQt5 import QtWidgets
 import configparser
 
-class Configuration:
+class Configuration(dict):
     """Handles, holds, and manipulates configuration bits and settings."""
 
     def __init__(self, GUI, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
+        super(Configuration, self).__init__()
         self.GUI = GUI
         self.defaultCfgFile = os.path.join(os.path.abspath("."), "config", cfgFileName)
         self.specialCfgFile = os.path.join(os.path.abspath("."), "config", specFileName)
@@ -13,14 +14,12 @@ class Configuration:
         self.i2cMaster = i2cMaster
         self.i2cAddress = i2cAddress
 
-        self.sections = {} # filled with a dict in readCfgFile
-
         self.readCfgFile()
         # self.updated = True
 
 
     def __eq__(self, other):
-        return self.sections == other.sections
+        return self.items() == other.items()
 
 
     def __ne__(self, other):
@@ -42,7 +41,7 @@ class Configuration:
     def getSetting(self, section, setting):
         """Searches for setting based on name. Returns if found."""
         try:
-            return self.sections[section][setting]
+            return self.__getitem__(section)[setting]
         except KeyError:
             self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found.")
             return ''
@@ -51,7 +50,7 @@ class Configuration:
     def setConfiguration(self, section, setting, value):
         """Sets a specific setting value in the list. Regenerates bits attribute."""
         try:
-            self.sections[setting][setting] = value
+            self.__getitem__(section)[setting] = value
         except KeyError:
             self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found. Nothing has been changed")
         self.updateConfigurationBits()
@@ -60,7 +59,7 @@ class Configuration:
     def getConfiguration(self, section, setting):
         """Returns the value of given named setting."""
         try:
-            return self.sections[section][setting].value
+            return self.__getitem__(section)[setting]
         except KeyError:
             self.GUI.showError(f"Configuration setting value {setting} in {section} requested, but not found.")
             return ''
@@ -68,13 +67,13 @@ class Configuration:
 
     def updateConfigurationBits(self, fileName = ''):
         """Updates the bits attribute"""
-        if not self.sections:
+        if not self.items():
             if not fileName:
                 self.GUI.showError('No configuration settings loaded and no file specified.')
             else:
                 self.readCfgFile(fileName)
-        for section in self.sections:
-            self.sections[section].bits = "".join([setting.value for setting in self.sections[section].values()]).zfill(self.sections[section].total)
+        for section in self.keys():
+            self.__getitem__(section).bits = "".join([setting for setting in self.__getitem__(section).values()]).zfill(self.__getitem__(section).total)
 
 
     def sendUpdatedConfiguration(self):
@@ -93,7 +92,7 @@ class Configuration:
 
         for section in config["Categories"]:
             template, internalAddr, *_ = [x.strip() for x in config["Categories"][section].split(',')]
-            self.sections[section] = Section(config, template, internalAddr)
+            self.__setitem__(section, Section(config, template, internalAddr))
 
 
 

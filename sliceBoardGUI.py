@@ -29,7 +29,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             with open("tmp.txt",'a') as f:
                 for (chipName, chipConfig) in self.chips.items():
                     f.write(chipName + "\n")
-                    for (sectionName, section) in chipConfig.sections.items():
+                    for (sectionName, section) in chipConfig.items():
                         f.write(f"{sectionName}: {section.bits}\n")
                         for (settingName, setting) in section.items():
                             f.write(f"{settingName}: {setting}\n")
