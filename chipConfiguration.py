@@ -100,17 +100,19 @@ class Configuration:
 class Section(dict):
     """Dictionary-like class that stores name:value pairs for every setting in a section
        Also stores total number of bits in a section, the bits as one string, and the internal address"""
-    def __init__(self, config, template, internalAddr):
+    def __init__(self, config, templates, internalAddr):
         super(Section, self).__init__()
+        self.total = 0
         try:
-            for (key, value) in config[template].items():
-                if key == "Total":
-                    self.total = int(value)
-                else:
-                    self.update({key: value})
+            for template in templates.split("+"):
+                for (key, value) in config[template].items():
+                    if key == "Total":
+                        self.total += int(value)
+                    else:
+                        self.update({key: value})
         except KeyError:
             ### lpGBT has many settings we don't care about, so fill them with 0's
-            self.total = 8
+            self.total += 8
             self.update({"Fill": "00000000"})
         self.bits = "".join([setting for setting in self.values()]).zfill(self.total)
         self.address = internalAddr

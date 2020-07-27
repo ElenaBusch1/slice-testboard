@@ -10,7 +10,7 @@ if __name__ == "__main__":
 
     app = QtWidgets.QApplication(sys.argv)
 
-    window = sliceBoardGUI.sliceBoardGUI(app)
+    window = sliceBoardGUI.sliceBoardGUI(app, args)
     app.setWindowIcon(QtGui.QIcon('./images/cern.png'))
     window.show()
 

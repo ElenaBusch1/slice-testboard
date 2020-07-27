@@ -7,11 +7,12 @@ qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
 
 class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
-    def __init__(self, qApp):
+    def __init__(self, qApp, pArgs):
         QtWidgets.QMainWindow.__init__(self)
         Ui_MainWindow.__init__(self)
 
         # General GUI options and signals
+        self.pArgs = pArgs
         self.qApp = qApp
         self.setupUi(self)
 
@@ -23,6 +24,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def startup(self):
         self.setupConfigurations()
+
+        if self.pArgs.debug:
+            with open("tmp.txt",'a') as f:
+                for (chipName, chipConfig) in self.chips.items():
+                    f.write(chipName + "\n")
+                    for (sectionName, section) in chipConfig.sections.items():
+                        f.write(f"{sectionName}: {section.bits}\n")
+                        for (settingName, setting) in section.items():
+                            f.write(f"{settingName}: {setting}\n")
+                        f.write("\n")
+                    f.write("\n")
 
 
     def setupConfigurations(self):
