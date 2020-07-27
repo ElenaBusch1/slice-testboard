@@ -1,6 +1,7 @@
 import os
 from PyQt5 import QtWidgets
 import configparser
+import sliceMod
 
 class Configuration(dict):
     """Handles, holds, and manipulates configuration bits and settings."""
@@ -51,6 +52,7 @@ class Configuration(dict):
         """Sets a specific setting value in the list. Regenerates bits attribute."""
         try:
             self.__getitem__(section)[setting] = value
+            self.__getitem__(section).updated = True
         except KeyError:
             self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found. Nothing has been changed")
         self.updateConfigurationBits()
@@ -78,7 +80,9 @@ class Configuration(dict):
 
     def sendUpdatedConfiguration(self):
         """Sends updated bits to chip."""
-        pass
+        for section in self.values():
+            if not section.updated: continue
+            sliceMod.i2cWrite(self, section)
 
 
     def readCfgFile(self, fileName = ''):
@@ -92,7 +96,7 @@ class Configuration(dict):
 
         for section in config["Categories"]:
             template, internalAddr, *_ = [x.strip() for x in config["Categories"][section].split(',')]
-            self.__setitem__(section, Section(config, template, internalAddr))
+            self.update({section: Section(config, template, internalAddr)})
 
 
 
@@ -115,6 +119,7 @@ class Section(dict):
             self.update({"Fill": "00000000"})
         self.bits = "".join([setting for setting in self.values()]).zfill(self.total)
         self.address = internalAddr
+        self.updated = True
 
 
 
