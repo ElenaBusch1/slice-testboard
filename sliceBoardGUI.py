@@ -1,10 +1,12 @@
-from PyQt5 import uic, QtWidgets, QtGui
+from PyQt5 import uic, QtWidgets
 import os
 import configparser
 import chipConfiguration as CC
+from functools import partial
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
+
 
 class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, qApp, pArgs):
@@ -101,16 +103,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         boxType = type(getattr(self, boxName))
                     except AttributeError:
                         continue
-                    # Define a lambda function "update" to pass arguments to connect signal
-                    # In python you need outer lambda to pass arguments to inner lambda
-                    update = lambda x, y, z : lambda : self.updateConfigurations(x, y, z)
                     # Call the appropriate method for each type of input box
                     if boxType == QtWidgets.QPlainTextEdit:
-                        getattr(self, boxName).textChanged.connect(update(chipName, sectionName, settingName))
+                        getattr(self, boxName).textChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
                     elif boxType == QtWidgets.QComboBox:
-                        getattr(self, boxName).currentIndexChanged.connect(update(chipName, sectionName, settingName))
+                        getattr(self, boxName).currentIndexChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
                     elif boxType == QtWidgets.QCheckBox:
-                        getattr(self, boxName).stateChanged.connect(update(chipName, sectionName, settingName))
+                        getattr(self, boxName).stateChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
                     elif boxType == QtWidgets.QLabel:
                         pass
                     else:
@@ -152,3 +151,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.chips[chipName].setConfiguration(sectionName, settingName, binary)
         print(f"Updated {chipName} {sectionName}, {settingName}: {binary}")
 
+
+    def showError(self, message):
+        """Error message method. Called by numerous dependencies."""
+        errorDialog = QtWidgets.QErrorMessage(self)
+        errorDialog.showMessage(message)
+        errorDialog.setWindowTitle("Error")
