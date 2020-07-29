@@ -1,5 +1,4 @@
 import os
-from PyQt5 import QtWidgets
 import configparser
 import sliceMod
 
@@ -52,7 +51,6 @@ class Configuration(dict):
         """Sets a specific setting value in the list. Regenerates bits attribute."""
         try:
             self.__getitem__(section)[setting] = value
-            self.__getitem__(section).updated = True
         except KeyError:
             self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found. Nothing has been changed")
         self.updateConfigurationBits()
@@ -83,6 +81,7 @@ class Configuration(dict):
         for section in self.values():
             if not section.updated: continue
             sliceMod.i2cWrite(self, section)
+            section.updated = False
 
 
     def readCfgFile(self, fileName = ''):
@@ -121,6 +120,10 @@ class Section(dict):
         self.address = internalAddr
         self.updated = True
 
+    def __setitem__(self, key, value):
+        """Override setitem to show section has been updated"""
+        self.__dict__[key] = value
+        self.updated = True
 
 
 # class Setting:

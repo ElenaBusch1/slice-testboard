@@ -21,7 +21,6 @@ def i2cReadLpGBT(GUI,
     #     except Exception:
     #         GUI.showError('LpGBT: Invalid register address')
     #         return '00'
-    # GUI.selectI2CinterfaceAndCalPulses(fifoOperation=1,auxRegAddress=0)
     lpgbtRegAddressStr = '{0:016b}'.format(lpgbtRegAddress)
     WB_terminator = '0'*8
     WB_dataBits = '0'*8
@@ -38,16 +37,17 @@ def i2cReadLpGBT(GUI,
 
     nBits = len(bitsToSend)
     nByte = int(nBits/8)  # should be 8
-    GUI.status.send(GUI)
+    GUI.status.send()
     serialMod.flushBuffer(GUI)
-    GUI.status.sendFifoAOperation(GUI, 1, nByte, 0)
+    GUI.status.sendFifoAOperation(1, nByte, 0)
     serialResult = serialMod.writeToChip(GUI, 'A', bitsToSend)
-    GUI.status.sendI2Ccommand(GUI)
-    GUI.status.send(GUI)
+    GUI.status.sendI2Ccommand()
+    GUI.status.send()
+
     nWordsExpected = 1
     # Read the I2C ouput
     serialMod.flushBuffer(GUI)
-    GUI.status.sendFifoAOperation(GUI, 2, nWordsExpected, 0)
+    GUI.status.sendFifoAOperation(2, nWordsExpected, 0)
     time.sleep(0.01)  # Wait for the buffer to fill
     i2cOutput = serialMod.readFromChip(GUI, 'A', 8)  # Need to think about nBytes argument for readFromChip()
     # Read the relevant bytes
@@ -56,13 +56,13 @@ def i2cReadLpGBT(GUI,
         i2cOutput = i2cOutput[:1]
     else:
         i2cOutput = bytearray(0)
-    GUI.status.send(GUI)
+    GUI.status.send()
     # Convert the bytes into bits and turn into a string
     # return byteArrayToString(i2cOutput)
     return ["{:02x}".format(x) for x in i2cOutput]
 
 
-def i2cWriteLpGBT(coluta,
+def i2cWriteLpGBT(GUI,
                   i2cWR='010',
                   STP='1',
                   lpgbtAddress='1110000',
@@ -72,16 +72,15 @@ def i2cWriteLpGBT(coluta,
 
     # if lpgbtRegAddress == -1:
     #     try:
-    #         lpgbtRegAddress = int(coluta.controlLpGBTRegisterAddressBox.toPlainText())
-    #         dataWord = coluta.controlLpGBTRegisterValueBox.toPlainText()
+    #         lpgbtRegAddress = int(GUI.controlLpGBTRegisterAddressBox.toPlainText())
+    #         dataWord = GUI.controlLpGBTRegisterValueBox.toPlainText()
     #     except Exception:
-    #         coluta.showError('LpGBT: Invalid register address')
+    #         GUI.showError('LpGBT: Invalid register address')
     #         return '00'
     if len(dataWord) == 0 or len(dataWord) > 8:
-        coluta.showError('LpGBT: Setting overflow! Max value 8 bits')
+        GUI.showError('LpGBT: Setting overflow! Max value 8 bits')
         return False
 
-    # Activate the I2C interface
     lpgbtRegAddressStr = '{0:016b}'.format(lpgbtRegAddress)
     wbTerminator = '0' * 8
     dataBits = dataWord
@@ -92,9 +91,9 @@ def i2cWriteLpGBT(coluta,
 
     bitsToSend = wbTerminator + dataBits + wbByte3 + wbByte2 + wbByte1 + wbByte0
     nByte = int(len(bitsToSend) / 8)  # should be 6
-    coluta.status.send(coluta)
-    coluta.status.sendFifoAOperation(coluta, 1, nByte, 0)
-    serialResult = serialMod.writeToChip(coluta, 'A', bitsToSend)
-    coluta.status.sendI2Ccommand(coluta)
+    GUI.status.send()
+    GUI.status.sendFifoAOperation(1, nByte, 0)
+    serialResult = serialMod.writeToChip(GUI, 'A', bitsToSend)
+    GUI.status.sendI2Ccommand()
 
     return serialResult
