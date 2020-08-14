@@ -1,11 +1,12 @@
 import os
-from PyQt5 import QtWidgets
 import configparser
+import sliceMod
 
-class Configuration:
+class Configuration(dict):
     """Handles, holds, and manipulates configuration bits and settings."""
 
     def __init__(self, GUI, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
+        super(Configuration, self).__init__()
         self.GUI = GUI
         self.defaultCfgFile = os.path.join(os.path.abspath("."), "config", cfgFileName)
         self.specialCfgFile = os.path.join(os.path.abspath("."), "config", specFileName)
@@ -13,14 +14,12 @@ class Configuration:
         self.i2cMaster = i2cMaster
         self.i2cAddress = i2cAddress
 
-        self.sections = {} # filled with a dict in readCfgFile
-
         self.readCfgFile()
         # self.updated = True
 
 
     def __eq__(self, other):
-        return self.sections == other.sections
+        return self.items() == other.items()
 
 
     def __ne__(self, other):
@@ -42,7 +41,7 @@ class Configuration:
     def getSetting(self, section, setting):
         """Searches for setting based on name. Returns if found."""
         try:
-            return self.sections[section][setting]
+            return self.__getitem__(section)[setting]
         except KeyError:
             self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found.")
             return ''
@@ -51,7 +50,7 @@ class Configuration:
     def setConfiguration(self, section, setting, value):
         """Sets a specific setting value in the list. Regenerates bits attribute."""
         try:
-            self.sections[setting][setting] = value
+            self.__getitem__(section)[setting] = value
         except KeyError:
             self.GUI.showError(f"Configuration setting {setting} in {section} requested, but not found. Nothing has been changed")
         self.updateConfigurationBits()
@@ -60,7 +59,7 @@ class Configuration:
     def getConfiguration(self, section, setting):
         """Returns the value of given named setting."""
         try:
-            return self.sections[section][setting].value
+            return self.__getitem__(section)[setting]
         except KeyError:
             self.GUI.showError(f"Configuration setting value {setting} in {section} requested, but not found.")
             return ''
@@ -68,18 +67,21 @@ class Configuration:
 
     def updateConfigurationBits(self, fileName = ''):
         """Updates the bits attribute"""
-        if not self.sections:
+        if not self.items():
             if not fileName:
                 self.GUI.showError('No configuration settings loaded and no file specified.')
             else:
                 self.readCfgFile(fileName)
-        for section in self.sections:
-            self.sections[section].bits = "".join([setting.value for setting in self.sections[section].values()]).zfill(self.sections[section].total)
+        for section in self.keys():
+            self.__getitem__(section).bits = "".join([setting for setting in self.__getitem__(section).values()]).zfill(self.__getitem__(section).total)
 
 
     def sendUpdatedConfiguration(self):
         """Sends updated bits to chip."""
-        pass
+        for section in self.values():
+            if not section.updated: continue
+            sliceMod.i2cWrite(self, section)
+            section.updated = False
 
 
     def readCfgFile(self, fileName = ''):
@@ -93,28 +95,35 @@ class Configuration:
 
         for section in config["Categories"]:
             template, internalAddr, *_ = [x.strip() for x in config["Categories"][section].split(',')]
-            self.sections[section] = Section(config, template, internalAddr)
+            self.update({section: Section(config, template, internalAddr)})
 
 
 
 class Section(dict):
     """Dictionary-like class that stores name:value pairs for every setting in a section
        Also stores total number of bits in a section, the bits as one string, and the internal address"""
-    def __init__(self, config, template, internalAddr):
+    def __init__(self, config, templates, internalAddr):
         super(Section, self).__init__()
+        self.total = 0
         try:
-            for (key, value) in config[template].items():
-                if key == "Total":
-                    self.total = int(value)
-                else:
-                    self.update({key: value})
+            for template in templates.split("+"):
+                for (key, value) in config[template].items():
+                    if key == "Total":
+                        self.total += int(value)
+                    else:
+                        self.update({key: value})
         except KeyError:
             ### lpGBT has many settings we don't care about, so fill them with 0's
-            self.total = 8
+            self.total += 8
             self.update({"Fill": "00000000"})
         self.bits = "".join([setting for setting in self.values()]).zfill(self.total)
         self.address = internalAddr
+        self.updated = True
 
+    def __setitem__(self, key, value):
+        """Override setitem to show section has been updated"""
+        self.__dict__[key] = value
+        self.updated = True
 
 
 # class Setting:
