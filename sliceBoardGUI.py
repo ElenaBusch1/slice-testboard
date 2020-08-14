@@ -25,8 +25,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.description = 'SLICEBOARDAB'
 
         # Port and serial dummy values
-        self.port1, self.port2 = "Placeholder A", "Placeholder B"
-        self.serial1, self.serial2 = None, None
+        self.port36, self.port45 = "Placeholder A", "Placeholder B"
+        self.serial36, self.serial45 = None, None
 
         # PySerial connection parameters
         self.baudrate = 1e6
@@ -36,7 +36,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
-        self.status = status.Status(self)
+        self.status36 = status.Status(self, "36")
+        self.status45 = status.Status(self, "45")
 
         self.chips = {}
         self.chipsConfig = os.path.join(os.path.abspath("."), "config", "chips.cfg")
@@ -55,7 +56,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def test(self):
         """General purpose test function"""
-        with open("tmp.txt",'a') as f:
+        with open("tmp.txt", 'a') as f:
             for (chipName, chipConfig) in self.chips.items():
                 f.write(chipName + "\n")
                 for (sectionName, section) in chipConfig.items():
@@ -74,22 +75,29 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # Real startup routine when board is connected
             # Find the ports and store the names
             portDict = serialMod.findPorts(self)
-            self.port1, self.port2 = portDict['AB1'], portDict['AB2']
+            self.port36, self.port45 = portDict['AB46BJOXA'], portDict['AB470WYIA']
             # Set up the serial connection to each port, pause, and test
-            self.serial1, self.serial2 = serialMod.setupSerials(self)
+            self.serial36, self.serial45 = serialMod.setupSerials(self)
             time.sleep(0.01)
             self.handshake()
+            # Reset the status bits to zero, then reset FPGAs
+            self.status36.initializeUSB()
+            self.status36.send()
+            self.status36.sendSoftwareReset()
+            self.status45.initializeUSB()
+            self.status45.send()
+            self.status45.sendSoftwareReset()
 
 
     def handshake(self):
         """Checks the serial connections. Gives green status to valid ones"""
         A, B = serialMod.checkSerials(self)
         if A:
-            self.fifo1StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
-            self.fifo1StatusBox.setText("Connected")
+            self.fifo36StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
+            self.fifo36StatusBox.setText("Connected")
         if B:
-            self.fifo2StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
-            self.fifo2StatusBox.setText("Connected")
+            self.fifo45StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
+            self.fifo45StatusBox.setText("Connected")
         if A and B:
             self.isConnected = True
 
@@ -112,7 +120,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             for (sectionName, section) in chipConfig.items():
                 for (settingName, setting) in section.items():
                     name = chipName + sectionName + settingName
-                    if "Fill" in name or name[-2] == "__": continue
+                    if "Fill" in name or name[-2:] == "__": continue
                     boxName = name + "Box"
                     try:
                         box = getattr(self, boxName)
@@ -146,11 +154,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         continue
                     # Call the appropriate method for each type of input box
                     if isinstance(box, QtWidgets.QPlainTextEdit):
+                        # noinspection PyUnresolvedReferences
                         box.textChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
                     elif isinstance(box, QtWidgets.QComboBox):
                         # noinspection PyUnresolvedReferences
                         box.currentIndexChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
                     elif isinstance(box, QtWidgets.QCheckBox):
+                        # noinspection PyUnresolvedReferences
                         box.stateChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
                     elif isinstance(box, QtWidgets.QLabel):
                         pass

@@ -12,7 +12,7 @@ import time
 class Status:
     """Status class definition."""
 
-    def __init__(self, GUI):
+    def __init__(self, GUI, io):
         self.GUI = GUI
         # general bits
         self.softwareReset = 0
@@ -28,6 +28,9 @@ class Status:
         self.startFifoAOperation = 0
         self.startControlOperation = 0
         self.startMeasurement = 0
+
+        # Which VTRx+ this instance of Status will be communicating with
+        self.io = io
 
     def read(self):
         # Status words. status1 -> status6
@@ -46,7 +49,7 @@ class Status:
 
     def send(self):
         integerStatus = self.read()
-        serialMod.writeToChip(self.GUI, 'B', integerStatus)
+        serialMod.writeToChip(self.GUI, self.io, integerStatus)
 
     # Ray Xu Feb 23, 2018: perform coluta reset
     # This is done by bringing status byte 2, bit 5 to high state then back to low state
@@ -113,7 +116,7 @@ class Status:
 
     def initializeUSB(self):
         integerStatus = [255, 255, 255, 255, 255, 255]
-        serialMod.writeToChip(self.GUI, 'B', integerStatus)
+        serialMod.writeToChip(self.GUI, self.io, integerStatus)
 
     def readbackStatus(self):
         self.readStatus = 1

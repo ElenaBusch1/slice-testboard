@@ -32,7 +32,7 @@ def findPorts(GUI):
             device = port.device
             manufac = port.manufacturer
             if manufac is not None and manufac != 'FTDI': continue
-            channel = port.serial_number[:3] # Serial number configured to be "AB#xxxxxx"
+            channel = port.serial_number # Serial number configured to be "AB#xxxxxx"
             ftdiDevices.append((channel,device))
             GUI.serial_number = port.serial_number
     elif platform == 'Darwin' or platform == 'Linux':
@@ -68,7 +68,7 @@ def findPorts(GUI):
 def setupSerials(GUI):
     """Sets up Serial objects for the GUI."""
     try:
-        serial1 = serial.Serial( port     = GUI.port1,
+        serial36 = serial.Serial( port     = GUI.port36,
                                  baudrate = GUI.baudrate,
                                  parity   = GUI.parity,
                                  stopbits = GUI.stopbits,
@@ -76,7 +76,7 @@ def setupSerials(GUI):
                                  timeout  = GUI.timeout,
                                  write_timeout = GUI.timeout )
 
-        serial2 = serial.Serial( port     = GUI.port2,
+        serial45 = serial.Serial( port     = GUI.port45,
                                  baudrate = GUI.baudrate,
                                  parity   = GUI.parity,
                                  stopbits = GUI.stopbits,
@@ -84,7 +84,7 @@ def setupSerials(GUI):
                                  timeout  = GUI.timeout,
                                  write_timeout = GUI.timeout )
 
-        return serial1, serial2
+        return serial36, serial45
     except:
         GUI.showError('Unable to connect to chip.')
         return None, None
@@ -103,14 +103,14 @@ def checkSerials(GUI):
         GUI.showError(f'Unknown platform {pf}')
         return False
 
-    print(type(GUI.serial1), type(GUI.serial2))
-    isPortConnected1 = isinstance(GUI.serial1, serialType.Serial)
-    isPortConnected2 = isinstance(GUI.serial2, serialType.Serial)
+    print(type(GUI.serial36), type(GUI.serial45))
+    isPortConnected36 = isinstance(GUI.serial36, serialType.Serial)
+    isPortConnected45 = isinstance(GUI.serial45, serialType.Serial)
 
-    if not (isPortConnected1 and isPortConnected2):
+    if not (isPortConnected36 and isPortConnected45):
         GUI.showError('SERIALMOD: Handshaking procedure failed. Not connected.')
 
-    return isPortConnected1, isPortConnected2
+    return isPortConnected36, isPortConnected45
 
 
 def readFromChip(GUI, port, nBytes):
@@ -120,7 +120,7 @@ def readFromChip(GUI, port, nBytes):
         GUI.showError('SERIALMOD: Non-positive number of bytes requested.')
 
     # Get the serial object corresponding to the correct channel
-    fifo = GUI.serial
+    fifo = getattr(GUI, "serial" + port)
 
     # Debug statements
     if fifo is None:
@@ -170,10 +170,7 @@ def writeToChip(GUI, port, message):
         return False
 
     # Get the serial object corresponding to the correct channel
-    try:
-        fifo = GUI.serial
-    except AttributeError:
-        fifo = None
+    fifo = getattr(GUI, "serial" + port)
 
     # Debug statements
     messageList = []
@@ -196,9 +193,9 @@ def writeToChip(GUI, port, message):
     return True
 
 
-def flushBuffer(GUI):
+def flushBuffer(GUI, port):
     """ Flush the serial buffer to get rid of junk data"""
-    fifo = GUI.serial
+    fifo = getattr(GUI, "serial" + port)
     if fifo is not None:
         fifo.reset_input_buffer()
         fifo.reset_output_buffer()
