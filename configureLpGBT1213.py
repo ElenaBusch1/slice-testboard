@@ -1,6 +1,6 @@
 import serial, time
 import serial.tools.list_ports as LP
-import sys
+import sys, argparse
 from platform import system
 
 def findPort():
@@ -225,9 +225,15 @@ def fuseLpGBT(port, lpgbtAddr, regAddr, data):
     writeToUSBISS(port, writeMessage)
 
 
-def main():
+def main(args):
 
-    lpgbtAddr = 0b1110010
+    if args.lpgbtNum == 12:
+        lpgbtAddr = 0b1110010
+    elif args.lpgbtNum == 13:
+        lpgbtAddr = 0b1110011
+    else:
+        print("No valid control lpGBT specified, exiting...")
+        sys.exit(0)
 
     # Connect to USB-ISS Module
     portFound = findPort()
@@ -254,10 +260,32 @@ def main():
     regDataC = [ 0x00,  0x44,  0x55,  0x00,  0x99,  0x0a,  0x00,  0x00,  0x1a,  0x19,  0x00]
     regDataD = [ 0x55,  0x55,  0x55,  0x00,  0x0a,  0x00,  0x00,  0x00,  0x00,  0x00,  0x06]
 
-    for i in range(len(regAddr)):
+    if args.configure:
+        print("Configuring lpGBT...")
+        for i in range(len(regAddr)):
+            configureLpGBT(port, lpgbtAddr, regAddr[i], [regDataA[i], regDataB[i], regDataC[i], regDataD[i]])
 
-        configureLpGBT(port, lpgbtAddr, regAddr[i], [regDataA[i], regDataB[i], regDataC[i], regDataD[i]])
+    elif args.fuse:
+        if input("Continue to blowing E-Fuses? (y/n) ") != 'y':
+            print("Exiting...")
+            sys.exit(0)
+        else:
+            print("Beginning blowing E-Fuses")
+            for i in range(len(regAddr)):
+                fuseLpGBT(port, lpgbtAddr, regAddr[i], [regDataA[i], regDataB[i], regDataC[i], regDataD[i]])
 
-        # while False:
-        #     fuseLpGBT(port, lpgbtAddr, regAddr[i], [regDataA[i], regDataB[i], regDataC[i], regDataD[i]])
+    else:
+        print("No action specified, exiting...")
+        sys.exit(0)
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Script for configuring the lpGBT and "
+                                                 "blowing its E-Fuses via USB-ISS Module")
+    parser.add_argument('lpgbtNum', metavar="lpGBT Number", type=int,
+                        help = 'Which control lpGBT to configure (must be 12 or 13)')
+    parser.add_argument('-c', '--configure', action='store_true', help='Configure the lpGBT via i2c.')
+    parser.add_argument('-f', '--fuse', action='store_true', help='Blow the E-Fuses on the lpGBT.')
+    args = parser.parse_args()
+
+    main(args)
