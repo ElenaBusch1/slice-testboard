@@ -1,7 +1,10 @@
-import serial, time
+import serial
+import time
 import serial.tools.list_ports as LP
-import sys, argparse
+import sys
+import argparse
 from platform import system
+
 
 def findPort():
     manufacturer = 'Devantech Ltd.'
@@ -97,8 +100,8 @@ def u16_to_bytes(val):
 
 def configureLpGBT(port, lpgbtAddr, regAddr, data):
     """Configure the lpGBT via the USB-ISS Module using its I2C interface"""
-    addrW = (lpgbtAddr << 1) | 0 # for writing
-    addrR = (lpgbtAddr << 1) | 1 # for reading
+    addrW = (lpgbtAddr << 1) | 0  # for writing
+    addrR = (lpgbtAddr << 1) | 1  # for reading
 
     # Assemble i2c command and send it to USB-ISS module
     regAddrHigh, regAddrLow = u16_to_bytes(regAddr)
@@ -110,10 +113,11 @@ def configureLpGBT(port, lpgbtAddr, regAddr, data):
     writeToUSBISS(port, writeMessage)
     readFromUSBISS(port)
 
+
 def fuseLpGBT(port, lpgbtAddr, regAddr, data):
     """Blow the lpGBT E-Fuses"""
-    addrW = (lpgbtAddr << 1) | 0 # for writing
-    addrR = (lpgbtAddr << 1) | 1 # for reading
+    addrW = (lpgbtAddr << 1) | 0  # for writing
+    addrR = (lpgbtAddr << 1) | 1  # for reading
 
     # Read/Write Registers
     FUSEControl   = 0x109
@@ -225,11 +229,11 @@ def fuseLpGBT(port, lpgbtAddr, regAddr, data):
     writeToUSBISS(port, writeMessage)
 
 
-def main(args):
+def main(pArgs):
 
-    if args.lpgbtNum == 12:
+    if pArgs.lpgbtNum == 12:
         lpgbtAddr = 0b1110010
-    elif args.lpgbtNum == 13:
+    elif pArgs.lpgbtNum == 13:
         lpgbtAddr = 0b1110011
     else:
         print("No valid control lpGBT specified, exiting...")
@@ -258,14 +262,14 @@ def main(args):
     regDataA = [ 0x00,  0xc8,  0x55,  0x05,  0x88,  0x0a,  0x00,  0x00,  0x1c,  0x1b,  0x00]
     regDataB = [ 0x00,  0x38,  0x55,  0x1b,  0x89,  0x0a,  0x00,  0x20,  0x00,  0x00,  0x00]
     regDataC = [ 0x00,  0x44,  0x55,  0x00,  0x99,  0x0a,  0x00,  0x00,  0x1a,  0x19,  0x00]
-    regDataD = [ 0x55,  0x55,  0x55,  0x00,  0x0a,  0x00,  0x00,  0x00,  0x00,  0x00,  0x06]
+    regDataD = [ 0x55,  0x55,  0x55,  0x00,  0x0a,  0x00,  0x00,  0x00,  0x00,  0x00,  0x07]
 
-    if args.configure:
+    if pArgs.configure:
         print("Configuring lpGBT...")
         for i in range(len(regAddr)):
             configureLpGBT(port, lpgbtAddr, regAddr[i], [regDataA[i], regDataB[i], regDataC[i], regDataD[i]])
 
-    elif args.fuse:
+    elif pArgs.fuse:
         if input("Continue to blowing E-Fuses? (y/n) ") != 'y':
             print("Exiting...")
             sys.exit(0)
@@ -283,7 +287,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Script for configuring the lpGBT and "
                                                  "blowing its E-Fuses via USB-ISS Module")
     parser.add_argument('lpgbtNum', metavar="lpGBT Number", type=int,
-                        help = 'Which control lpGBT to configure (must be 12 or 13)')
+                        help='Which control lpGBT to configure (must be 12 or 13)')
     parser.add_argument('-c', '--configure', action='store_true', help='Configure the lpGBT via i2c.')
     parser.add_argument('-f', '--fuse', action='store_true', help='Blow the E-Fuses on the lpGBT.')
     args = parser.parse_args()
