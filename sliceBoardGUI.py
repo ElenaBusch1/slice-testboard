@@ -3,7 +3,9 @@ import os
 import time
 import configparser
 import chipConfiguration as CC
+import dataParser
 import serialMod
+import sliceMod
 import status
 from functools import partial
 
@@ -35,10 +37,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.bytesize = 8
         self.timeout = 2
 
+        # Some version-dependent parameters/values
+        self.nSamples = 4093  # default number of samples to parse from standard readout
+        self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
+        self.dataWords = 32  # number of bytes for each data FPGA coutner increment
+
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
+        # Instance of dataParser class
+        dataParserConfig = "./config/dataConfig.cfg"
+        self.ODP = dataParser.dataParser(self, dataParserConfig)
+
+        # dict that will be filled with settings, like self.chips[chip][section][setting]
         self.chips = {}
         self.chipsConfig = os.path.join(os.path.abspath("."), "config", "chips.cfg")
 
@@ -209,3 +221,44 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog = QtWidgets.QErrorMessage(self)
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
+
+
+    def fifoAReadData(self):
+        """Requests measurement, moves data to buffer, and performs read operation"""
+
+        # 1) Send a start measurement command to the chip
+        # 2) Clear the serial buffer (MANDATORY!!!!!)
+        # 3) Fill the serial buffer with data from the chip
+        # 4) Read the data filled in the serial buffer
+        address = 1  # LpGBT address
+        self.status36.send()  # reset the rising edge
+        self.status36.sendStartMeasurement()
+        serialMod.flushBuffer(self, "36")  # not sure if we need to flush buffer, D.P.
+        # One analog measurement will return 16 bytes, thus ask for 2*number of samples requested
+        self.status36.sendFifoAOperation(2, int(2*(self.discarded+self.nSamples)), address=address)
+        time.sleep(0.01)  # Wait for data to be filled in the USB buffer
+        dataByteArray = serialMod.readFromChip(self, '36', self.dataWords*(self.discarded+self.nSamples))
+        self.status36.send()  # reset the rising edge
+        first = self.discarded * self.dataWords
+        last = (self.discarded + self.nSamples) * self.dataWords
+        return dataByteArray[first:last]
+
+
+    def takeSamples(self):
+        """Read and store output from VTRx+ 3 or 6"""
+        if not self.isConnected and not self.pArgs.no_connect:
+            self.showError("Board is not connected")
+            return
+
+        print("Reading data")
+        dataByteArray = self.fifoAReadData()
+
+        if self.pArgs.no_connect: return
+
+        dataString = sliceMod.byteArrayToString(dataByteArray)
+        dataStringChunks32 = "\n".join([dataString[i:i+32] for i in range(0, len(dataString), 32)])
+        dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
+        if self.pArgs.debug: print(dataStringChunks16)
+
+        self.ODP.parseData(self.nSamples, dataString)
+        self.ODP.writeDataToFile()

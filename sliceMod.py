@@ -1,6 +1,16 @@
 import time
 import serialMod
 
+
+#######################################################################
+# Short functions for conversions and operations
+
+def byteArrayToString(inputByteArray):
+    """Convert raw data readout to a python string object."""
+    outputString = ''.join([f"{byte:08b}" for byte in inputByteArray])
+    return outputString
+
+
 #######################################################################
 # Functions for communicating via IC frame
 
