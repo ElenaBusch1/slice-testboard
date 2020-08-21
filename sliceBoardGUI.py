@@ -209,3 +209,92 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog = QtWidgets.QErrorMessage(self)
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
+
+    def sendConfigurationsFromLpGBT(self, chipName, sectionName, primaryLpGBTAddress):
+        data = self.chips[chipName][sectionName].bits
+        addr = self.chips[chipName][sectionName].address
+        # loop over lpGBTS
+        # do WRITE_CR
+        # do 4 data fills (1st 2 words are register address, next 14 are data from .bits)
+            #change the last data bit each time
+        # do one 12C address to tell it which lpGBT to send to
+        # repeat until all sections/data bits have been sent, and all lpGBTs looped over
+
+    def u16_to_bytes(val):
+        byte1 = (val >> 8) & 0xff
+        byte0 = (val >> 0) & 0xff
+        return byte1, byte0
+
+
+    def LpGBT_IC_Write(self, primaryLpGBTAddress, nwords, data, memoryAddress):
+        # write to I2C, then reads back
+
+        self.status.send(self)
+
+        dpWriteAddress = '000000000001' #12
+        wordCount = f'{88:08b}' #8
+        downlinkSignalOperation = '11' #2
+        playOutFlag = '1' #1
+        playCount = '00001' #5
+        #overhead = 28
+        wordA = f'{0x7E:08b}' # frame delimter
+        rwBit = '0'
+        wordB = primaryLpGBTAddress+rwBit # I2C address of LpGBT12/13 (7 bits), rw
+        wordC = f'{0x00:08b}' # command
+        wordD1, wordD2 = u16_to_bytes(nwords) 
+        wordE1, wordE2 = u16_to_bytes(memoryAddress) # I2CM0Data0 memory address [15:8]
+        datawords = [data[8*i:8*(i+1)] for i in range(nwords)]
+
+        #Parity check
+        bitsToCheck = [wordC, wordD1, wordD2, wordE1, wordE2]
+        bitsToCheck[5:5] = datawords
+        parity = self.parity_gen(bitsToCheck)
+        print("parity: ")
+        print(parity)
+        wordG = f'{parity:08b}' #parity
+
+        wordAA = f'{0x7E:08b}' # frame delimiter
+
+        #
+        wordBlock = wordA[::-1]+\
+                    wordB[::-1]+\
+                    wordC[::-1]+\
+                    wordD1[::-1]+\
+                    wordD2[::-1]+\
+                    wordE1[::-1]+\
+                    wordE2[::-1]+\
+
+        for word in datawords:
+            wordBlock += word[::-1]
+
+        wordBlock += wordG[::-1]+\
+                     wordAA[::-1]
+        #
+        lpgbtControlBits = dpWriteAddress[::-1]+\
+                         wordCount[::-1]+\
+                         downlinkSignalOperation[::-1]+\
+                         playOutFlag[::-1]+\
+                         playCount[::-1]+\
+                         wordBlock
+
+        dataBitsToSend = lpgbtControlBits.ljust(280,'1')
+
+        #keep this
+        #dataBitsToSend = "".join(dataBitsSplit[::-1])
+        #dataBitsToSend = dataBitsToSend
+
+        #print(len(dataBitsToSend))
+        print(dataBitsToSend)
+        new_dataBitsToSend = []
+        for num in range(35):
+            #dataBitsToSend[0+num*8:8+num*8]  = dataBitsToSend[0+num*8:8+num*8][::-1]
+            #print(num,"\t",dataBitsToSend[0+num*8:8+num*8])
+            new_dataBitsToSend.append(dataBitsToSend[0+num*8:8+num*8][::-1])
+            print(num,"\t",dataBitsToSend[0+num*8:8+num*8][::-1]) #correct
+        dataBitsToSend = "".join(new_dataBitsToSend)
+
+        self.status.sendFifoAOperation(self,operation=1,counter=35,address=7)
+        serialMod.writeToChip(self,'A',dataBitsToSend)
+        self.status.sendStartControlOperation(self,operation=1,address=7)
+        self.status.send(self)  
+
