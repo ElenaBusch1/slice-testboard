@@ -49,9 +49,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
 
         self.testButton.clicked.connect(self.test)
+        self.test2Button.clicked.connect(self.test2)
 
         self.isConnected = False
         self.startup()
+        
+        # self.sendConfigurationsFromLpGBT()
 
 
     def test(self):
@@ -65,6 +68,46 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         f.write(f"{settingName}: {setting}\n")
                     f.write("\n")
                 f.write("\n")
+
+
+    def test2(self):
+
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(self.chipsConfig)
+
+        with open("data_write_test.txt", 'w') as f:
+            for (chipName, chipConfig) in self.chips.items():
+                if chipName.find('lauroc') == -1:
+                    continue
+                f.write(chipName + "\n")
+                cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chipName].split(',')]
+                chipType = '10'
+                controlLpGBT = '12'
+                i2cM = '01'
+                controlLpGBTbit = '0'
+                if (controlLpGBT == '13'):
+                    controlLpGBTbit = '1'
+                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_000  #header\n')
+                f.write(f'{i2cAddr}_0 #i2c\n')
+
+                dataBits = ''
+                wordCount = 1
+                for (sectionName, section) in chipConfig.items():
+                    data = self.chips[chipName][sectionName].bits
+                    addr = int(self.chips[chipName][sectionName].address)
+                    dataBits += f'{data}\n'
+                    if wordCount == 1:
+                        registerAddr = addr
+                    wordCount += 1
+
+                wordCountByte1 = f'{wordCount:08b}'
+                wordCountByte2 = '00000000'
+                f.write(f'{wordCountByte1}  #datawords {wordCount}\n')
+                f.write(f'{wordCountByte2}  #datawords {wordCount}\n')
+                f.write(f'{registerAddr:08b}   #first address\n')
+                f.write(dataBits)
+                f.write('\n')
 
 
     def startup(self):
@@ -210,21 +253,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
-    def sendConfigurationsFromLpGBT(self, chipName, sectionName, primaryLpGBTAddress):
-        data = self.chips[chipName][sectionName].bits
-        addr = self.chips[chipName][sectionName].address
-        # loop over lpGBTS
-        # do WRITE_CR
-        # do 4 data fills (1st 2 words are register address, next 14 are data from .bits)
-            #change the last data bit each time
-        # do one 12C address to tell it which lpGBT to send to
-        # repeat until all sections/data bits have been sent, and all lpGBTs looped over
-
-    def u16_to_bytes(val):
+    def u16_to_bytes(self, val):
         byte1 = (val >> 8) & 0xff
         byte0 = (val >> 0) & 0xff
         return byte1, byte0
-
 
     def LpGBT_IC_Write(self, primaryLpGBTAddress, nwords, data, memoryAddress):
         # write to I2C, then reads back
@@ -262,7 +294,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     wordD1[::-1]+\
                     wordD2[::-1]+\
                     wordE1[::-1]+\
-                    wordE2[::-1]+\
+                    wordE2[::-1]
 
         for word in datawords:
             wordBlock += word[::-1]
