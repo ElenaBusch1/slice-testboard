@@ -122,8 +122,11 @@ class Section(dict):
 
     def __setitem__(self, key, value):
         """Override setitem to show section has been updated"""
-        self.__dict__[key] = value
-        self.updated = True
+        if key not in self.keys():
+            raise KeyError
+        else:
+            self.update({key: value})
+            self.updated = True
 
 
 # class Setting:
