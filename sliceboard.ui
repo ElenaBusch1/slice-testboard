@@ -37,17 +37,56 @@
          <string>Test Button</string>
         </property>
        </widget>
-       <widget class="QPushButton" name="test2Button">
+       <widget class="QPushButton" name="laurocConfigsButton">
         <property name="geometry">
          <rect>
           <x>680</x>
           <y>271</y>
-          <width>141</width>
+          <width>181</width>
           <height>71</height>
          </rect>
         </property>
         <property name="text">
-         <string>Test 2 Button</string>
+         <string>Collect Lauroc Configs</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="dataLpGBTConfigsButton">
+        <property name="geometry">
+         <rect>
+          <x>680</x>
+          <y>360</y>
+          <width>201</width>
+          <height>71</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Collect data lpGBT Configs</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="controlLpGBTConfigsButton">
+        <property name="geometry">
+         <rect>
+          <x>680</x>
+          <y>450</y>
+          <width>211</width>
+          <height>71</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Collect control lpGBT Configs</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="colutaConfigsButton">
+        <property name="geometry">
+         <rect>
+          <x>680</x>
+          <y>180</y>
+          <width>181</width>
+          <height>71</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Collect Coluta Configs</string>
         </property>
        </widget>
       </widget>
