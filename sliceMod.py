@@ -1,15 +1,6 @@
 import time
 import serialMod
 
-########################################################################################
-# Short helper functions to do simple conversions and operations
-
-def binaryStringToDecimal(binaryString):
-    """Converts binary string to int."""
-    decimal = int(binaryString,2)
-    return decimal
-
-
 #######################################################################
 # Functions for communicating via IC frame
 
