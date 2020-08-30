@@ -134,28 +134,30 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #dataBitsList.append(controlBits[lsb:msb])
 
         # Then, we need to make and send i2c commands out of each these chunks
+        allBits = ''
         if tabName=='global':
             # For global bits, sub address is the I2C address
             for dataBits,subAddress in zip(dataBitsList,subAddressList):
-                serialResult = attemptWrite(coluta, dataBits, subAddress, address)
-                if coluta.pOptions.checkACK:
+                allBits += dataBits
+                #if coluta.pOptions.checkACK:
                     ### DP: Need to add check for main thread to show this error, otherwise we will have reentrancy issues
-                    if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
+                    #if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
 
         elif tabName.startswith('ch'):
             for dataBits,subAddress in zip(dataBitsList,subAddressList):
                 subAddrStr = '{0:06b}'.format(subAddress)
                 dataBits = makeI2CSubData(dataBits,'1','0',subAddrStr,f'{i2cAddress:08b}')
-                serialResult = attemptWrite(coluta, dataBits, 0, address)
-                if coluta.pOptions.checkACK:
+                allBits += dataBits
+                #serialResult = attemptWrite(chipName, dataBits, 0, address)
+                #if coluta.pOptions.checkACK:
                     ### DP: Need to add check for main thread to show this error, otherwise we will have reentrancy issues
-                    if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
+                    #if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
 
-        else:
-            coluta.showError('COLUTAMOD: Unknown configuration bits.')
-            serialResult = False
+        #else:
+            #coluta.showError('COLUTAMOD: Unknown configuration bits.')
+            #serialResult = False
 
-        return serialResult
+        return allBits
 
 
     def collectColutaConfigs(self):
@@ -172,23 +174,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 if (controlLpGBT == '13'):
                     controlLpGBTbit = '1'
                 #i2cAddr = f'{int(chipConfig.i2cAddress,0):010b}'
-                i2cAddr = '000'+ chipConfig.i2cAddress
+                i2cAddr = '0'+chipConfig.i2cAddress
                 f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
-                f.write(f'{i2cAddr[3:]}_0 #i2cAddr[6:0]_r/w\n')
+                f.write(f'{i2cAddr[3:11]}_0 #i2cAddr[6:0]_r/w\n')
 
                 wordCount = 0;
+                dataBits = ''
                 for (sectionName, section) in chipConfig.items():
-                    # databits = ''
-                    f.write(chipName + ", " + sectionName +"\n")
                     # data = self.chips[chipname][sectionname].bits
-                    # datawords = [data[8*i:8*(i+1)] for i in range(len(data)//8)]
-                    # for word in datawords:
-                    #     databits += f'{word}\n'
-                    # f.write(databits)
-                    # f.write('\n')
-                    dataBits = self.colutaI2CWriteControl(chipName, sectionName)
-                    f.write(databits)
-                    f.write('\n')
+                    data = self.colutaI2CWriteControl(chipName, sectionName)
+                    datawords = [data[8*i:8*(i+1)] for i in range(len(data)//8)]
+                    localWordCount = len(datawords)
+                    dataBits += (chipName + ", " + sectionName + ": " + str(localWordCount) + " words\n")
+                    for word in datawords:
+                        dataBits += f'{word}\n'
+                        wordCount += 1
+                    dataBits += '\n'
+                    
 
 
                 wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
@@ -550,4 +552,17 @@ def makeWishboneCommand(dataBits,i2cWR,STP,counter,tenBitMode,chipIdHi,wrBit,chi
     wbByte1 = tenBitMode+chipIdHi+wrBit # f0
     wbByte2 = chipIDLo+address 
     bitsToSend = wbTerminator+dataBits+wbByte2+wbByte1+wbByte0
+    return bitsToSend
+
+def attemptWrite(coluta,dataBitsToSend,i2cAddress,address):
+    nDataBytes = int(len(dataBitsToSend)/8)+2 # should be 10
+    nDataBytesStr = '{0:04b}'.format(nDataBytes)
+    i2cAddressStr = '{0:06b}'.format(i2cAddress)
+    bitsToSend = makeWishboneCommand(dataBitsToSend,'010','1',nDataBytesStr,'11110','00','0','01',i2cAddressStr)
+    #nByte = int(len(bitsToSend)/8) # should be 12
+    #coluta.status.send(coluta)
+    #coluta.status.sendFifoAOperation(coluta,1,nByte,address)
+    #serialResult = serialMod.writeToChip(coluta,'A',bitsToSend)
+    #coluta.status.sendI2Ccommand(coluta)
+
     return bitsToSend
