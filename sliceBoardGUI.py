@@ -52,7 +52,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.testButton.clicked.connect(self.test)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
-        # self.testButton.clicked.connect(copyConfig("lauroc13",None,["lauroc14"],None))
+
+        allLAUROC = ["lauroc"+f'{num}' for num in range(13,21)]
+        allDataLpGBT = ['lpgbt9', 'lpgbt10', 'lpgbt11', 'lpgbt14', 'lpgbt15', 'lpgbt16']
+        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13",None,allLAUROC,None))
+        self.copylpGBT12Button.clicked.connect(copyConfig("lpgbt12",None,['lpgbt13'],None))
+        self.lpgbt11CopyAllButton.clicked.connect(copyConfig("lpgbt11",None,allDataLpGBT,None))
         # self.testButton.clicked.connect(copyConfig("coluta13","ch1",["coluta13","coluta14"],["ch1","ch2"]))
 
         self.isConnected = False

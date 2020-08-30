@@ -18,7 +18,7 @@
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>3</number>
       </property>
       <widget class="QWidget" name="controlTab">
        <attribute name="title">
@@ -716,6 +716,19 @@
               </widget>
              </item>
             </layout>
+           </widget>
+           <widget class="QPushButton" name="LAUROC13CopyAllButton">
+            <property name="geometry">
+             <rect>
+              <x>800</x>
+              <y>590</y>
+              <width>113</width>
+              <height>32</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Copy to all</string>
+            </property>
            </widget>
           </widget>
           <widget class="QWidget" name="lauroc14">
@@ -63714,7 +63727,7 @@
          </rect>
         </property>
         <property name="currentIndex">
-         <number>0</number>
+         <number>2</number>
         </property>
         <widget class="QWidget" name="tab_24">
          <attribute name="title">
@@ -67199,6 +67212,19 @@
              </item>
             </layout>
            </widget>
+           <widget class="QPushButton" name="lpgbt11CopyAllButton">
+            <property name="geometry">
+             <rect>
+              <x>430</x>
+              <y>510</y>
+              <width>231</width>
+              <height>32</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Copy to all data lpGBT</string>
+            </property>
+           </widget>
           </widget>
           <widget class="QWidget" name="tab_94">
            <attribute name="title">
@@ -68361,7 +68387,7 @@
          <widget class="QTabWidget" name="lpgbtTab_2">
           <property name="geometry">
            <rect>
-            <x>0</x>
+            <x>10</x>
             <y>0</y>
             <width>1161</width>
             <height>661</height>
@@ -68744,6 +68770,19 @@
               </widget>
              </item>
             </layout>
+           </widget>
+           <widget class="QPushButton" name="copylpGBT12Button">
+            <property name="geometry">
+             <rect>
+              <x>430</x>
+              <y>510</y>
+              <width>281</width>
+              <height>32</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Copy to lpGBT13</string>
+            </property>
            </widget>
           </widget>
           <widget class="QWidget" name="tab_33">
@@ -76096,7 +76135,7 @@
      <x>0</x>
      <y>0</y>
      <width>1309</width>
-     <height>21</height>
+     <height>22</height>
     </rect>
    </property>
   </widget>
