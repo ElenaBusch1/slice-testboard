@@ -218,6 +218,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 i2cAddr = '000'+ chipConfig.i2cAddress
                 f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
                 f.write(f'{i2cAddr[3:]}_0 #i2cAddr[6:0]_r/w\n')
+                dataBitsToSend = ''
+                dataBitsToSend += f'{chipType}{controlLpGBTbit}{i2cM}{i2cAddr[:3]}'
+                dataBitsToSend += f'{i2cAddr[3:]}0'
 
                 dataBits = ''
                 wordCount = 1
@@ -235,8 +238,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(f'{registerAddr:08b}  #first address\n')
                 #if chipName.find('lpgbt') != -1:
 
+                dataBitsToSend += f'{wordCountByte1:08b}'
+                dataBitsToSend += f'{wordCountByte2:08b}'
+                dataBitsToSend += f'{registerAddr:08b}'
+                dataBitsToSend += dataBits
+
                 f.write(dataBits)
                 f.write('\n')
+
+        return dataBitsToSend
 
     def collectDataLpgbtConfigs(self):
 
@@ -258,6 +268,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     controlLpGBTbit = '1'
                 f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_000  #chipType_controlLpGBT_i2CMaster_000\n')
                 f.write(f'{chipConfig.i2cAddress}_0 #i2cAddr_r/w\n')
+                dataBitsToSend = f'{chipType}{controlLpGBTbit}{i2cM}000'
+                dataBitsToSend += f'{chipConfig.i2cAddress}0'
 
                 dataBits = ''
                 wordCount = 2
@@ -272,13 +284,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
                 f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
+                dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+
                 addr2, addr1 = u16_to_bytes(registerAddr)
                 f.write(f'{addr1:08b}  #first address [7:0]\n')
                 f.write(f'{addr2:08b}  #first address [15:8]\n')
+                dataBitsToSend += f'{addr1:08b}{addr2:08b}'
                 #if chipName.find('lpgbt') != -1:
 
                 f.write(dataBits)
+                dataBitsToSend += dataBits
                 f.write('\n')
+
+        return dataBitsToSend
 
     def collectControlLpgbtConfigs(self):
 
@@ -309,13 +327,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 f.write(f'{chipType}_{controlLpGBTbit}_{full_addr[:5]}  #chipType_controlLpGBT_1stReg[11:7]\n')
                 f.write(f'{full_addr[5:]}_0 #1stReg[6:0]_r/w\n')
+                dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
+                dataBitsToSend +=  f'{full_addr[5:]}0'
 
                 f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
+                dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
                 #if chipName.find('lpgbt') != -1:
 
                 f.write(dataBits)
+                dataBitsToSend += dataBits
                 f.write('\n')
+
+        return dataBitsToSend
 
 
     def startup(self):
@@ -461,8 +485,21 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
+    def LpGBT_IC_write(self, primaryLpGBTAddress, nwords, data):
 
-    def LpGBT_IC_Write(self, primaryLpGBTAddress, nwords, data, memoryAddress):
+        wordBlock = ''
+        for word in data:
+            wordBlock += word[::-1]
+        
+        #address = primary lpGBT address???
+
+        self.status.sendFifoAOperation(self,operation=1,counter=nwords,address=7)
+        serialMod.writeToChip(self,'A',wordBlock)
+        self.status.sendStartControlOperation(self,operation=1,address=7)
+        self.status.send(self)  
+
+
+    def LpGBT_I2C_Write(self, primaryLpGBTAddress, nwords, data, memoryAddress):
         # write to I2C, then reads back
 
         self.status.send(self)
