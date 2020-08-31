@@ -50,6 +50,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
 
         self.testButton.clicked.connect(self.test)
+        self.test2Button.clicked.connect(self.lpgbt_test)
+
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
         self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
@@ -72,6 +74,25 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         f.write(f"{settingName}: {setting}\n")
                     f.write("\n")
                 f.write("\n")
+
+
+    def lpgbt_test(self):
+        i2cAddr = f'{0xE0:08b}'
+        first_reg = f'{0x0E0:012b}'
+        dataBitsToSend = f'001{first_reg[:5]}'
+        dataBitsToSend += f'{first_reg[5:]}0'
+
+        data = '00000010'
+        data += '00000011'
+        data += '00000100'
+        wordCount = 3
+
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}'
+        dataBitsToSend += f'{wordCountByte2:08b}'
+        dataBitsToSend += data
+
+        self.LpGBT_IC_write(i2cAddr, wordCount, data)
 
 
     def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
@@ -493,40 +514,41 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         
         #address = primary lpGBT address???
 
-        self.status.sendFifoAOperation(self,operation=1,counter=nwords,address=7)
+        self.status.sendFifoAOperation(self,operation=1,counter=(len(data)//8),address=7)
         serialMod.writeToChip(self,'A',wordBlock)
         self.status.sendStartControlOperation(self,operation=1,address=7)
         self.status.send(self)  
 
 
-    def LpGBT_I2C_Write(self, primaryLpGBTAddress, nwords, data, memoryAddress):
+    def LpGBT_IC_REGWRRD(self, primaryLpGBTAddress, nwords, data, memoryAddress):
         # write to I2C, then reads back
 
         self.status.send(self)
+        dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
 
-        dpWriteAddress = '000000000001' #12
-        wordCount = f'{88:08b}' #8
-        downlinkSignalOperation = '11' #2
-        playOutFlag = '1' #1
-        playCount = '00001' #5
-        #overhead = 28
-        wordA = f'{0x7E:08b}' # frame delimter
-        rwBit = '0'
-        wordB = primaryLpGBTAddress+rwBit # I2C address of LpGBT12/13 (7 bits), rw
-        wordC = f'{0x00:08b}' # command
-        wordD1, wordD2 = u16_to_bytes(nwords) 
-        wordE1, wordE2 = u16_to_bytes(memoryAddress) # I2CM0Data0 memory address [15:8]
-        datawords = [data[8*i:8*(i+1)] for i in range(nwords)]
+        # dpWriteAddress = '000000000001' #12
+        # wordCount = f'{88:08b}' #8
+        # downlinkSignalOperation = '11' #2
+        # playOutFlag = '1' #1
+        # playCount = '00001' #5
+        # #overhead = 28
+        # wordA = f'{0x7E:08b}' # frame delimter
+        # rwBit = '0'
+        # wordB = primaryLpGBTAddress+rwBit # I2C address of LpGBT12/13 (7 bits), rw
+        # wordC = f'{0x00:08b}' # command
+        # wordD1, wordD2 = u16_to_bytes(nwords) 
+        # wordE1, wordE2 = u16_to_bytes(memoryAddress) # I2CM0Data0 memory address [15:8]
+        # datawords = [data[8*i:8*(i+1)] for i in range(nwords)]
 
         #Parity check
-        bitsToCheck = [wordC, wordD1, wordD2, wordE1, wordE2]
-        bitsToCheck[5:5] = datawords
-        parity = self.parity_gen(bitsToCheck)
-        print("parity: ")
-        print(parity)
-        wordG = f'{parity:08b}' #parity
+        # bitsToCheck = [wordC, wordD1, wordD2, wordE1, wordE2]
+        # bitsToCheck[5:5] = datawords
+        # parity = self.parity_gen(bitsToCheck)
+        # print("parity: ")
+        # print(parity)
+        # wordG = f'{parity:08b}' #parity
 
-        wordAA = f'{0x7E:08b}' # frame delimiter
+        # wordAA = f'{0x7E:08b}' # frame delimiter
 
         #
         wordBlock = wordA[::-1]+\
