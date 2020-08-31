@@ -37,7 +37,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
-        self.status36 = status.Status(self, "36")
+        # self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
         self.chips = {}
@@ -82,17 +82,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsToSend = f'001{first_reg[:5]}'
         dataBitsToSend += f'{first_reg[5:]}0'
 
-        data = '00000010'
-        data += '00000011'
-        data += '00000100'
-        wordCount = 3
+        
+        data = ''.join([f'{i:08b}' for i in range(1,15)])
+        #data += '00000010'
+        #data += '00000011'
+        #data += '00000100'
+        wordCount = 14
 
         wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
         dataBitsToSend += f'{wordCountByte1:08b}'
         dataBitsToSend += f'{wordCountByte2:08b}'
         dataBitsToSend += data
 
-        self.LpGBT_IC_write(i2cAddr, wordCount, data)
+        self.LpGBT_IC_write(i2cAddr, wordCount, dataBitsToSend)
 
 
     def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
@@ -371,15 +373,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # Real startup routine when board is connected
             # Find the ports and store the names
             portDict = serialMod.findPorts(self)
-            self.port36, self.port45 = portDict['AB46BJOXA'], portDict['AB470WYIA']
+            # self.port36, self.port45 = portDict['AB46BJOXA'], portDict['AB470WYIA']
+            self.port45 = portDict['AB46BJOXA']
             # Set up the serial connection to each port, pause, and test
-            self.serial36, self.serial45 = serialMod.setupSerials(self)
+            # self.serial36, self.serial45 = serialMod.setupSerials(self)
+            self.serial45 = serialMod.setupSerials(self)
             time.sleep(0.01)
             self.handshake()
             # Reset the status bits to zero, then reset FPGAs
-            self.status36.initializeUSB()
-            self.status36.send()
-            self.status36.sendSoftwareReset()
+            # self.status36.initializeUSB()
+            # self.status36.send()
+            # self.status36.sendSoftwareReset()
             self.status45.initializeUSB()
             self.status45.send()
             self.status45.sendSoftwareReset()
@@ -389,11 +393,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         """Checks the serial connections. Gives green status to valid ones"""
         A, B = serialMod.checkSerials(self)
         if A:
-            self.fifo36StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
-            self.fifo36StatusBox.setText("Connected")
+            pass
+            # self.fifo36StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
+            # self.fifo36StatusBox.setText("Connected")
         if B:
-            self.fifo45StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
-            self.fifo45StatusBox.setText("Connected")
+            pass
+            # self.fifo45StatusBox.setStyleSheet("background-color: rgb(0, 255, 0);")
+            # self.fifo45StatusBox.setText("Connected")
         if A and B:
             self.isConnected = True
 
@@ -508,16 +514,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def LpGBT_IC_write(self, primaryLpGBTAddress, nwords, data):
 
-        wordBlock = ''
-        for word in data:
-            wordBlock += word[::-1]
+        # wordBlock = ''
+        # for i in range(0,len(data)//8):
+        #     word = data[0+i*8:8+i*8][::-1]
+        #     wordBlock += word#[::-1]
+        wordBlock = ''.join([data[i:i+8] for i in range(0, len(data), 8)][::-1])
+        # wordBlock = data
         
         #address = primary lpGBT address???
 
-        self.status.sendFifoAOperation(self,operation=1,counter=(len(data)//8),address=7)
-        serialMod.writeToChip(self,'A',wordBlock)
-        self.status.sendStartControlOperation(self,operation=1,address=7)
-        self.status.send(self)  
+        self.status45.sendFifoAOperation(operation=1,counter=(len(data)//8),address=7)
+        serialMod.writeToChip(self,'45',wordBlock)
+        self.status45.sendStartControlOperation(operation=1,address=7)
+        self.status45.send()  
 
 
     def LpGBT_IC_REGWRRD(self, primaryLpGBTAddress, nwords, data, memoryAddress):
