@@ -2,6 +2,7 @@ from PyQt5 import uic, QtWidgets
 import os
 import time
 import configparser
+import numpy as np
 import chipConfiguration as CC
 import serialMod
 import status
@@ -49,9 +50,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
 
         self.testButton.clicked.connect(self.test)
+        self.test2Button.clicked.connect(self.lpgbt_test)
+
+        self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
+        self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
+        self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
+        self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
 
         self.isConnected = False
         self.startup()
+        
+        # self.sendConfigurationsFromLpGBT()
 
 
     def test(self):
@@ -65,6 +74,293 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         f.write(f"{settingName}: {setting}\n")
                     f.write("\n")
                 f.write("\n")
+
+
+    def lpgbt_test(self):
+        i2cAddr = f'{0xE0:08b}'
+        first_reg = f'{0x0E0:012b}'
+        dataBitsToSend = f'001{first_reg[:5]}'
+        dataBitsToSend += f'{first_reg[5:]}0'
+
+        data = '00000010'
+        data += '00000011'
+        data += '00000100'
+        wordCount = 3
+
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}'
+        dataBitsToSend += f'{wordCountByte2:08b}'
+        dataBitsToSend += data
+
+        self.LpGBT_IC_write(i2cAddr, wordCount, data)
+
+
+    def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
+        """Same as fifoAWriteControl(), except for I2C."""
+        #category = chipConfig[tabName]
+        category = self.chips[chipName][tabName]
+        address = category.address # FPGA address, '0' for I2C
+        if broadcast:
+            if int(tabName[-1]) <= 4:
+                i2cAddress = 15<<0  #  15 = 00001111
+            else:
+                i2cAddress = 15<<4  # 240 = 11110000
+        else:
+            i2cAddress = 8 #int(category.i2cAddress) # I2C address, '8' for global
+        controlBits = category.bits
+
+        # Based on the I2C configurations split the data byte into chunks
+        # For the global configuration bits, the subaddress are 8,16
+        # For the channel configuration bits, 
+        # the subaddresses are 0,3,6,9,12,15,18,21,24,27,30,31
+        if tabName=='global':
+            split = 64
+            subAddressList = [8*(i+1) for i in range( int( np.floor(len(controlBits)/split) ) )]
+            overlapLSBIndex = 64
+
+        elif tabName=='readonly__':
+            return
+
+        elif tabName.startswith('ch'):
+            split = 48
+            subAddressList = [3*i for i in range( int( np.floor(len(controlBits)/split) ) )]
+            subAddressList.append( int( (len(controlBits)-split)/16 ) ) # Adds the subaddress '31'
+            overlapLSBIndex = 496
+
+        else:
+            coluta.showError('COLUTAMOD: Unknown configuration, cannot split into data chunks')
+            return
+
+        # Arrange the subaddress list MSB->LSB
+        subAddressList.reverse()
+
+        # We then need to split up control data which has more than 64 bits. We still only 
+        # have 64 bits to use, but 16 of these bits are then needed for sub-address, etc.
+        # Therefore, we will split into chuncks of 48 bits and send N/48 I2C commands. If
+        # the number of bits is not a multiple of split, we use bits from previous I2C command
+        # to get 48 bits for the I2C command.
+        # Create the list of the MSB indices
+        #LSBBitList = [ split*i if (len(controlBits)-split*(i+1)>0) else overlapLSBIndex for i in range(len(subAddressList))]
+        MSBBitList = [ len(controlBits)-split*(i+1) if (len(controlBits)-split*(i+1)>0) else 0 for i in range(len(subAddressList))] #previous commit
+        MSBBitList.reverse()
+
+        # Create the list of LSB indices
+        LSBBitList = [ msb+split for msb in MSBBitList]
+        #MSBBitList = [ lsb+split for lsb in LSBBitList]
+
+        # Create the list of data bits to send 
+        dataBitsList = []
+        for msb,lsb in zip(MSBBitList,LSBBitList):
+            dataBitsList.append(controlBits[msb:lsb])
+            #dataBitsList.append(controlBits[lsb:msb])
+
+        # Then, we need to make and send i2c commands out of each these chunks
+        allBits = ''
+        if tabName=='global':
+            # For global bits, sub address is the I2C address
+            for dataBits,subAddress in zip(dataBitsList,subAddressList):
+                allBits += dataBits
+                #if coluta.pOptions.checkACK:
+                    ### DP: Need to add check for main thread to show this error, otherwise we will have reentrancy issues
+                    #if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
+
+        elif tabName.startswith('ch'):
+            for dataBits,subAddress in zip(dataBitsList,subAddressList):
+                subAddrStr = '{0:06b}'.format(subAddress)
+                dataBits = makeI2CSubData(dataBits,'1','0',subAddrStr,f'{i2cAddress:08b}')
+                allBits += dataBits
+                #serialResult = attemptWrite(chipName, dataBits, 0, address)
+                #if coluta.pOptions.checkACK:
+                    ### DP: Need to add check for main thread to show this error, otherwise we will have reentrancy issues
+                    #if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
+
+        #else:
+            #coluta.showError('COLUTAMOD: Unknown configuration bits.')
+            #serialResult = False
+
+        return allBits
+
+
+    def collectColutaConfigs(self):
+
+        with open("coluta_configs.txt", 'w') as f:
+            for (chipName, chipConfig) in self.chips.items():
+                if chipName.find('coluta') == -1:
+                    continue
+                f.write(chipName + "\n")
+                chipType = f'{int(chipConfig.chipType):02b}'
+                controlLpGBT = chipConfig.lpgbtMaster
+                i2cM = f'{int(chipConfig.i2cMaster):02b}'
+                controlLpGBTbit = '0'
+                if (controlLpGBT == '13'):
+                    controlLpGBTbit = '1'
+                #i2cAddr = f'{int(chipConfig.i2cAddress,0):010b}'
+                i2cAddr = '0'+chipConfig.i2cAddress
+                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
+                f.write(f'{i2cAddr[3:11]}_0 #i2cAddr[6:0]_r/w\n')
+
+                wordCount = 0;
+                dataBits = ''
+                for (sectionName, section) in chipConfig.items():
+                    # data = self.chips[chipname][sectionname].bits
+                    data = self.colutaI2CWriteControl(chipName, sectionName)
+                    datawords = [data[8*i:8*(i+1)] for i in range(len(data)//8)]
+                    localWordCount = len(datawords)
+                    dataBits += (chipName + ", " + sectionName + ": " + str(localWordCount) + " words\n")
+                    for word in datawords:
+                        dataBits += f'{word}\n'
+                        wordCount += 1
+                    dataBits += '\n'
+                    
+
+
+                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+                f.write(f'{wordCountByte1:08b}  #datawords {wordCount}\n')
+                f.write(f'{wordCountByte2:08b}  #datawords {wordCount}\n')
+                #if chipName.find('lpgbt') != -1:
+
+                f.write(dataBits)
+                f.write('\n')
+
+    def collectLaurocConfigs(self):
+
+        with open("lauroc_configs.txt", 'w') as f:
+            for (chipName, chipConfig) in self.chips.items():
+                if chipName.find('lauroc') == -1:
+                    continue
+                f.write(chipName + "\n")
+                chipType = f'{int(chipConfig.chipType):02b}'
+                controlLpGBT = chipConfig.lpgbtMaster
+                i2cM = f'{int(chipConfig.i2cMaster):02b}'
+                controlLpGBTbit = '0'
+                if (controlLpGBT == '13'):
+                    controlLpGBTbit = '1'
+                #i2cAddr = f'{int(chipConfig.i2cAddress,0):010b}'
+                i2cAddr = '000'+ chipConfig.i2cAddress
+                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
+                f.write(f'{i2cAddr[3:]}_0 #i2cAddr[6:0]_r/w\n')
+                dataBitsToSend = ''
+                dataBitsToSend += f'{chipType}{controlLpGBTbit}{i2cM}{i2cAddr[:3]}'
+                dataBitsToSend += f'{i2cAddr[3:]}0'
+
+                dataBits = ''
+                wordCount = 1
+                for (sectionName, section) in chipConfig.items():
+                    data = self.chips[chipName][sectionName].bits
+                    addr = int(self.chips[chipName][sectionName].address,0)
+                    dataBits += f'{data}\n'
+                    if wordCount == 1:
+                        registerAddr = addr
+                    wordCount += 1
+
+                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+                f.write(f'{wordCountByte1:08b}  #datawords {wordCount}\n')
+                f.write(f'{wordCountByte2:08b}  #datawords {wordCount}\n')
+                f.write(f'{registerAddr:08b}  #first address\n')
+                #if chipName.find('lpgbt') != -1:
+
+                dataBitsToSend += f'{wordCountByte1:08b}'
+                dataBitsToSend += f'{wordCountByte2:08b}'
+                dataBitsToSend += f'{registerAddr:08b}'
+                dataBitsToSend += dataBits
+
+                f.write(dataBits)
+                f.write('\n')
+
+        return dataBitsToSend
+
+    def collectDataLpgbtConfigs(self):
+
+        with open("data_lpgbt_configs.txt", 'w') as f:
+            for (chipName, chipConfig) in self.chips.items():
+                if chipName.find('lpgbt') == -1:
+                    continue
+                if (chipName.find('lpgbt12') != -1 or chipName.find('lpgbt13') != -1):
+                    continue
+                f.write(chipName + "\n")
+                chipType = f'{int(chipConfig.chipType):02b}'
+                controlLpGBT = chipConfig.lpgbtMaster
+                try:
+                    i2cM = f'{int(chipConfig.i2cMaster):02b}'
+                except:
+                    i2cM = 'EC'
+                controlLpGBTbit = '0'
+                if (controlLpGBT == '13'):
+                    controlLpGBTbit = '1'
+                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_000  #chipType_controlLpGBT_i2CMaster_000\n')
+                f.write(f'{chipConfig.i2cAddress}_0 #i2cAddr_r/w\n')
+                dataBitsToSend = f'{chipType}{controlLpGBTbit}{i2cM}000'
+                dataBitsToSend += f'{chipConfig.i2cAddress}0'
+
+                dataBits = ''
+                wordCount = 2
+                for (sectionName, section) in chipConfig.items():
+                    data = self.chips[chipName][sectionName].bits
+                    addr = int(self.chips[chipName][sectionName].address,0)
+                    dataBits += f'{data}\n'
+                    if wordCount == 2:
+                        registerAddr = addr
+                    wordCount += 1
+
+                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+                f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
+                f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
+                dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+
+                addr2, addr1 = u16_to_bytes(registerAddr)
+                f.write(f'{addr1:08b}  #first address [7:0]\n')
+                f.write(f'{addr2:08b}  #first address [15:8]\n')
+                dataBitsToSend += f'{addr1:08b}{addr2:08b}'
+                #if chipName.find('lpgbt') != -1:
+
+                f.write(dataBits)
+                dataBitsToSend += dataBits
+                f.write('\n')
+
+        return dataBitsToSend
+
+    def collectControlLpgbtConfigs(self):
+
+        with open("control_lpgbt_configs.txt", 'w') as f:
+            for (chipName, chipConfig) in self.chips.items():
+                if (chipName != 'lpgbt12' and chipName != 'lpgbt13'):
+                    continue
+                f.write(chipName + "\n")
+                chipType = f'{int(chipConfig.chipType):02b}'
+                controlLpGBT = chipConfig.lpgbtMaster
+                controlLpGBTbit = '0'
+                if (controlLpGBT == '13'):
+                    controlLpGBTbit = '1'
+
+                dataBits = ''
+                wordCount = 0
+                for (sectionName, section) in chipConfig.items():
+                    data = self.chips[chipName][sectionName].bits
+                    addr = int(self.chips[chipName][sectionName].address,0)
+                    dataBits += f'{data}\n'
+                    if wordCount == 0:
+                        #registerAddr = addr
+                        registerAddr = 0x1ce
+                    wordCount += 1
+
+                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+                full_addr = f'{registerAddr:012b}'
+
+                f.write(f'{chipType}_{controlLpGBTbit}_{full_addr[:5]}  #chipType_controlLpGBT_1stReg[11:7]\n')
+                f.write(f'{full_addr[5:]}_0 #1stReg[6:0]_r/w\n')
+                dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
+                dataBitsToSend +=  f'{full_addr[5:]}0'
+
+                f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
+                f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
+                dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+                #if chipName.find('lpgbt') != -1:
+
+                f.write(dataBits)
+                dataBitsToSend += dataBits
+                f.write('\n')
+
+        return dataBitsToSend
 
 
     def startup(self):
@@ -109,8 +405,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         config.read(self.chipsConfig)
 
         for chip in config["Chips"]:
-            cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chip].split(',')]
-            self.chips[chip] = CC.Configuration(self, cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr)
+            cfgFile, specFile, chipType, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chip].split(',')]
+            self.chips[chip] = CC.Configuration(self, cfgFile, specFile, chipType, lpgbtMaster, i2cMaster, i2cAddr)
 
         self.updateGUIText()
 
@@ -209,3 +505,123 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog = QtWidgets.QErrorMessage(self)
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
+
+    def LpGBT_IC_write(self, primaryLpGBTAddress, nwords, data):
+
+        wordBlock = ''
+        for word in data:
+            wordBlock += word[::-1]
+        
+        #address = primary lpGBT address???
+
+        self.status.sendFifoAOperation(self,operation=1,counter=(len(data)//8),address=7)
+        serialMod.writeToChip(self,'A',wordBlock)
+        self.status.sendStartControlOperation(self,operation=1,address=7)
+        self.status.send(self)  
+
+
+    def LpGBT_IC_REGWRRD(self, primaryLpGBTAddress, nwords, data, memoryAddress):
+        # write to I2C, then reads back
+
+        self.status.send(self)
+        dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
+
+        # dpWriteAddress = '000000000001' #12
+        # wordCount = f'{88:08b}' #8
+        # downlinkSignalOperation = '11' #2
+        # playOutFlag = '1' #1
+        # playCount = '00001' #5
+        # #overhead = 28
+        # wordA = f'{0x7E:08b}' # frame delimter
+        # rwBit = '0'
+        # wordB = primaryLpGBTAddress+rwBit # I2C address of LpGBT12/13 (7 bits), rw
+        # wordC = f'{0x00:08b}' # command
+        # wordD1, wordD2 = u16_to_bytes(nwords) 
+        # wordE1, wordE2 = u16_to_bytes(memoryAddress) # I2CM0Data0 memory address [15:8]
+        # datawords = [data[8*i:8*(i+1)] for i in range(nwords)]
+
+        #Parity check
+        # bitsToCheck = [wordC, wordD1, wordD2, wordE1, wordE2]
+        # bitsToCheck[5:5] = datawords
+        # parity = self.parity_gen(bitsToCheck)
+        # print("parity: ")
+        # print(parity)
+        # wordG = f'{parity:08b}' #parity
+
+        # wordAA = f'{0x7E:08b}' # frame delimiter
+
+        #
+        wordBlock = wordA[::-1]+\
+                    wordB[::-1]+\
+                    wordC[::-1]+\
+                    wordD1[::-1]+\
+                    wordD2[::-1]+\
+                    wordE1[::-1]+\
+                    wordE2[::-1]
+
+        for word in datawords:
+            wordBlock += word[::-1]
+
+        wordBlock += wordG[::-1]+\
+                     wordAA[::-1]
+        #
+        lpgbtControlBits = dpWriteAddress[::-1]+\
+                         wordCount[::-1]+\
+                         downlinkSignalOperation[::-1]+\
+                         playOutFlag[::-1]+\
+                         playCount[::-1]+\
+                         wordBlock
+
+        dataBitsToSend = lpgbtControlBits.ljust(280,'1')
+
+        #keep this
+        #dataBitsToSend = "".join(dataBitsSplit[::-1])
+        #dataBitsToSend = dataBitsToSend
+
+        #print(len(dataBitsToSend))
+        print(dataBitsToSend)
+        new_dataBitsToSend = []
+        for num in range(35):
+            #dataBitsToSend[0+num*8:8+num*8]  = dataBitsToSend[0+num*8:8+num*8][::-1]
+            #print(num,"\t",dataBitsToSend[0+num*8:8+num*8])
+            new_dataBitsToSend.append(dataBitsToSend[0+num*8:8+num*8][::-1])
+            print(num,"\t",dataBitsToSend[0+num*8:8+num*8][::-1]) #correct
+        dataBitsToSend = "".join(new_dataBitsToSend)
+
+        self.status.sendFifoAOperation(self,operation=1,counter=35,address=7)
+        serialMod.writeToChip(self,'A',dataBitsToSend)
+        self.status.sendStartControlOperation(self,operation=1,address=7)
+        self.status.send(self)  
+
+## Helper functions
+def u16_to_bytes(val):
+    byte1 = (val >> 8) & 0xff
+    byte0 = (val >> 0) & 0xff
+    return byte1, byte0
+
+def makeI2CSubData(dataBits,wrFlag,readBackMux,subAddress,adcSelect):
+    '''Combines the control bits and adds them to the internal address'''
+    # {{dataBitsSubset}, {wrFlag,readBackMux,subAddress}, {adcSelect}}, pad with zeros
+    return (dataBits+wrFlag+readBackMux+subAddress+adcSelect).zfill(64)
+
+def makeWishboneCommand(dataBits,i2cWR,STP,counter,tenBitMode,chipIdHi,wrBit,chipIDLo,address):
+    '''Arrange bits in the Wishbone standard order.'''
+    wbTerminator = '00000000'
+    wbByte0 = i2cWR+STP+counter # 5a
+    wbByte1 = tenBitMode+chipIdHi+wrBit # f0
+    wbByte2 = chipIDLo+address 
+    bitsToSend = wbTerminator+dataBits+wbByte2+wbByte1+wbByte0
+    return bitsToSend
+
+def attemptWrite(coluta,dataBitsToSend,i2cAddress,address):
+    nDataBytes = int(len(dataBitsToSend)/8)+2 # should be 10
+    nDataBytesStr = '{0:04b}'.format(nDataBytes)
+    i2cAddressStr = '{0:06b}'.format(i2cAddress)
+    bitsToSend = makeWishboneCommand(dataBitsToSend,'010','1',nDataBytesStr,'11110','00','0','01',i2cAddressStr)
+    #nByte = int(len(bitsToSend)/8) # should be 12
+    #coluta.status.send(coluta)
+    #coluta.status.sendFifoAOperation(coluta,1,nByte,address)
+    #serialResult = serialMod.writeToChip(coluta,'A',bitsToSend)
+    #coluta.status.sendI2Ccommand(coluta)
+
+    return bitsToSend
