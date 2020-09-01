@@ -52,13 +52,27 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.testButton.clicked.connect(self.test)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
+        allLAUROCs = ["lauroc13", "lauroc14", "lauroc15", "lauroc16", "lauroc17", "lauroc18", "lauroc19", "lauroc20"]
+        allCOLUTAs = ["coluta13", "coluta14", "coluta15", "coluta16", "coluta17", "coluta18", "coluta19", "coluta20"]
+        allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
+        allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
+        allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
+        allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-        allLAUROC = ["lauroc"+f'{num}' for num in range(13,21)]
-        allDataLpGBT = ['lpgbt9', 'lpgbt10', 'lpgbt11', 'lpgbt14', 'lpgbt15', 'lpgbt16']
-        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13",None,allLAUROC,None))
-        self.copylpGBT12Button.clicked.connect(copyConfig("lpgbt12",None,['lpgbt13'],None))
-        self.lpgbt11CopyAllButton.clicked.connect(copyConfig("lpgbt11",None,allDataLpGBT,None))
-        # self.testButton.clicked.connect(copyConfig("coluta13","ch1",["coluta13","coluta14"],["ch1","ch2"]))
+        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, allLAUROCs, None))
+
+        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", allCOLUTAs, ["global"]))
+
+        self.COLUTA13CopyDRETo13Button.clicked.connect(copyConfig("coluta13", "ch1", ["coluta13"], allDREChannels))
+        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, ["ch1"]))
+        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, allDREChannels))
+
+        self.COLUTA13CopyMDACTo13Button.clicked.connect(copyConfig("coluta13", "ch5", ["coluta13"], allMDACChannels))
+        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, ["ch5"]))
+        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, allMDACChannels))
+
+        self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
+        self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
 
         self.isConnected = False
         self.startup()
