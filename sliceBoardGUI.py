@@ -52,8 +52,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.testButton.clicked.connect(self.test)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
-        allLAUROCs = ["lauroc13", "lauroc14", "lauroc15", "lauroc16", "lauroc17", "lauroc18", "lauroc19", "lauroc20"]
-        allCOLUTAs = ["coluta13", "coluta14", "coluta15", "coluta16", "coluta17", "coluta18", "coluta19", "coluta20"]
+        allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
+        allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
         allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
         allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
