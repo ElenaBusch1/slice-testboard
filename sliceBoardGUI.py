@@ -223,7 +223,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.setWindowTitle("Error")
 
 
-    def fifoAReadData(self):
+    def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
 
         # 1) Send a start measurement command to the chip
@@ -231,14 +231,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # 3) Fill the serial buffer with data from the chip
         # 4) Read the data filled in the serial buffer
         address = 1  # LpGBT address
-        self.status36.send()  # reset the rising edge
-        self.status36.sendStartMeasurement()
-        serialMod.flushBuffer(self, "36")  # not sure if we need to flush buffer, D.P.
+        status = getattr(self, "status" + port)
+        status.send()  # reset the rising edge
+        status.sendStartMeasurement()
+        serialMod.flushBuffer(self, port)  # not sure if we need to flush buffer, D.P.
         # One analog measurement will return 16 bytes, thus ask for 2*number of samples requested
-        self.status36.sendFifoAOperation(2, int(2*(self.discarded+self.nSamples)), address=address)
+        status.sendFifoAOperation(2, int(2*(self.discarded+self.nSamples)), address=address)
         time.sleep(0.01)  # Wait for data to be filled in the USB buffer
-        dataByteArray = serialMod.readFromChip(self, '36', self.dataWords*(self.discarded+self.nSamples))
-        self.status36.send()  # reset the rising edge
+        dataByteArray = serialMod.readFromChip(self, port, self.dataWords*(self.discarded+self.nSamples))
+        status.send()  # reset the rising edge
         first = self.discarded * self.dataWords
         last = (self.discarded + self.nSamples) * self.dataWords
         return dataByteArray[first:last]
@@ -251,7 +252,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             return
 
         print("Reading data")
-        dataByteArray = self.fifoAReadData()
+        dataByteArray = self.fifoAReadData("36")
 
         if self.pArgs.no_connect: return
 
