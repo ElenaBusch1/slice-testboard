@@ -7,6 +7,7 @@ import chipConfiguration as CC
 import serialMod
 import status
 from functools import partial
+from collections import OrderedDict
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -56,6 +57,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
         self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
         self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
+
+        #Configuration Buttons
+        self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
 
         self.isConnected = False
         self.startup()
@@ -337,13 +341,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 dataBits = ''
                 wordCount = 0
                 for (sectionName, section) in chipConfig.items():
-                    data = self.chips[chipName][sectionName].bits
-                    addr = int(self.chips[chipName][sectionName].address,0)
-                    dataBits += f'{data}\n'
-                    if wordCount == 0:
-                        #registerAddr = addr
-                        registerAddr = 0x1ce
-                    wordCount += 1
+                    if section.updated:
+                        data = self.chips[chipName][sectionName].bits
+                        addr = int(self.chips[chipName][sectionName].address,0)
+                        dataBits += f'{data}\n'
+                        if wordCount == 0:
+                            #registerAddr = addr
+                            registerAddr = 0x1ce
+                        wordCount += 1
 
                 wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
                 full_addr = f'{registerAddr:012b}'
@@ -363,6 +368,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write('\n')
 
         return dataBitsToSend
+
+
+    #def sendLAUROCConfigs():
 
 
     def startup(self):
@@ -504,6 +512,58 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print(f"Could not find setting box {boxName}")
         self.chips[chipName].setConfiguration(sectionName, settingName, binary)
         print(f"Updated {chipName} {sectionName}, {settingName}: {binary}")
+
+
+    def sendUpdatedConfigurations(self):
+        for (chipName, chipConfig) in self.chips.items():
+            updates = {}
+            for (sectionName, section) in chipConfig.items():
+                #for (settingName, setting) in section.items():
+                #category = configurations[categoryName]
+                if section.updated:
+                    addr = int(self.chips[chipName][sectionName].address,0)
+                    data =  self.chips[chipName][sectionName].bits
+                    updates[sectionName] = [addr,data]
+                    print('Updating',chipName,sectionName,sep=' ')
+                    section.updated = False
+                #if True:
+            orderedUpdates = OrderedDict(sorted(updates.items(), key = lambda t:t[1][0]))
+            #addrs = [val[0] for val in orderedUpdates.values()]
+            addrs = [2,3,10,25,30,70]
+            addrGroups, last = [[]], None
+            for addr in addrs:
+                if last is None or abs(last - addr) <= 14:
+                    addrGroups[-1].append(addr)
+                else:
+                    addrGroups.append([addr])
+                last = addr
+            print(addrGroups)
+
+                    # # if self.debug:
+                    # print('Updating',chipName,sectionName,sep=' ')
+                    # if 'lauroc' in chipName:
+                    #     #self.configureLAUROC()
+                    #     print(self.chips[chipName][sectionName].bits)
+                    #     #category.updated = False
+                    # elif 'coluta' in chipName:
+                    #     #self.configureCOLUTA()
+                    #     #category.sendUpdatedConfiguration(category.isI2C)
+                    #     #category.updated = False
+                    #     print(self.chips[chipName][sectionName].bits)
+                    # elif 'lpgbt13' == chipName or 'lpgbt12' == chipName:
+                    #     #self.configureControllpGBT()
+                    #     print(self.chips[chipName][sectionName].bits)
+                    #     #category.updated = False
+                    # elif 'lpgbt' in chipName:
+                    #     #self.configureDatalpGBT()
+                    #     print(self.chips[chipName][sectionName].bits)
+                    #     #category.updated = False
+                    # else:
+                    #     # should send LAUROC configurations
+                    #     print(f'Chip name not found : {chipName}')
+                    #     continue
+                    #     # category.sendUpdatedConfiguration(category.isI2C)
+                    # section.updated = False
 
 
     def showError(self, message):
