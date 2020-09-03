@@ -228,6 +228,30 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(dataBits)
                 f.write('\n')
 
+    def sendCOLUTAConfigs(self, chipName, wordCount, dataBits):
+
+        chipConfig = self.chips[chipName]
+        if chipName.find('coluta') == -1:
+            return
+        chipType = f'{int(chipConfig.chipType):02b}'
+        controlLpGBT = chipConfig.lpgbtMaster
+        i2cM = f'{int(chipConfig.i2cMaster):02b}'
+        controlLpGBTbit = '0'
+        if (controlLpGBT == '13'):
+            controlLpGBTbit = '1'
+        i2cAddr = '0'+chipConfig.i2cAddress
+        #header
+        dataBitsToSend = f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}'
+        dataBitsToSend += f'{i2cAddr[3:11]}0'
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}  #datawords {wordCount}'
+        dataBitsToSend += f'{wordCountByte2:08b}  #datawords {wordCount}'
+
+        ## This is not correct!! need
+        dataBitsToSend += dataBits
+
+        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+
     def collectLaurocConfigs(self):
 
         with open("lauroc_configs.txt", 'w') as f:
@@ -245,9 +269,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 i2cAddr = '000'+ chipConfig.i2cAddress
                 f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
                 f.write(f'{i2cAddr[3:]}_0 #i2cAddr[6:0]_r/w\n')
-                dataBitsToSend = ''
-                dataBitsToSend += f'{chipType}{controlLpGBTbit}{i2cM}{i2cAddr[:3]}'
-                dataBitsToSend += f'{i2cAddr[3:]}0'
 
                 dataBits = ''
                 wordCount = 1
@@ -265,15 +286,35 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(f'{registerAddr:08b}  #first address\n')
                 #if chipName.find('lpgbt') != -1:
 
-                dataBitsToSend += f'{wordCountByte1:08b}'
-                dataBitsToSend += f'{wordCountByte2:08b}'
-                dataBitsToSend += f'{registerAddr:08b}'
-                dataBitsToSend += dataBits
-
                 f.write(dataBits)
                 f.write('\n')
 
-        return dataBitsToSend
+
+    def sendLAUROCConfigs(self, chipName, wordCount, registerAddr, dataBits):
+
+        chipConfig = self.chips[chipName]
+        if chipName.find('lauroc') == -1:
+            return
+        chipType = f'{int(chipConfig.chipType):02b}'
+        controlLpGBT = chipConfig.lpgbtMaster
+        i2cM = f'{int(chipConfig.i2cMaster):02b}'
+        controlLpGBTbit = '0'
+        if (controlLpGBT == '13'):
+            controlLpGBTbit = '1'
+        i2cAddr = '000'+ chipConfig.i2cAddress
+        dataBitsToSend = ''
+        dataBitsToSend += f'{chipType}{controlLpGBTbit}{i2cM}{i2cAddr[:3]}'
+        dataBitsToSend += f'{i2cAddr[3:]}0'
+
+        wordCount += 1
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+
+        dataBitsToSend += f'{wordCountByte1:08b}'
+        dataBitsToSend += f'{wordCountByte2:08b}'
+        dataBitsToSend += f'{registerAddr:08b}'
+        dataBitsToSend += dataBits
+
+        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
     def collectDataLpgbtConfigs(self):
 
@@ -295,8 +336,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     controlLpGBTbit = '1'
                 f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_000  #chipType_controlLpGBT_i2CMaster_000\n')
                 f.write(f'{chipConfig.i2cAddress}_0 #i2cAddr_r/w\n')
-                dataBitsToSend = f'{chipType}{controlLpGBTbit}{i2cM}000'
-                dataBitsToSend += f'{chipConfig.i2cAddress}0'
 
                 dataBits = ''
                 wordCount = 2
@@ -311,19 +350,46 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
                 f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
-                dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
 
                 addr2, addr1 = u16_to_bytes(registerAddr)
                 f.write(f'{addr1:08b}  #first address [7:0]\n')
                 f.write(f'{addr2:08b}  #first address [15:8]\n')
-                dataBitsToSend += f'{addr1:08b}{addr2:08b}'
                 #if chipName.find('lpgbt') != -1:
 
                 f.write(dataBits)
-                dataBitsToSend += dataBits
                 f.write('\n')
 
-        return dataBitsToSend
+
+    def sendDataLpgbtConfigs(self, chipName, wordCount, registerAddr, dataBits):
+
+        chipConfig = self.chips[chipName]
+        if chipName.find('lpgbt') == -1:
+            return
+        if (chipName.find('lpgbt12') != -1 or chipName.find('lpgbt13') != -1):
+            return
+        chipType = f'{int(chipConfig.chipType):02b}'
+        controlLpGBT = chipConfig.lpgbtMaster
+        try:
+            i2cM = f'{int(chipConfig.i2cMaster):02b}'
+        except:
+            i2cM = 'EC'
+        controlLpGBTbit = '0'
+        if (controlLpGBT == '13'):
+            controlLpGBTbit = '1'
+
+        dataBitsToSend = f'{chipType}{controlLpGBTbit}{i2cM}000'
+        dataBitsToSend += f'{chipConfig.i2cAddress}0'
+
+        wordCount += 2
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+
+        addr2, addr1 = u16_to_bytes(registerAddr)
+        dataBitsToSend += f'{addr1:08b}{addr2:08b}'
+
+        dataBitsToSend += dataBits
+
+        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
     def collectControlLpgbtConfigs(self):
 
@@ -355,23 +421,39 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 f.write(f'{chipType}_{controlLpGBTbit}_{full_addr[:5]}  #chipType_controlLpGBT_1stReg[11:7]\n')
                 f.write(f'{full_addr[5:]}_0 #1stReg[6:0]_r/w\n')
-                dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
-                dataBitsToSend +=  f'{full_addr[5:]}0'
 
                 f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
-                dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
                 #if chipName.find('lpgbt') != -1:
 
                 f.write(dataBits)
-                dataBitsToSend += dataBits
                 f.write('\n')
 
-        return dataBitsToSend
 
+    def sendControlLpgbtConfigs(self, chipName, wordCount, registerAddr, dataBits):
 
-    #def sendLAUROCConfigs():
+        chipConfig = self.chips[chipName]
+        if (chipName != 'lpgbt12' and chipName != 'lpgbt13'):
+            return
+        f.write(chipName + "\n")
+        chipType = f'{int(chipConfig.chipType):02b}'
+        i2cAddr = chipConfig.i2cAddress
+        controlLpGBT = chipConfig.lpgbtMaster
+        controlLpGBTbit = '0'
+        if (controlLpGBT == '13'):
+            controlLpGBTbit = '1'
 
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        full_addr = f'{registerAddr:012b}'
+
+        #header
+        dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
+        dataBitsToSend +=  f'{full_addr[5:]}0'
+
+        dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+        dataBitsToSend += dataBits
+
+        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
     def startup(self):
         """Runs the standard board startup / connection routine"""
@@ -523,13 +605,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 if section.updated:
                     addr = int(self.chips[chipName][sectionName].address,0)
                     data =  self.chips[chipName][sectionName].bits
-                    updates[sectionName] = [addr,data]
+                    updates[addr] = [sectionName,data]
                     print('Updating',chipName,sectionName,sep=' ')
                     section.updated = False
                 #if True:
-            orderedUpdates = OrderedDict(sorted(updates.items(), key = lambda t:t[1][0]))
-            #addrs = [val[0] for val in orderedUpdates.values()]
-            addrs = [2,3,10,25,30,70]
+
+            #Sort into groups of addresses with no more than 14 registers inbetween
+            orderedUpdates = OrderedDict(sorted(updates.items(), key = lambda t:t[0]))
+            addrs = orderedUpdates.keys()
             addrGroups, last = [[]], None
             for addr in addrs:
                 if last is None or abs(last - addr) <= 14:
@@ -537,7 +620,28 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 else:
                     addrGroups.append([addr])
                 last = addr
-            print(addrGroups)
+            #print(addrGroups)
+            for addrGroup in addrGroups:
+                firstAddr = addrGroup[0]
+                currentAddr = addrGroup[0]
+                finalAddr = addrGroup[-1]
+                dataToSend = ''
+                wordCount = 0
+                while currentAddr <= finalAddr:
+                    dataToSend += orderedUpdates[currentAddr][1]
+                    currentAddr += 1
+                    wordCount += 1
+                #print('sending: ', chipName, firstAddr, dataToSend)
+                if 'lpgbt12' == chipName or 'lpgbt13' == chipName:
+                    self.sendControlLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
+                elif 'lpgbt' in chipName:
+                    self.sendDataLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
+                elif 'lauroc' in chipName:
+                    self.sendLAUROCConfigs(chipName, wordCount, firstAddr, dataToSend)
+                elif 'coluta' in chipName:
+                    self.sendCOLUTAConfigs(chipName, wordCount, dataToSend)
+                else:
+                    print('ChipName Not recognized: ', chipName)
 
                     # # if self.debug:
                     # print('Updating',chipName,sectionName,sep=' ')
@@ -572,7 +676,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
-    def LpGBT_IC_write(self, primaryLpGBTAddress, nwords, data):
+    def LpGBT_IC_write(self, primaryLpGBTAddress, data):
 
         # wordBlock = ''
         # for i in range(0,len(data)//8):
