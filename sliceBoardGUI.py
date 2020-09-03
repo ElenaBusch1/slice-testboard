@@ -41,7 +41,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status45 = status.Status(self, "45")
 
         self.chips = {}
+        self.powerSettings = {}
         self.chipsConfig = os.path.join(os.path.abspath("."), "config", "chips.cfg")
+        self.powerConfig = os.path.join(os.path.abspath("."), "config", "power.cfg")
 
         # Fill internal dictionaries with configurations from .cfg files
         self.setupConfigurations()
@@ -137,6 +139,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chip].split(',')]
             self.chips[chip] = CC.Configuration(self, cfgFile, specFile, lpgbtMaster, i2cMaster, i2cAddr)
 
+        powerconfig = configparser.ConfigParser()
+        powerconfig.optionxform = str
+        powerconfig.read(self.powerConfig)
+
+        for powerSetting in powerconfig["powerSettings"]:
+            lpgbt, pin = [x.strip() for x in powerconfig["powerSettings"][powerSetting].split(',')]
+            self.powerSettings[powerSetting] = [lpgbt, pin]
+
         self.updateGUIText()
 
 
@@ -193,13 +203,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         print(f"Could not find setting box {boxName}")
 
     def connectPowerButtons(self):
-        powerSettings = {'dcdc_en_pa_a': ['lpgbt12','2'], 'dcdc_en_lpgbt_b': ['lpgbt12','4'], 'dcdc_en_adc_a': ['lpgbt12','11']}
+        #powerSettings = {'dcdc_en_pa_a': ['lpgbt12','2'], 'dcdc_en_lpgbt_b': ['lpgbt12','4'], 'dcdc_en_adc_a': ['lpgbt12','11']}
         sectionNames =  ['piodirh', 'piodirl', 'pioouth', 'piooutl', 'piopullenah', 'piopullenal', 'pioupdownh', 'pioupdownl', 'piodrivestrengthh', 'piodrivestrengthl']
         sectionNamesL = [name for name in sectionNames if name[-1] == 'l']
         #print(sectionNamesL)
         sectionNamesH = [name for name in sectionNames if name[-1] == 'h']
         #print(sectionNamesH)
-        for powerSetting in powerSettings:
+        for powerSetting in self.powerSettings:
             name = 'power' + powerSetting
             if "Fill" in name or name[-2] == "__": continue
             boxName = name + 'Box'
@@ -208,8 +218,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             except AttributeError:
                 continue
             
-            chip = powerSettings[powerSetting][0]
-            pin = powerSettings[powerSetting][1]
+            chip = self.powerSettings[powerSetting][0]
+            pin = self.powerSettings[powerSetting][1]
             #if chip == 'lpgbt12' or chip == 'lpgbt13' or chip == 'lpgbt9' or chip == 'lpgbt15':
             if isinstance(box, QtWidgets.QCheckBox):
                 if int(pin) < 8:
