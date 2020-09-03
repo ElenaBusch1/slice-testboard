@@ -48,6 +48,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Establish link between GUI buttons and internal configuration dictionaries
         self.connectButtons()
+        self.connectPowerButtons()
 
         self.testButton.clicked.connect(self.test)
 
@@ -179,27 +180,66 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     # Call the appropriate method for each type of input box
                     if isinstance(box, QtWidgets.QPlainTextEdit):
                         # noinspection PyUnresolvedReferences
-                        box.textChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
+                        box.textChanged.connect(partial(self.updateConfigurations, boxName, chipName, sectionName, settingName))
                     elif isinstance(box, QtWidgets.QComboBox):
                         # noinspection PyUnresolvedReferences
-                        box.currentIndexChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
+                        box.currentIndexChanged.connect(partial(self.updateConfigurations, boxName, chipName, sectionName, settingName))
                     elif isinstance(box, QtWidgets.QCheckBox):
                         # noinspection PyUnresolvedReferences
-                        box.stateChanged.connect(partial(self.updateConfigurations, chipName, sectionName, settingName))
+                        box.stateChanged.connect(partial(self.updateConfigurations, boxName, chipName, sectionName, settingName))
                     elif isinstance(box, QtWidgets.QLabel):
                         pass
                     else:
                         print(f"Could not find setting box {boxName}")
 
+    def connectPowerButtons(self):
+        powerSettings = {'dcdc_en_pa_a': ['lpgbt12','2'], 'dcdc_en_lpgbt_b': ['lpgbt12','4'], 'dcdc_en_adc_a': ['lpgbt12','11']}
+        sectionNames =  ['piodirh', 'piodirl', 'pioouth', 'piooutl', 'piopullenah', 'piopullenal', 'pioupdownh', 'pioupdownl', 'piodrivestrengthh', 'piodrivestrengthl']
+        sectionNamesL = [name for name in sectionNames if name[-1] == 'l']
+        #print(sectionNamesL)
+        sectionNamesH = [name for name in sectionNames if name[-1] == 'h']
+        #print(sectionNamesH)
+        for powerSetting in powerSettings:
+            name = 'power' + powerSetting
+            if "Fill" in name or name[-2] == "__": continue
+            boxName = name + 'Box'
+            try:
+                box = getattr(self, boxName)
+            except AttributeError:
+                continue
+            
+            chip = powerSettings[powerSetting][0]
+            pin = powerSettings[powerSetting][1]
+            #if chip == 'lpgbt12' or chip == 'lpgbt13' or chip == 'lpgbt9' or chip == 'lpgbt15':
+            if isinstance(box, QtWidgets.QCheckBox):
+                if int(pin) < 8:
+                    for sectionName in sectionNamesL:
+                        settingName = sectionName[:-1] + pin
+                        #sectionName = 'piodirl'
+                        #settingName = 'piodir' + pin
+                        #print('updating ' + settingName)
+                        box.stateChanged.connect(partial(self.updateConfigurations, boxName, chip, sectionName, settingName))
+                else:
+                    for sectionName in sectionNamesH:
+                        settingName = sectionName[:-1] + pin
+                        #sectionName = 'piodirl'
+                        #settingName = 'piodir' + pin
+                        #print('updating ' + settingName)
+                        box.stateChanged.connect(partial(self.updateConfigurations, boxName, chip, sectionName, settingName))
+            else:
+                print(f"Could not find setting box {boxName}")
 
-    def updateConfigurations(self, chipName, sectionName, settingName):
+
+        
+    def updateConfigurations(self, boxName, chipName, sectionName, settingName):
         previousValue = self.chips[chipName][sectionName][settingName]
         length = len(previousValue)
         name = chipName + sectionName + settingName
-        boxName = name + "Box"
+        #boxName = name + "Box"
         try:
             box = getattr(self, boxName)
         except AttributeError:
+            print ('AttributeError')
             return
         if isinstance(box, QtWidgets.QPlainTextEdit):
             plainText = box.toPlainText()
