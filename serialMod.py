@@ -68,13 +68,13 @@ def findPorts(GUI):
 def setupSerials(GUI):
     """Sets up Serial objects for the GUI."""
     try:
-        serial36 = serial.Serial( port     = GUI.port36,
-                                 baudrate = GUI.baudrate,
-                                 parity   = GUI.parity,
-                                 stopbits = GUI.stopbits,
-                                 bytesize = GUI.bytesize,
-                                 timeout  = GUI.timeout,
-                                 write_timeout = GUI.timeout )
+        # serial36 = serial.Serial( port     = GUI.port36,
+        #                          baudrate = GUI.baudrate,
+        #                          parity   = GUI.parity,
+        #                          stopbits = GUI.stopbits,
+        #                          bytesize = GUI.bytesize,
+        #                          timeout  = GUI.timeout,
+        #                          write_timeout = GUI.timeout )
 
         serial45 = serial.Serial( port     = GUI.port45,
                                  baudrate = GUI.baudrate,
@@ -84,7 +84,8 @@ def setupSerials(GUI):
                                  timeout  = GUI.timeout,
                                  write_timeout = GUI.timeout )
 
-        return serial36, serial45
+        # return serial36, serial45
+        return serial45
     except:
         GUI.showError('Unable to connect to chip.')
         return None, None
@@ -103,14 +104,15 @@ def checkSerials(GUI):
         GUI.showError(f'Unknown platform {pf}')
         return False
 
-    print(type(GUI.serial36), type(GUI.serial45))
-    isPortConnected36 = isinstance(GUI.serial36, serialType.Serial)
+    # print(type(GUI.serial36), type(GUI.serial45))
+    # isPortConnected36 = isinstance(GUI.serial36, serialType.Serial)
     isPortConnected45 = isinstance(GUI.serial45, serialType.Serial)
 
-    if not (isPortConnected36 and isPortConnected45):
-        GUI.showError('SERIALMOD: Handshaking procedure failed. Not connected.')
+    # if not (isPortConnected36 and isPortConnected45):
+    #     GUI.showError('SERIALMOD: Handshaking procedure failed. Not connected.')
 
-    return isPortConnected36, isPortConnected45
+    # return isPortConnected36, isPortConnected45
+    return True, isPortConnected45
 
 
 def readFromChip(GUI, port, nBytes):

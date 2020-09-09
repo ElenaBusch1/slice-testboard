@@ -5,7 +5,7 @@ import sliceMod
 class Configuration(dict):
     """Handles, holds, and manipulates configuration bits and settings."""
 
-    def __init__(self, GUI, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
+    def __init__(self, GUI, cfgFileName, specFileName, chipType, lpgbtMaster, i2cMaster, i2cAddress):
         super(Configuration, self).__init__()
         self.GUI = GUI
         self.defaultCfgFile = os.path.join(os.path.abspath("."), "config", cfgFileName)
@@ -13,6 +13,7 @@ class Configuration(dict):
         self.lpgbtMaster = lpgbtMaster
         self.i2cMaster = i2cMaster
         self.i2cAddress = i2cAddress
+        self.chipType = chipType
 
         self.readCfgFile()
         # self.updated = True
