@@ -1,6 +1,13 @@
 import time
 import serialMod
 
+def byteArrayToString(inputByteArray):
+    '''Convert raw data readout to a python string object.'''
+    outputString = ''
+    for byte in inputByteArray:
+        outputString += '{0:08b}'.format(byte)
+    return outputString
+
 #######################################################################
 # Functions for communicating via IC frame
 

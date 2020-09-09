@@ -4,6 +4,7 @@ import time
 import configparser
 import numpy as np
 import chipConfiguration as CC
+import sliceMod
 import serialMod
 import status
 from functools import partial
@@ -36,6 +37,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.bytesize = 8
         self.timeout = 2
 
+        self.controlWords = 8 # number of bytes for each control FPGA counter increment
+
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         # self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
@@ -49,7 +52,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Establish link between GUI buttons and internal configuration dictionaries
         self.connectButtons()
 
-        self.testButton.clicked.connect(self.test)
+        # self.testButton.clicked.connect(self.test)
+        self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.test2Button.clicked.connect(self.lpgbt_test)
 
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
@@ -65,29 +69,36 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def test(self):
         """General purpose test function"""
-        with open("tmp.txt", 'a') as f:
-            for (chipName, chipConfig) in self.chips.items():
-                f.write(chipName + "\n")
-                for (sectionName, section) in chipConfig.items():
-                    f.write(f"{sectionName}: {section.bits}\n")
-                    for (settingName, setting) in section.items():
-                        f.write(f"{settingName}: {setting}\n")
-                    f.write("\n")
-                f.write("\n")
+        # with open("tmp.txt", 'a') as f:
+        #     for (chipName, chipConfig) in self.chips.items():
+        #         f.write(chipName + "\n")
+        #         for (sectionName, section) in chipConfig.items():
+        #             f.write(f"{sectionName}: {section.bits}\n")
+        #             for (settingName, setting) in section.items():
+        #                 f.write(f"{settingName}: {setting}\n")
+        #             f.write("\n")
+        #         f.write("\n")
+        serialMod.flushBuffer(self, "45")
+        self.status45.readbackStatus()
+        time.sleep(0.1)
+        serialMod.readFromChip(self, "45", 6)
+        self.status45.send()
 
 
     def lpgbt_test(self):
         i2cAddr = f'{0xE0:08b}'
-        first_reg = f'{0x0E0:012b}'
-        dataBitsToSend = f'001{first_reg[:5]}'
+        #first_reg = f'{0x0E0:012b}'
+        first_reg = f'{0x07c:012b}'
+        dataBitsToSend = f'000{first_reg[:5]}'
         dataBitsToSend += f'{first_reg[5:]}0'
 
         
-        data = ''.join([f'{i:08b}' for i in range(1,15)])
-        #data += '00000010'
+        # data = ''.join([f'{i:08b}' for i in range(1,10)])
+        data = ''.join([f'{0x1a:08b}', f'{0x73:08b}'])
+        #data = '00000010'
         #data += '00000011'
         #data += '00000100'
-        wordCount = 14
+        wordCount = len(data)//8
 
         wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
         dataBitsToSend += f'{wordCountByte1:08b}'
@@ -441,6 +452,31 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     else:
                         print(f"Could not find setting box {boxName}")
 
+    def isLinkReady(self, port):
+        status = getattr(self, "status" + port)
+        maxIter = 5
+        counter = 0
+        bytesToString = None
+        while not bytesToString and counter<maxIter:
+            serialMod.flushBuffer(self, port)
+            status.sendFifoAOperation(2,1,4)
+            nControlBits = 8
+            nControlBytes = int(nControlBits/self.controlWords)
+            controlBits = serialMod.readFromChip(self,port,nControlBits)
+            if not isinstance(controlBits,bool):
+                controlBits = controlBits[:nControlBytes]
+            else:
+                controlBits = bytearray(0)
+            status.send()
+            bytesToString = sliceMod.byteArrayToString(controlBits)
+            counter += 1
+            time.sleep(0.5)
+        print(bytesToString)
+        if bytesToString:
+            isReady = bytesToString[4]=='1'
+        else:
+            isReady = False
+        return isReady
 
     def connectButtons(self):
         """Create a signal response for each configuration box"""
@@ -513,6 +549,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.setWindowTitle("Error")
 
     def LpGBT_IC_write(self, primaryLpGBTAddress, nwords, data):
+        #self.status45.send() 
 
         # wordBlock = ''
         # for i in range(0,len(data)//8):
