@@ -63,6 +63,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
 
         #Configuration Buttons
+        self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
 
         self.isConnected = False
@@ -668,14 +669,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     currentAddr += 1
                     wordCount += 1
                 #print('sending: ', chipName, firstAddr, dataToSend)
-                if 'lpgbt12' == chipName or 'lpgbt13' == chipName:
+                if 'lpgbt12' == chipName: #or 'lpgbt13' == chipName:
                     self.sendControlLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
-                elif 'lpgbt' in chipName:
-                    self.sendDataLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
-                elif 'lauroc' in chipName:
-                    self.sendLAUROCConfigs(chipName, wordCount, firstAddr, dataToSend)
-                elif 'coluta' in chipName:
-                    self.sendCOLUTAConfigs(chipName, wordCount, dataToSend)
+                #elif 'lpgbt' in chipName:
+                #    self.sendDataLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
+                #elif 'lauroc' in chipName:
+                #    self.sendLAUROCConfigs(chipName, wordCount, firstAddr, dataToSend)
+                #elif 'coluta' in chipName:
+                #    self.sendCOLUTAConfigs(chipName, wordCount, dataToSend)
                 else:
                     print('ChipName Not recognized: ', chipName)
 
