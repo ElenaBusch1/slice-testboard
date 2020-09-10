@@ -59,16 +59,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # self.testButton.clicked.connect(self.test)
         self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
-        self.test2Button.clicked.connect(self.lpgbt_test)
+        self.test2Button.clicked.connect(self.configure_clocks_test)
+        #self.test2Button.clicked.connect(self.lpgbt_test)
 
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
         self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
-        self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
+        self.colutaConfigsButton.clicked.connect(self.coluta_config_test)
 
         #Configuration Buttons
         self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
+        #self.powerConfigureButton.clickec.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
         allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
@@ -119,14 +121,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def lpgbt_test(self):
         i2cAddr = f'{0xE0:08b}'
-        #first_reg = f'{0x0E0:012b}'
-        first_reg = f'{0x07c:012b}'
-        dataBitsToSend = f'000{first_reg[:5]}'
+        first_reg = f'{0x0E0:012b}'
+        #first_reg = f'{0x052:012b}'
+        dataBitsToSend = f'001{first_reg[:5]}'
         dataBitsToSend += f'{first_reg[5:]}0'
 
-        
-        # data = ''.join([f'{i:08b}' for i in range(1,10)])
-        data = ''.join([f'{0x1a:08b}', f'{0x73:08b}'])
+        piodirl = '00010100'
+        piooutl = '00010100'
+        piodrivestrengthl = '00010100'
+
+        data = ''.join([f'{i:08b}' for i in range(1,4)])
+        #data = ''.join(['00001000', piodirl, '00001000', piooutl, '00000000', '00000000', '00000000', '00000000', '00001000', piodrivestrengthl])
         #data = '00000010'
         #data += '00000011'
         #data += '00000100'
@@ -137,8 +142,72 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsToSend += f'{wordCountByte2:08b}'
         dataBitsToSend += data
 
-        self.LpGBT_IC_write(i2cAddr, wordCount, dataBitsToSend)
+        #data4 = ''.join(['00000000', '00010000', '00000000', '00010000', '00000000', '00000000', '00000000', '00000000', '00000000', '00010000'])
+        #data11 = ''.join(['00001000', '00000000', '00001000', '00000000', '00000000', '00000000', '00000000', '00000000', '00001000', '00000000'])
 
+        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+
+        #dataBitsToSend4 = f'000{first_reg[:5]}' + f'{first_reg[5:]}0' + f'{wordCountByte1:08b}' + f'{wordCountByte2:08b}' + data4
+        #dataBitsToSend11 = f'000{first_reg[:5]}' + f'{first_reg[5:]}0' + f'{wordCountByte1:08b}' + f'{wordCountByte2:08b}' + data11
+
+        #self.LpGBT_IC_write(i2cAddr, dataBitsToSend4)
+        #self.LpGBT_IC_write(i2cAddr, dataBitsToSend11)
+
+    def configure_clocks_test(self):
+        i2cAddr = f'{0XE0:08b}'
+        #i2cAddr = 
+
+        #regAddrs = [0x06c, 0x06d, 0x07c, 0x07d, ]
+
+        regAddr  = [0x06c, 0x07c, 0x080, 0x084, 0x088, 0x08c, 0x090, 0x094, 0x09c, 0x0ec]
+        regDataA = [0x19,  0x19,  0x19,  0x00,  0x19,  0x19,  0x19,  0x19,  0x19,  0x00]
+        regDataB = [0x73,  0x73,  0x73,  0x00,  0x73,  0x73,  0x73,  0x73,  0x73,  0x00]
+        regDataC = [0x00,  0x19,  0x00,  0x19,  0x19,  0x19,  0x00,  0x00,  0x00,  0x00]
+        regDataD = [0x00,  0x73,  0x00,  0x73,  0x73,  0x73,  0x00,  0x00,  0x00,  0x07]
+
+        for i in range(len(regAddr)):
+            addr = regAddr[i]
+            first_reg = f'{addr:012b}'
+            dataBitsToSend = f'000{first_reg[:5]}'
+            dataBitsToSend += f'{first_reg[5:]}0'
+
+            data = ''.join([f'{regDataA[i]:08b}', f'{regDataB[i]:08b}', f'{regDataC[i]:08b}', f'{regDataD[i]:08b}'])
+
+            wordCount = len(data)//8
+
+            wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+            dataBitsToSend += f'{wordCountByte1:08b}'
+            dataBitsToSend += f'{wordCountByte2:08b}'
+            dataBitsToSend += data
+
+            self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+
+    def coluta_config_test(self):
+
+        i2cAddr = f'{0xE0:08b}'
+
+        wordCount = 16
+        data =  '11111010' +\
+                '11011000' +\
+                '10001010' +\
+                '11010111' +\
+                '01110110' +\
+                '10111001' +\
+                '10000100' +\
+                '00000100' +\
+                '00000000' +\
+                '00011111' +\
+                '11000010' +\
+                '10100000' +\
+                '00000100' +\
+                '01000000' +\
+                '01000001' +\
+                '00010100'
+
+        self.sendCOLUTAConfigs('coluta13', wordCount, data)
+
+    def uplink_test(self):
+         i =1
 
     def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -280,16 +349,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             controlLpGBTbit = '1'
         i2cAddr = '0'+chipConfig.i2cAddress
         #header
-        dataBitsToSend = f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}'
+        dataBitsToSend = f'{chipType}{controlLpGBTbit}{i2cM}{i2cAddr[:3]}'
         dataBitsToSend += f'{i2cAddr[3:11]}0'
         wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-        dataBitsToSend += f'{wordCountByte1:08b}  #datawords {wordCount}'
-        dataBitsToSend += f'{wordCountByte2:08b}  #datawords {wordCount}'
+        dataBitsToSend += f'{wordCountByte1:08b}'
+        dataBitsToSend += f'{wordCountByte2:08b}'
 
         ## This is not correct!! need
         dataBitsToSend += dataBits
-
-        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+        print('Sending:')
+        for word in [dataBitsToSend[8*i:8*(i+1)] for i in range(len(dataBitsToSend)//8)]:
+            print(word)
+        #self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
     def collectLaurocConfigs(self):
 
@@ -469,12 +540,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write('\n')
 
 
-    def sendControlLpgbtConfigs(self, chipName, wordCount, registerAddr, dataBits):
+    def sendControlLpGBTConfigs(self, chipName, wordCount, registerAddr, dataBits):
 
         chipConfig = self.chips[chipName]
         if (chipName != 'lpgbt12' and chipName != 'lpgbt13'):
             return
-        f.write(chipName + "\n")
+        #f.write(chipName + "\n")
         chipType = f'{int(chipConfig.chipType):02b}'
         i2cAddr = chipConfig.i2cAddress
         controlLpGBT = chipConfig.lpgbtMaster
@@ -491,6 +562,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
         dataBitsToSend += dataBits
+
+        print("Sending these bits: ", dataBitsToSend)
 
         self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
@@ -707,12 +780,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print(f"Updated {chipName} {sectionName}, {settingName}: {binary}")
 
 
+
     def sendUpdatedConfigurations(self):
         for (chipName, chipConfig) in self.chips.items():
             updates = {}
+            if chipName != 'lpgbt12':
+                continue
             for (sectionName, section) in chipConfig.items():
                 #for (settingName, setting) in section.items():
                 #category = configurations[categoryName]
+                if sectionName not in ['piodirh','piodirl']:
+                    continue
                 if section.updated:
                     addr = int(self.chips[chipName][sectionName].address,0)
                     data =  self.chips[chipName][sectionName].bits
@@ -733,7 +811,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 last = addr
             #print(addrGroups)
             for addrGroup in addrGroups:
-                firstAddr = addrGroup[0]
+                firstAddr = f'{addrGroup[0]:08b}'
                 currentAddr = addrGroup[0]
                 finalAddr = addrGroup[-1]
                 dataToSend = ''
