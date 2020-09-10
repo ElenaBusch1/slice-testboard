@@ -5,8 +5,8 @@ import configparser
 import numpy as np
 import chipConfiguration as CC
 import sliceMod
+import dataParser
 import serialMod
-import sliceMod
 import status
 from functools import partial
 from collections import OrderedDict
@@ -39,12 +39,21 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.bytesize = 8
         self.timeout = 2
 
+        # Some version-dependent parameters/values
+        self.nSamples = 4093  # default number of samples to parse from standard readout
+        self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
+        self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         # self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
+        # Instance of dataParser class
+        dataParserConfig = "./config/dataConfig.cfg"
+        self.ODP = dataParser.dataParser(self, dataParserConfig)
+
+        # dict that will be filled with settings, like self.chips[chip][section][setting]
         self.chips = {}
         self.powerSettings = {}
         self.chipsConfig = os.path.join(os.path.abspath("."), "config", "chips.cfg")
@@ -58,7 +67,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
 
         # self.testButton.clicked.connect(self.test)
-        self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
+        # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
+        self.testButton.clicked.connect(self.lpgbt45readBack)
         self.test2Button.clicked.connect(self.configure_clocks_test)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
@@ -97,7 +107,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.isConnected = False
         self.startup()
-        
+
         # self.sendConfigurationsFromLpGBT()
 
 
@@ -155,7 +165,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def configure_clocks_test(self):
         i2cAddr = f'{0XE0:08b}'
-        #i2cAddr = 
+        #i2cAddr =
 
         #regAddrs = [0x06c, 0x06d, 0x07c, 0x07d, ]
 
@@ -225,7 +235,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Based on the I2C configurations split the data byte into chunks
         # For the global configuration bits, the subaddress are 8,16
-        # For the channel configuration bits, 
+        # For the channel configuration bits,
         # the subaddresses are 0,3,6,9,12,15,18,21,24,27,30,31
         if tabName=='global':
             split = 64
@@ -242,13 +252,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             overlapLSBIndex = 496
 
         else:
-            coluta.showError('COLUTAMOD: Unknown configuration, cannot split into data chunks')
+            self.showError('COLUTAMOD: Unknown configuration, cannot split into data chunks')
             return
 
         # Arrange the subaddress list MSB->LSB
         subAddressList.reverse()
 
-        # We then need to split up control data which has more than 64 bits. We still only 
+        # We then need to split up control data which has more than 64 bits. We still only
         # have 64 bits to use, but 16 of these bits are then needed for sub-address, etc.
         # Therefore, we will split into chuncks of 48 bits and send N/48 I2C commands. If
         # the number of bits is not a multiple of split, we use bits from previous I2C command
@@ -262,7 +272,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         LSBBitList = [ msb+split for msb in MSBBitList]
         #MSBBitList = [ lsb+split for lsb in LSBBitList]
 
-        # Create the list of data bits to send 
+        # Create the list of data bits to send
         dataBitsList = []
         for msb,lsb in zip(MSBBitList,LSBBitList):
             dataBitsList.append(controlBits[msb:lsb])
@@ -325,7 +335,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         dataBits += f'{word}\n'
                         wordCount += 1
                     dataBits += '\n'
-                    
+
 
 
                 wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
@@ -499,7 +509,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         dataBitsToSend += dataBits
 
-        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+        self.LpGBT_IC_write(None, dataBitsToSend)
 
     def collectControlLpgbtConfigs(self):
 
@@ -536,36 +546,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
                 #if chipName.find('lpgbt') != -1:
 
-                f.write(dataBits)
-                f.write('\n')
-
-
-    def sendControlLpGBTConfigs(self, chipName, wordCount, registerAddr, dataBits):
-
-        chipConfig = self.chips[chipName]
-        if (chipName != 'lpgbt12' and chipName != 'lpgbt13'):
-            return
-        #f.write(chipName + "\n")
-        chipType = f'{int(chipConfig.chipType):02b}'
-        i2cAddr = chipConfig.i2cAddress
-        controlLpGBT = chipConfig.lpgbtMaster
-        controlLpGBTbit = '0'
-        if (controlLpGBT == '13'):
-            controlLpGBTbit = '1'
-
-        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-        full_addr = f'{registerAddr:012b}'
-
-        #header
-        dataBitsToSend = f'{chipType}{controlLpGBTbit}{full_addr[:5]}'
-        dataBitsToSend +=  f'{full_addr[5:]}0'
-
-        dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
-        dataBitsToSend += dataBits
-
-        print("Sending these bits: ", dataBitsToSend)
-
-        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
     def startup(self):
         """Runs the standard board startup / connection routine"""
@@ -719,7 +699,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 box = getattr(self, boxName)
             except AttributeError:
                 continue
-            
+
             chip = self.powerSettings[powerSetting][0]
             pin = self.powerSettings[powerSetting][1]
             #if chip == 'lpgbt12' or chip == 'lpgbt13' or chip == 'lpgbt9' or chip == 'lpgbt15':
@@ -742,7 +722,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 print(f"Could not find setting box {boxName}")
 
 
-        
+
     def updateConfigurations(self, boxName, chipName, sectionName, settingName):
         previousValue = self.chips[chipName][sectionName][settingName]
         length = len(previousValue)
@@ -865,6 +845,62 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
+
+    def fifoAReadData(self, port):
+        """Requests measurement, moves data to buffer, and performs read operation"""
+
+        # 1) Send a start measurement command to the chip
+        # 2) Clear the serial buffer (MANDATORY!!!!!)
+        # 3) Fill the serial buffer with data from the chip
+        # 4) Read the data filled in the serial buffer
+        address = 1  # LpGBT address
+        status = getattr(self, "status" + port)
+        status.send()  # reset the rising edge
+        status.sendStartMeasurement()
+        serialMod.flushBuffer(self, port)  # not sure if we need to flush buffer, D.P.
+        # One analog measurement will return 16 bytes, thus ask for 2*number of samples requested
+        status.sendFifoAOperation(2, int(2*(self.discarded+self.nSamples)), address=address)
+        time.sleep(0.01)  # Wait for data to be filled in the USB buffer
+        dataByteArray = serialMod.readFromChip(self, port, self.dataWords*(self.discarded+self.nSamples))
+        status.send()  # reset the rising edge
+        first = self.discarded * self.dataWords
+        last = (self.discarded + self.nSamples) * self.dataWords
+        return dataByteArray[first:last]
+
+
+    def lpgbt45readBack(self):
+        if not self.isConnected and not self.pArgs.no_connect:
+            self.showError("Board is not connected")
+            return
+
+        dataByteArray = self.fifoAReadData("45")
+
+        if self.pArgs.no_connect: return
+
+        dataString = sliceMod.byteArrayToString(dataByteArray)
+        dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
+        print(dataStringChunks16)
+
+
+    def takeSamples(self):
+        """Read and store output from VTRx+ 3 or 6"""
+        if not self.isConnected and not self.pArgs.no_connect:
+            self.showError("Board is not connected")
+            return
+
+        print("Reading data")
+        dataByteArray = self.fifoAReadData("36")
+
+        if self.pArgs.no_connect: return
+
+        dataString = sliceMod.byteArrayToString(dataByteArray)
+        dataStringChunks32 = "\n".join([dataString[i:i+32] for i in range(0, len(dataString), 32)])
+        dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
+        if self.pArgs.debug: print(dataStringChunks16)
+
+        self.ODP.parseData(self.nSamples, dataString)
+        self.ODP.writeDataToFile()
+
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
         if targetChipNames is None:  # Apparently python does weird stuff if we just make the default [], so do this instead
@@ -953,15 +989,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #     wordBlock += word#[::-1]
         wordBlock = ''.join([data[i:i+8] for i in range(0, len(data), 8)][::-1])
         # wordBlock = data
-        
+
         #address = primary lpGBT address???
 
         self.status45.sendFifoAOperation(operation=1,counter=(len(data)//8),address=7)
         serialMod.writeToChip(self,'45',wordBlock)
         self.status45.sendStartControlOperation(operation=1,address=7)
-        self.status45.send()  
+        self.status45.send()
 
-
+"""
     def LpGBT_IC_REGWRRD(self, primaryLpGBTAddress, nwords, data, memoryAddress):
         # write to I2C, then reads back
 
@@ -978,7 +1014,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # rwBit = '0'
         # wordB = primaryLpGBTAddress+rwBit # I2C address of LpGBT12/13 (7 bits), rw
         # wordC = f'{0x00:08b}' # command
-        # wordD1, wordD2 = u16_to_bytes(nwords) 
+        # wordD1, wordD2 = u16_to_bytes(nwords)
         # wordE1, wordE2 = u16_to_bytes(memoryAddress) # I2CM0Data0 memory address [15:8]
         # datawords = [data[8*i:8*(i+1)] for i in range(nwords)]
 
@@ -1033,7 +1069,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status.sendFifoAOperation(self,operation=1,counter=35,address=7)
         serialMod.writeToChip(self,'A',dataBitsToSend)
         self.status.sendStartControlOperation(self,operation=1,address=7)
-        self.status.send(self)  
+        self.status.send(self)
+"""
 
 ## Helper functions
 def u16_to_bytes(val):
@@ -1051,7 +1088,7 @@ def makeWishboneCommand(dataBits,i2cWR,STP,counter,tenBitMode,chipIdHi,wrBit,chi
     wbTerminator = '00000000'
     wbByte0 = i2cWR+STP+counter # 5a
     wbByte1 = tenBitMode+chipIdHi+wrBit # f0
-    wbByte2 = chipIDLo+address 
+    wbByte2 = chipIDLo+address
     bitsToSend = wbTerminator+dataBits+wbByte2+wbByte1+wbByte0
     return bitsToSend
 

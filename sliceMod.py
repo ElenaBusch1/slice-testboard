@@ -9,12 +9,12 @@ def binaryStringToDecimal(binaryString):
     decimal = int(binaryString,2)
     return decimal
 
+
 def byteArrayToString(inputByteArray):
-    '''Convert raw data readout to a python string object.'''
-    outputString = ''
-    for byte in inputByteArray:
-        outputString += '{0:08b}'.format(byte)
+    """Convert raw data readout to a python string object."""
+    outputString = ''.join([f"{byte:08b}" for byte in inputByteArray])
     return outputString
+
 
 #######################################################################
 # Functions for communicating via IC frame
