@@ -192,6 +192,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
             self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
+        #while True:
+        #    self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+
     def coluta_config_test(self):
 
         i2cAddr = f'{0xE0:08b}'
