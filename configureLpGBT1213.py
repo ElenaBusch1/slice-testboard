@@ -142,6 +142,19 @@ def readFromLpGBT(port, lpgbtAddr, regAddr, nBytesToRead):
 
     return []
 
+def uplinkDataTest(port, lpgbtAddr):
+
+    #0x118 is the EC data pattern -> do we need this?
+
+    #writeToLpGBT(port, lpgbtAddr, 0x118, [0x60]) #011 00 000 
+    writeToLpGBT(port, lpgbtAddr, 0x119, [0x1b]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11a, [0x1b]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11b, [0x1b]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11c, [0x03]) #00 000 011
+
+    #to write consecutively
+    #writeToLpGBT(port, lpgbtAddr, 0x119, [0x1b, 0x1b, 0x1b, 0x03])
+
 
 '''
 def configureLpGBT(port, lpgbtAddr, regAddr, data):
@@ -381,11 +394,20 @@ def main(pArgs):
     regDataC = [ 0x00,  0x44,  0x55,  0x00,  0x99,  0x0a,  0x00,  0x00,  0x00] # 0x00,  0x19,  0x00,  0x19,  0x19,  0x19,  0x00,  0x00,  0x00,  0x00]
     regDataD = [ 0x55,  0x55,  0x55,  0x00,  0x0a,  0x00,  0x00,  0x00,  0x07] # 0x00,  0x73,  0x00,  0x73,  0x73,  0x73,  0x00,  0x00,  0x00,  0x07]
 
+
+
+
     #writeToLpGBT(port, lpgbtAddr, 0x03c, [0x01])
     #readFromLpGBT(port, lpgbtAddr, 0x03c, 1)
     #writeToLpGBT(port, lpgbtAddr, 0x07c, [0x19, 0x73])
     readFromLpGBT(port, lpgbtAddr, 0x07c, 2)
     readFromLpGBT(port, lpgbtAddr, 0x140, 1) 
+
+
+
+    uplinkDataTest(port, lpgbtAddr)
+
+    
 
     if pArgs.configure:
         #writeToLpGBT(port, lpgbtAddr, 0x12c, [0x07])
