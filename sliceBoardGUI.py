@@ -70,6 +70,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
         self.test2Button.clicked.connect(self.configure_clocks_test)
+        self.test3Button.clicked.connect(self.write_uplink_test)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
@@ -219,8 +220,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.sendCOLUTAConfigs('coluta13', wordCount, data)
 
-    def uplink_test(self):
-         i =1
+    def write_uplink_test(self):
+        dummy = f'{0XE0:08b}'
+
+        first_reg = f'{0x119:08b}'
+        dataBitsToSend = f'000{first_reg[:5]}'
+        dataBitsToSend += f'{first_reg[5:]}0'  
+
+        data = ''.join([0x1b, 0x1b, 0x1b, 0x03])
+
+        wordCount = len(data)//8
+
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}'
+        dataBitsToSend += f'{wordCountByte2:08b}'
+        dataBitsToSend += data  
+
+        self.LpGBT_IC_write(dummy, dataBitsToSend)        
 
     def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
