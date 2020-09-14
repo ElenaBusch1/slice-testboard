@@ -76,8 +76,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
         # self.test2Button.clicked.connect(self.i2cCOLUTA)
-        # self.test2Button.clicked.connect(self.i2cControlLpGBT)
-        self.test2Button.clicked.connect(self.configure_clocks_test)
+        self.test2Button.clicked.connect(self.i2cControlLpGBT)
+        # self.test2Button.clicked.connect(self.configure_clocks_test)
         self.test3Button.clicked.connect(self.write_uplink_test)
         #self.test3Button.clicked.connect(self.lpgbt_test)
 
@@ -828,17 +828,40 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         chip = self.chips["lpgbt12"]
         chipList = list(chip.values())
         sectionChunks = defaultdict(list)
-        for iSection in range(0, len(chip), 16):
+        for iSection in range(0, len(chip), 13):
             startReg = int(chipList[iSection].address, 0)
-            for i in range(16):
-                bits = int(chipList[iSection+i].bits, 2)
+            for i in range(13):
+                try:
+                    bits = int(chipList[iSection+i].bits, 2)
+                except IndexError:
+                    bits = 0
                 sectionChunks[startReg].append(bits)
+
+        # Initialize USB-ISS Module
+        writeMessage = [0x5a, 0x01]
+        configureLpGBT1213.writeToUSBISS(self.i2cPort, writeMessage)
+        configureLpGBT1213.readFromUSBISS(self.i2cPort)
+
+        writeMessage = [0x5a, 0x03]
+        configureLpGBT1213.writeToUSBISS(self.i2cPort, writeMessage)
+        configureLpGBT1213.readFromUSBISS(self.i2cPort)
+
+        writeMessage = [0x5a, 0x02, 0x40, 0x01, 0x37]
+        configureLpGBT1213.writeToUSBISS(self.i2cPort, writeMessage)
+        configureLpGBT1213.readFromUSBISS(self.i2cPort)
+
+        # Check for existence of device with giben i2c address
+        writeMessage = [0x58, int(chip.i2cAddress, 2) << 1]
+        # # writeMessage = [0x58, 0xd0]
+        configureLpGBT1213.writeToUSBISS(self.i2cPort, writeMessage)
+        configureLpGBT1213.readFromUSBISS(self.i2cPort)
 
         for (register, dataBits) in sectionChunks.items():
             # dataBitsStrings = [f"{dataBit:02x}" for dataBit in dataBits]
             # print(f"{register:03x}:", dataBitsStrings)
-            writeToLpGBT(self.i2cPort, chip.i2cAddress, register, dataBits)
-            readFromLpGBT(self.i2cPort, chip.i2cAddress, register, len(dataBits))
+            configureLpGBT1213.configureLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, dataBits)
+            # writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, dataBits)
+            # readFromLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, len(dataBits))
 
 
     def i2cCOLUTA(self):
