@@ -40,7 +40,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Some version-dependent parameters/values
-        self.nSamples = 4093  # default number of samples to parse from standard readout
+        self.nSamples = 2  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
@@ -75,7 +75,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
-        self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
+        self.controlLpGBTConfigsButton.clicked.connect(self.sendUpdatedConfigurations)
         self.colutaConfigsButton.clicked.connect(self.coluta_config_test)
 
         #Configuration Buttons
@@ -223,13 +223,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def write_uplink_test(self):
         dummy = f'{0XE0:08b}'
 
-        first_reg = f'{0x119:08b}'
+        first_reg = f'{0x118:012b}'
         dataBitsToSend = f'000{first_reg[:5]}'
         dataBitsToSend += f'{first_reg[5:]}0'  
 
-        data = ''.join([0x1b, 0x1b, 0x1b, 0x03])
-
+        #data = ''.join(['00000000', '00000000', '00000000', '00000000', '00000000', '00000000', '00000001', '00000010', '00000011', '00000100'])
+        dataValues = [0x0c, 0x24, 0x24, 0x24, 0x04, 0xff]
+        data = ''.join([f'{val:08b}' for val in dataValues])
+        #data = '00000111'
+        #data = f'{}
+        #data += '00000000'
         wordCount = len(data)//8
+        #wordCount = len(data)//8
 
         wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
         dataBitsToSend += f'{wordCountByte1:08b}'
@@ -237,6 +242,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsToSend += data  
 
         self.LpGBT_IC_write(dummy, dataBitsToSend)        
+
+        # sec_reg = f'{0x121:012b}'
+        # dataBitsToSend2 = f'000{sec_reg[:5]}'
+        # dataBitsToSend2 += f'{sec_reg[5:]}0'  
+
+        # data2 = '00000001'
+
+        # wordCount2 = len(data2)
+        # wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount2)
+        # dataBitsToSend2 += f'{wordCountByte1:08b}'
+        # dataBitsToSend2 += f'{wordCountByte2:08b}'
+        # dataBitsToSend2 += data2  
 
     def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -565,6 +582,42 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
                 #if chipName.find('lpgbt') != -1:
 
+    def sendControlLpgbtConfigs(self, chipName, wordCount, registerAddr, dataBits):
+
+        chipConfig = self.chips[chipName]
+        if chipName.find('lpgbt') == -1:
+            return
+        #if (chipName.find('lpgbt12') != -1 or chipName.find('lpgbt13') != -1):
+        #    return
+        chipType = f'{int(chipConfig.chipType):02b}'
+        controlLpGBT = chipConfig.lpgbtMaster
+        #try:
+        #    i2cM = f'{int(chipConfig.i2cMaster):02b}'
+        #except:
+        #    i2cM = 'EC'
+        controlLpGBTbit = '0'
+        if (controlLpGBT == '13'):
+            controlLpGBTbit = '1'
+
+        dataBitsToSend = f'{chipType}{controlLpGBTbit}{registerAddr[:5]}'
+        #print("header 1: ", dataBitsToSend)
+        dataBitsToSend += f'{registerAddr[5:]}0'
+        print("header:", dataBitsToSend)
+
+        #wordCount += 2
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+
+        #addr2, addr1 = u16_to_bytes(registerAddr)
+        #dataBitsToSend += f'{addr1:08b}{addr2:08b}'
+
+        dataBitsToSend += dataBits
+
+        print("sending:")
+        for word in [dataBitsToSend[i:i+8] for i in range(0,len(dataBitsToSend),8)]:
+            print(word)
+
+        self.LpGBT_IC_write(None, dataBitsToSend)
 
     def startup(self):
         """Runs the standard board startup / connection routine"""
@@ -788,8 +841,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             for (sectionName, section) in chipConfig.items():
                 #for (settingName, setting) in section.items():
                 #category = configurations[categoryName]
-                if sectionName not in ['piodirh','piodirl']:
-                    continue
+                #if sectionName not in ['piodirh','piodirl']:
+                #    continue
                 if section.updated:
                     addr = int(self.chips[chipName][sectionName].address,0)
                     data =  self.chips[chipName][sectionName].bits
@@ -808,20 +861,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 else:
                     addrGroups.append([addr])
                 last = addr
-            #print(addrGroups)
+            # print(addrGroups)
             for addrGroup in addrGroups:
-                firstAddr = f'{addrGroup[0]:08b}'
+                firstAddr = f'{addrGroup[0]:012b}'
                 currentAddr = addrGroup[0]
                 finalAddr = addrGroup[-1]
                 dataToSend = ''
                 wordCount = 0
                 while currentAddr <= finalAddr:
-                    dataToSend += orderedUpdates[currentAddr][1]
+                    try:
+                        dataToSend += orderedUpdates[currentAddr][1]
+                    except KeyError:
+                        dataToSend += "00000000"
                     currentAddr += 1
                     wordCount += 1
                 #print('sending: ', chipName, firstAddr, dataToSend)
                 if 'lpgbt12' == chipName: #or 'lpgbt13' == chipName:
-                    self.sendControlLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
+                    self.sendControlLpgbtConfigs(chipName, wordCount, firstAddr, dataToSend)
                 #elif 'lpgbt' in chipName:
                 #    self.sendDataLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
                 #elif 'lauroc' in chipName:
@@ -897,8 +953,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if self.pArgs.no_connect: return
 
         dataString = sliceMod.byteArrayToString(dataByteArray)
-        dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
-        print(dataStringChunks16)
+        #dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
+        #dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)][:100])
+
+        dataStringChunks829 = ''
+        counter = 0
+        for word in [dataString[i:i+8] for i in range(0,len(dataString), 8)]:
+            dataStringChunks829 += word
+            dataStringChunks829 += '\n'
+            # if counter%29 == 0:
+            if (counter+1)%32 == 0:
+                dataStringChunks829 += '\n'
+            counter += 1
+        
+        print(dataStringChunks829)
 
 
     def takeSamples(self):
