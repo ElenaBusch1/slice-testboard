@@ -66,6 +66,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
 
+
+        self.lpgbtWriteButton.clicked.connect(self.lpgbt_write)
         # self.testButton.clicked.connect(self.test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
@@ -111,6 +113,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # self.sendConfigurationsFromLpGBT()
 
+    def lpgbt_write(self):
+        registerBox = getattr(self, 'lpgbtregisterBox')
+        valueBox = getattr(self, 'lpgbtvalueBox')
+        reg_addr_hex = int(registerBox.toPlainText(),16)
+        reg_addr = 
+        reg_val = f'{int(valueBox.toPlainText()):08b}'
+
+        
+        #print('addr: ', reg_addr, "value: ", reg_val)
 
     def test(self):
         """General purpose test function"""
