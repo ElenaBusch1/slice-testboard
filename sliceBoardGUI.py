@@ -8,8 +8,10 @@ import sliceMod
 import dataParser
 import serialMod
 import status
+import configureLpGBT1213
+from configureLpGBT1213 import writeToLpGBT, readFromLpGBT
 from functools import partial
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -49,6 +51,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
+        # USB-ISS port setup
+        i2cPortFound = configureLpGBT1213.findPort()
+        self.i2cPort = configureLpGBT1213.setupSerial(i2cPortFound)
+
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
         self.ODP = dataParser.dataParser(self, dataParserConfig)
@@ -69,7 +75,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.testButton.clicked.connect(self.test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
-        self.test2Button.clicked.connect(self.configure_clocks_test)
+        self.test2Button.clicked.connect(self.i2cControlLpGBT)
+        # self.test2Button.clicked.connect(self.configure_clocks_test)
         self.test3Button.clicked.connect(self.write_uplink_test)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
@@ -793,6 +800,22 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             else:
                 print(f"Could not find setting box {boxName}")
 
+
+    def i2cControlLpGBT(self):
+        chip = self.chips["lpgbt12"]
+        chipList = list(chip.values())
+        sectionChunks = defaultdict(list)
+        for iSection in range(0, len(chip), 16):
+            startReg = int(chipList[iSection].address, 0)
+            for i in range(16):
+                bits = int(chipList[iSection+i].bits, 2)
+                sectionChunks[startReg].append(bits)
+
+        for (register, dataBits) in sectionChunks.items():
+            # dataBitsStrings = [f"{dataBit:02x}" for dataBit in dataBits]
+            # print(f"{register:03x}:", dataBitsStrings)
+            writeToLpGBT(self.i2cPort, chip.i2cAddress, register, dataBits)
+            readFromLpGBT(self.i2cPort, chip.i2cAddress, register, len(dataBits))
 
 
     def updateConfigurations(self, boxName, chipName, sectionName, settingName):
