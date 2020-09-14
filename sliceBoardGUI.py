@@ -75,8 +75,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.testButton.clicked.connect(self.test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
-        self.test2Button.clicked.connect(self.i2cControlLpGBT)
-        # self.test2Button.clicked.connect(self.configure_clocks_test)
+        # self.test2Button.clicked.connect(self.i2cCOLUTA)
+        # self.test2Button.clicked.connect(self.i2cControlLpGBT)
+        self.test2Button.clicked.connect(self.configure_clocks_test)
         self.test3Button.clicked.connect(self.write_uplink_test)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
@@ -262,33 +263,32 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # dataBitsToSend2 += f'{wordCountByte2:08b}'
         # dataBitsToSend2 += data2  
 
-    def colutaI2CWriteControl(self, chipName,tabName,broadcast=False):
+    def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
-        #category = chipConfig[tabName]
-        category = self.chips[chipName][tabName]
-        address = category.address # FPGA address, '0' for I2C
+        section = self.chips[chipName][sectionName]
+        address = section.address # FPGA address, '0' for I2C
         if broadcast:
-            if int(tabName[-1]) <= 4:
+            if int(sectionName[-1]) <= 4:
                 i2cAddress = 15<<0  #  15 = 00001111
             else:
                 i2cAddress = 15<<4  # 240 = 11110000
         else:
-            i2cAddress = 8 #int(category.i2cAddress) # I2C address, '8' for global
-        controlBits = category.bits
+            i2cAddress = int(address)  # Internal address, '8' for global
+        controlBits = section.bits
 
         # Based on the I2C configurations split the data byte into chunks
         # For the global configuration bits, the subaddress are 8,16
         # For the channel configuration bits,
         # the subaddresses are 0,3,6,9,12,15,18,21,24,27,30,31
-        if tabName=='global':
+        if sectionName== 'global':
             split = 64
             subAddressList = [8*(i+1) for i in range( int( np.floor(len(controlBits)/split) ) )]
             overlapLSBIndex = 64
 
-        elif tabName=='readonly__':
+        elif sectionName== 'readonly__':
             return
 
-        elif tabName.startswith('ch'):
+        elif sectionName.startswith('ch'):
             split = 48
             subAddressList = [3*i for i in range( int( np.floor(len(controlBits)/split) ) )]
             subAddressList.append( int( (len(controlBits)-split)/16 ) ) # Adds the subaddress '31'
@@ -323,27 +323,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Then, we need to make and send i2c commands out of each these chunks
         allBits = ''
-        if tabName=='global':
+        if sectionName== 'global':
             # For global bits, sub address is the I2C address
             for dataBits,subAddress in zip(dataBitsList,subAddressList):
                 allBits += dataBits
-                #if coluta.pOptions.checkACK:
-                    ### DP: Need to add check for main thread to show this error, otherwise we will have reentrancy issues
-                    #if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
 
-        elif tabName.startswith('ch'):
+        elif sectionName.startswith('ch'):
             for dataBits,subAddress in zip(dataBitsList,subAddressList):
                 subAddrStr = '{0:06b}'.format(subAddress)
                 dataBits = makeI2CSubData(dataBits,'1','0',subAddrStr,f'{i2cAddress:08b}')
                 allBits += dataBits
-                #serialResult = attemptWrite(chipName, dataBits, 0, address)
-                #if coluta.pOptions.checkACK:
-                    ### DP: Need to add check for main thread to show this error, otherwise we will have reentrancy issues
-                    #if not i2cCheckACK(coluta): coluta.showError(f'COLUTAMOD: No ACK received writing {tabName} bits')
 
-        #else:
-            #coluta.showError('COLUTAMOD: Unknown configuration bits.')
-            #serialResult = False
+        else:
+            self.showError('COLUTAMOD: Unknown configuration bits.')
 
         return allBits
 
@@ -816,6 +808,63 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # print(f"{register:03x}:", dataBitsStrings)
             writeToLpGBT(self.i2cPort, chip.i2cAddress, register, dataBits)
             readFromLpGBT(self.i2cPort, chip.i2cAddress, register, len(dataBits))
+
+
+    def i2cCOLUTA(self):
+        dataBits = self.colutaI2CWriteControl("coluta16", "ch1", broadcast=True)
+        dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips["coluta16"].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips["coluta16"].i2cAddress
+        colutaI2CAddr = int("".join(colutaI2CAddr.split("_")[:2]), 2)
+        colutaI2CAddrH = colutaI2CAddr >> 7
+        colutaI2CAddrL = colutaI2CAddr & 0b1111111
+        for word in dataBits64:
+            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+            print("0x0f9:", [0b10100001, 0x00, 0x00, 0x00, 0x0])
+            print("0x0f9:", [*dataBits8[:4], 0x8])
+            print("0x0f9:", [*dataBits8[4:], 0x9])
+            print("0x0f7:", [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+            # # We will write 8 bytes to i2cM1Data at a time
+            # writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b10100001, 0x00, 0x00, 0x00, 0x0])
+            # writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [*dataBits8[:4], 0x8])
+            # writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [*dataBits8[4:], 0x9])
+            # writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+
+
+    def i2cDataLpGBT(self):
+        chip = self.chips["lpgbt11"]
+        chipList = list(chip.values())
+        dataBits14 = defaultdict(list)
+        for iSection in range(0, len(chip), 14):
+            startReg = int(chipList[iSection].address, 0)
+            for i in range(14):
+                bits = int(chipList[iSection+i].bits, 2)
+                dataBits14[startReg].append(bits)
+
+        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips["coluta16"].lpgbtMaster].i2cAddress)
+        dataI2CAddr = int(self.chips["lpgbt11"].i2cAddress)
+        for (register, dataBits) in dataBits14.items():
+            regH, regL = u16_to_bytes(register)
+            # We will write 16 bytes to i2cM1Data at a time
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b11000001, 0x00, 0x00, 0x00, 0x0])
+            # Write 2 byte register address, then 14 bytes of configuration
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [regL, regH, *dataBits[:2], 0x8])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [*dataBits[2:6], 0x9])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [*dataBits[6:10], 0xa])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [*dataBits[10:], 0xb])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xc])
+
+            # We will write 2 bytes to the data lpGBT
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b10001001, 0x00, 0x00, 0x00, 0x0])
+            # Write 2 byte register address
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [regL, regH, 0x8])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xc])
+
+            # We will read 14 bytes from the data lpGBT
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b10111001, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xd])
+            readFromLpGBT(self.i2cPort, lpgbtI2CAddr, 0x17b, 14)
+
 
 
     def updateConfigurations(self, boxName, chipName, sectionName, settingName):
