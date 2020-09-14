@@ -66,12 +66,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
 
-        # self.testButton.clicked.connect(self.test)
+        #self.testButton.clicked.connect(self.test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
         self.test2Button.clicked.connect(self.configure_clocks_test)
         self.test3Button.clicked.connect(self.write_uplink_test)
-        #self.test2Button.clicked.connect(self.lpgbt_test)
+        #self.test3Button.clicked.connect(self.lpgbt_test)
+
 
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
@@ -123,25 +124,37 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #                 f.write(f"{settingName}: {setting}\n")
         #             f.write("\n")
         #         f.write("\n")
-        serialMod.flushBuffer(self, "45")
-        self.status45.readbackStatus()
-        time.sleep(0.1)
-        serialMod.readFromChip(self, "45", 6)
-        self.status45.send()
 
+        #erialMod.flushBuffer(self, "45")
+        #elf.status45.readbackStatus()
+        #ime.sleep(0.1)
+        #erialMod.readFromChip(self, "45", 6)
+        #elf.status45.send()
+
+        #dataBlock = 'F0EFEEEDECEBEAE9E8E7E6E5E4E3E2E1E0DFDEDDDCDBDAD9D8D7D6D5D4D3D2D1D0CFCECDCCCBCAC9C8C7C6C5C4C3C2C1C0BFBEBDBCBBBAB9B8B7B6B5B4B3B2B1B0AFAEADACABAAA9A8A7A6A5A4A3A2A1A09F9E9D9C9B9A999897969594939291908F8E8D8C8B8A898887868584838281807F7E7D7C7B7A797877767574737271706F6E6D6C6B6A696867666564636261605F5E5D5C5B5A595857565554535251504F4E4D4C4B4A494847464544434241403F3E3D3C3B3A393837363534333231302F2E2D2C2B2A292827262524232221201F1E1D1C1B1A191817161514131211110F0E0D0C0B0A09080706050403020100F00000'
+        dataBlock = 'F0EFEEEDECEBEAE9E8E7E6E5E4E3E2E1E0DFDEDDDCDBDAD9D8D7D6D5D4D3D2D1D0CFCECDCCCBCAC9C8C7C6C5C4C3C2C1C0BFBEBDBCBBBAB9B8B7B6B5B4B3B2B1B0AFAEADACABAAA9A8A7A6A5A4A3A2A1A09F9E9D9C9B9A999897969594939291908F8E8D8C8B8A898887868584838281807F7E7D7C7B7A797877767574737271706F6E6D6C6B6A696867666564636261600090C000'
+        dataBitsToSend = ''
+        for word in [dataBlock[i:i+2] for i in range(0, len(dataBlock), 2)]:
+            val = int(word,16)
+            #if val < 96:
+            #    continue
+            print(word,val)
+            dataBitsToSend += f'{val:08b}'
+
+        self.LpGBT_IC_write(None, dataBitsToSend)
 
     def lpgbt_test(self):
         i2cAddr = f'{0xE0:08b}'
-        first_reg = f'{0x0E0:012b}'
+        first_reg = f'{0x3D:012b}'
         #first_reg = f'{0x052:012b}'
-        dataBitsToSend = f'001{first_reg[:5]}'
+        dataBitsToSend = f'000{first_reg[:5]}'
         dataBitsToSend += f'{first_reg[5:]}0'
 
-        piodirl = '00010100'
-        piooutl = '00010100'
-        piodrivestrengthl = '00010100'
+        #piodirl = '00010100'
+        #piooutl = '00010100'
+        #piodrivestrengthl = '00010100'
 
-        data = ''.join([f'{i:08b}' for i in range(1,4)])
+        data = ''.join([f'{i:08b}' for i in range(1,65)])
         #data = ''.join(['00001000', piodirl, '00001000', piooutl, '00000000', '00000000', '00000000', '00000000', '00001000', piodrivestrengthl])
         #data = '00000010'
         #data += '00000011'
@@ -175,6 +188,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         regDataB = [0x73,  0x73,  0x73,  0x00,  0x73,  0x73,  0x73,  0x73,  0x73,  0x00]
         regDataC = [0x00,  0x19,  0x00,  0x19,  0x19,  0x19,  0x00,  0x00,  0x00,  0x00]
         regDataD = [0x00,  0x73,  0x00,  0x73,  0x73,  0x73,  0x00,  0x00,  0x00,  0x07]
+
+        #regDataA = [0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00]
+        #regDataB = [0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00]
+        #regDataC = [0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00]
+        #regDataD = [0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00,  0x00]
+
 
         for i in range(len(regAddr)):
             addr = regAddr[i]
@@ -582,7 +601,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
                 #if chipName.find('lpgbt') != -1:
 
-    def sendControlLpgbtConfigs(self, chipName, wordCount, registerAddr, dataBits):
+    def sendControlLpgbtConfigs(self, chipName, totalWordCount, first_reg_addr, dataBits):
 
         chipConfig = self.chips[chipName]
         if chipName.find('lpgbt') == -1:
@@ -599,25 +618,37 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if (controlLpGBT == '13'):
             controlLpGBTbit = '1'
 
-        dataBitsToSend = f'{chipType}{controlLpGBTbit}{registerAddr[:5]}'
-        #print("header 1: ", dataBitsToSend)
-        dataBitsToSend += f'{registerAddr[5:]}0'
-        print("header:", dataBitsToSend)
+        dataBlocks = [dataBits[i:i+128] for i in range(0, len(dataBits), 128)]
+        regAddr = [f'{int(first_reg_addr,2)+16*i:012b}' for i in range(0,len(dataBlocks))]
+        print([hex(int(addr,2)) for addr in regAddr])
 
-        #wordCount += 2
-        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-        dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
+        for i in range(len(dataBlocks)):
+            if i != 12 and i!=13:
+                continue 
+            registerAddr = regAddr[i]
+            print(hex(int(registerAddr)))
+            subDataBits = dataBlocks[i]
+            wordCount = len(subDataBits)//8
 
-        #addr2, addr1 = u16_to_bytes(registerAddr)
-        #dataBitsToSend += f'{addr1:08b}{addr2:08b}'
+            dataBitsToSend = f'{chipType}{controlLpGBTbit}{registerAddr[:5]}'
+            #print("header 1: ", dataBitsToSend)
+            dataBitsToSend += f'{registerAddr[5:]}0'
+            print("header:", dataBitsToSend)
 
-        dataBitsToSend += dataBits
+            #wordCount += 2
+            wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+            dataBitsToSend += f'{wordCountByte1:08b}{wordCountByte2:08b}'
 
-        print("sending:")
-        for word in [dataBitsToSend[i:i+8] for i in range(0,len(dataBitsToSend),8)]:
-            print(word)
+            #addr2, addr1 = u16_to_bytes(registerAddr)
+            #dataBitsToSend += f'{addr1:08b}{addr2:08b}'
 
-        self.LpGBT_IC_write(None, dataBitsToSend)
+            dataBitsToSend += subDataBits
+
+            print("sending:")
+            for word in [dataBitsToSend[i:i+8] for i in range(0,len(dataBitsToSend),8)]:
+                print(word)
+
+            self.LpGBT_IC_write(None, dataBitsToSend)
 
     def startup(self):
         """Runs the standard board startup / connection routine"""

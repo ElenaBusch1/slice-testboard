@@ -409,23 +409,41 @@ def main(pArgs):
 
 
     #turn off parity
-    # writeToLpGBT(port, lpgbtAddr, 0x03c, [0x01])
+    print("Checking Parity")
+    #writeToLpGBT(port, lpgbtAddr, 0x03c, [0x01])
     readFromLpGBT(port, lpgbtAddr, 0x03c, 1)
     #writeToLpGBT(port, lpgbtAddr, 0x07c, [0x19, 0x73])
-    #readFromLpGBT(port, lpgbtAddr, 0x07c, 2)
-    #readFromLpGBT(port, lpgbtAddr, 0x140, 1) 
+    readFromLpGBT(port, lpgbtAddr, 0x0c0, 16)
+    #readFromLpGBT(port, lpgbtAddr, 0x0cc, 1) 
     #writeToLpGBT(port, lpgbtAddr, 0x118, [0x00])
     #writeToLpGBT(port, lpgbtAddr, 0x121, [0x01])
-    #readFromLpGBT(port,lpgbtAddr,0x118, 1)
+    print("Reading 0x118")
+    readFromLpGBT(port,lpgbtAddr,0x118, 6)
 
     #readFromLpGBT(port, lpgbtAddr, 0x0c4, 6)
+    #print("Start1")
+    #writeToLpGBT(port, lpgbtAddr, 0x12c, [0x00])
+    #readFromLpGBT(port, lpgbtAddr, 0x12c, 1)
+    #print("Start2")
+    #writeToLpGBT(port, lpgbtAddr, 0x12c, [0x07])
+    #readFromLpGBT(port, lpgbtAddr, 0x12c, 1)
+    #time.sleep(0.1)
+    #print("Start3")
+    #writeToLpGBT(port, lpgbtAddr, 0x12c, [0x00])
+    #readFromLpGBT(port, lpgbtAddr, 0x12c, 1)
+
+    #for i in range(0x3D,0xF0,16):
+    #    print('reading', hex(i))
+    #    readFromLpGBT(port, lpgbtAddr, i, 16)
+    #    time.sleep(0.1)
+
 
     # uplinkDataTest(port, lpgbtAddr)
 
     ### Read back full 240 registers ###
-    for reg in range(0, 0x13c, 16):
-        print(f"Beginning read at {reg:03x}")
-        readFromLpGBT(port, lpgbtAddr, reg, 16)
+    #for reg in range(0, 0x13c, 16):
+    #    print(f"Beginning read at {reg:03x}")
+    #    readFromLpGBT(port, lpgbtAddr, reg, 16)
 
     
 
