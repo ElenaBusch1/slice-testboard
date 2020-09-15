@@ -32,7 +32,7 @@ class Configuration(dict):
         Class implementation of deepcopy
         Reference: https://stackoverflow.com/questions/6279305/typeerror-cannot-deepcopy-this-pattern-object
         """
-        return Configuration(self.GUI, self.defaultCfgFile, self.specialCfgFile, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
+        return Configuration(self.GUI, self.defaultCfgFile, self.specialCfgFile, self.chipType, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
 
 
     def clone(self):
