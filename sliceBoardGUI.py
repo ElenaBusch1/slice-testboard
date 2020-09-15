@@ -11,6 +11,7 @@ import status
 import configureLpGBT1213
 from configureLpGBT1213 import writeToLpGBT, readFromLpGBT
 from functools import partial
+import configureLpGBT1213
 from collections import OrderedDict, defaultdict
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
@@ -72,9 +73,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
 
+
         #self.testButton.clicked.connect(self.test)
+        self.lpgbtWriteButton.clicked.connect(self.lpgbt_write)
+        # self.testButton.clicked.connect(self.test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         self.testButton.clicked.connect(self.lpgbt45readBack)
+        #self.test2Button.clicked.connect(self.configure_clocks_test)
         # self.test2Button.clicked.connect(self.i2cCOLUTA)
         self.test2Button.clicked.connect(self.i2cControlLpGBT)
         # self.test2Button.clicked.connect(self.configure_clocks_test)
@@ -82,10 +87,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.test3Button.clicked.connect(self.lpgbt_test)
 
 
+        self.configureClocksButton.clicked.connect(self.configure_clocks_test)
+        self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
+        self.configurelpgbt12i2cButton.clicked.connect(self.danielsconfig)
+
         self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
-        self.controlLpGBTConfigsButton.clicked.connect(self.sendUpdatedConfigurations)
-        self.colutaConfigsButton.clicked.connect(self.coluta_config_test)
+        self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
+        self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
 
         #Configuration Buttons
         self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
@@ -120,6 +129,40 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # self.sendConfigurationsFromLpGBT()
 
+    def lpgbt_i2c_read(self):
+        lpgbtBox = getattr(self, 'lpgbtBox')
+        registerBox = getattr(self, 'lpgbtregisterBox')
+
+    def lpgbt_write(self):
+        lpgbtBox = getattr(self, 'lpgbtBox')
+        registerBox = getattr(self, 'lpgbtregisterBox')
+        valueBox = getattr(self, 'lpgbtvalueBox')
+
+        try:
+            reg_addr_hex = int(registerBox.toPlainText(),16)
+        except:
+            print("Invalid register address")
+            return
+        
+        reg_addr = f'{reg_addr_hex:012b}'      
+        reg_val = valueBox.toPlainText() 
+        controlLpGBTbit = str(int(lpgbtBox.isChecked()))
+        
+        dataBitsToSend = f'00{controlLpGBTbit}{reg_addr[:5]}'
+        dataBitsToSend += f'{reg_addr[5:]}0'
+        wordCount = len(reg_val)//8
+        wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
+        dataBitsToSend += f'{wordCountByte1:08b}' + f'{wordCountByte2:08b}'
+        dataBitsToSend += f'{int(reg_val,2):08b}'
+
+        for word in [dataBitsToSend[i:i+8] for i in range(0,len(dataBitsToSend),8)]:
+            print(word)
+
+        try:
+            LpGBT_IC_write(dataBitsToSend)
+        except:
+            print("IC write to lpGBT failed")
+            return
 
     def test(self):
         """General purpose test function"""
@@ -177,7 +220,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #data4 = ''.join(['00000000', '00010000', '00000000', '00010000', '00000000', '00000000', '00000000', '00000000', '00000000', '00010000'])
         #data11 = ''.join(['00001000', '00000000', '00001000', '00000000', '00000000', '00000000', '00000000', '00000000', '00001000', '00000000'])
 
-        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+        self.LpGBT_IC_write(dataBitsToSend)
 
         #dataBitsToSend4 = f'000{first_reg[:5]}' + f'{first_reg[5:]}0' + f'{wordCountByte1:08b}' + f'{wordCountByte2:08b}' + data4
         #dataBitsToSend11 = f'000{first_reg[:5]}' + f'{first_reg[5:]}0' + f'{wordCountByte1:08b}' + f'{wordCountByte2:08b}' + data11
@@ -218,7 +261,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             dataBitsToSend += f'{wordCountByte2:08b}'
             dataBitsToSend += data
 
-            self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+            self.LpGBT_IC_write(dataBitsToSend)
 
         #while True:
         #    self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
@@ -268,7 +311,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsToSend += f'{wordCountByte2:08b}'
         dataBitsToSend += data  
 
-        self.LpGBT_IC_write(dummy, dataBitsToSend)        
+        self.LpGBT_IC_write(dataBitsToSend)        
 
         # sec_reg = f'{0x121:012b}'
         # dataBitsToSend2 = f'000{sec_reg[:5]}'
@@ -488,7 +531,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsToSend += f'{registerAddr:08b}'
         dataBitsToSend += dataBits
 
-        self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
+        self.LpGBT_IC_write(dataBitsToSend)
 
     def collectDataLpgbtConfigs(self):
 
@@ -563,7 +606,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         dataBitsToSend += dataBits
 
-        self.LpGBT_IC_write(None, dataBitsToSend)
+        self.LpGBT_IC_write(dataBitsToSend)
 
     def collectControlLpgbtConfigs(self):
 
@@ -648,6 +691,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 print(word)
 
             self.LpGBT_IC_write(None, dataBitsToSend)
+        
 
     def startup(self):
         """Runs the standard board startup / connection routine"""
@@ -1194,7 +1238,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             print(f'Could not find setting box {boxName}.')
 
-    def LpGBT_IC_write(self, primaryLpGBTAddress, data):
+    def LpGBT_IC_write(self, data):
 
         # wordBlock = ''
         # for i in range(0,len(data)//8):
