@@ -142,6 +142,43 @@ def readFromLpGBT(port, lpgbtAddr, regAddr, nBytesToRead):
 
     return []
 
+def colutaRegWriteTest(port, lpgbtAddr):
+    while True:
+        #wr 0x0f9 20  SCl, 8 bytes, 200kHz
+        writeToLpGBT(port, lpgbtAddr, 0x0f9, [0x20])
+        #wr 0x0fd 0   write control register command
+        writeToLpGBT(port, lpgbtAddr, 0x0fd, [0x0])
+
+        #wr 0x0f9 1
+        writeToLpGBT(port, lpgbtAddr, 0x0f9, [0x1])
+        #wr 0x0fa 2
+        writeToLpGBT(port, lpgbtAddr, 0x0fa, [0x2])
+        #wr 0x0fb 3
+        writeToLpGBT(port, lpgbtAddr, 0x0fb, [0x3])
+        #wr 0x0fc 4
+        writeToLpGBT(port, lpgbtAddr, 0x0fc, [0x4])
+        #wr 0x0fd 8   get 4 bytes command
+        writeToLpGBT(port, lpgbtAddr, 0x0fd, [0x8])
+
+        #wr 0x0f9 5
+        writeToLpGBT(port, lpgbtAddr, 0x0f9, [0x5])
+        #wr 0x0fa 6
+        writeToLpGBT(port, lpgbtAddr, 0x0fa, [0x6])
+        #wr 0x0fb 7
+        writeToLpGBT(port, lpgbtAddr, 0x0fb, [0x7])
+        #wr 0x0fc 8
+        writeToLpGBT(port, lpgbtAddr, 0x0fc, [0x8])
+        #wr 0x0fd 9  get 4 bytes command
+        writeToLpGBT(port, lpgbtAddr, 0x0fd, [0x9])
+
+        #wr 0x0f8 50  7 bits of address
+        writeToLpGBT(port, lpgbtAddr, 0x0f8, [0x50])
+        #wr 0x0f7 07  3 bits of address
+        writeToLpGBT(port, lpgbtAddr, 0x0f7, [0x07])
+        #wr 0x0fd 0E  10bit address write command
+        writeToLpGBT(port, lpgbtAddr, 0x0fd, [0xE])
+    return
+
 def uplinkDataTest(port, lpgbtAddr):
 
     #0x118 is the EC data pattern -> do we need this?
@@ -157,8 +194,8 @@ def uplinkDataTest(port, lpgbtAddr):
     # writeToLpGBT(port, lpgbtAddr, 0x118, [0x08, 0x12, 0x12, 0x12, 0x02, 0xff])
     writeToLpGBT(port, lpgbtAddr, 0x11e, [0xaa, 0xaa, 0xaa, 0xaa])
     writeToLpGBT(port, lpgbtAddr, 0x132, [0x02])
-    readFromLpGBT(port, lpgbtAddr, 0x118, 10)
-    readFromLpGBT(port, lpgbtAddr, 0x132, 1)
+    #readFromLpGBT(port, lpgbtAddr, 0x118, 10)
+    #readFromLpGBT(port, lpgbtAddr, 0x132, 1)
 
 
 '''
