@@ -410,10 +410,10 @@ def main(pArgs):
 
     #turn off parity
     print("Checking Parity")
-    #writeToLpGBT(port, lpgbtAddr, 0x03c, [0x01])
+    writeToLpGBT(port, lpgbtAddr, 0x03c, [0x01])
     readFromLpGBT(port, lpgbtAddr, 0x03c, 1)
     #writeToLpGBT(port, lpgbtAddr, 0x07c, [0x19, 0x73])
-    readFromLpGBT(port, lpgbtAddr, 0x0c0, 16)
+    #readFromLpGBT(port, lpgbtAddr, 0x0c0, 16)
     #readFromLpGBT(port, lpgbtAddr, 0x0cc, 1) 
     #writeToLpGBT(port, lpgbtAddr, 0x118, [0x00])
     #writeToLpGBT(port, lpgbtAddr, 0x121, [0x01])
@@ -438,7 +438,7 @@ def main(pArgs):
     #    time.sleep(0.1)
 
 
-    # uplinkDataTest(port, lpgbtAddr)
+    uplinkDataTest(port, lpgbtAddr)
 
     ### Read back full 240 registers ###
     #for reg in range(0, 0x13c, 16):
