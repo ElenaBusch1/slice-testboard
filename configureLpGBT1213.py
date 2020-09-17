@@ -183,17 +183,23 @@ def uplinkDataTest(port, lpgbtAddr):
 
     #0x118 is the EC data pattern -> do we need this?
 
-    #writeToLpGBT(port, lpgbtAddr, 0x118, [0x60]) #011 00 000 
-    #writeToLpGBT(port, lpgbtAddr, 0x119, [0x1b]) #00 011 011
-    #writeToLpGBT(port, lpgbtAddr, 0x11a, [0x1b]) #00 011 011
-    #writeToLpGBT(port, lpgbtAddr, 0x11b, [0x1b]) #00 011 011
-    #writeToLpGBT(port, lpgbtAddr, 0x11c, [0x03]) #00 000 011
+    writeToLpGBT(port, lpgbtAddr, 0x118, [0x0C]) #011 00 000 
+    writeToLpGBT(port, lpgbtAddr, 0x119, [0x12]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11a, [0x12]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11b, [0x12]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11c, [0x02]) #00 000 011
+    writeToLpGBT(port, lpgbtAddr, 0x11d, [0xFF])
+
+    writeToLpGBT(port, lpgbtAddr, 0x11e, [0xaa])
+    writeToLpGBT(port, lpgbtAddr, 0x11f, [0xaa])
+    writeToLpGBT(port, lpgbtAddr, 0x120, [0xaa])
+    writeToLpGBT(port, lpgbtAddr, 0x121, [0xaa])
 
     #to write consecutively
-    writeToLpGBT(port, lpgbtAddr, 0x118, [0x0c, 0x24, 0x24, 0x24, 0x04, 0xff])
+    #writeToLpGBT(port, lpgbtAddr, 0x118, [0x0c, 0x24, 0x24, 0x24, 0x04, 0xff])
     # writeToLpGBT(port, lpgbtAddr, 0x118, [0x08, 0x12, 0x12, 0x12, 0x02, 0xff])
-    writeToLpGBT(port, lpgbtAddr, 0x11e, [0xaa, 0xaa, 0xaa, 0xaa])
-    writeToLpGBT(port, lpgbtAddr, 0x132, [0x02])
+    #writeToLpGBT(port, lpgbtAddr, 0x11e, [0xaa, 0xaa, 0xaa, 0xaa])
+    #writeToLpGBT(port, lpgbtAddr, 0x132, [0x02])
     #readFromLpGBT(port, lpgbtAddr, 0x118, 10)
     #readFromLpGBT(port, lpgbtAddr, 0x132, 1)
 
