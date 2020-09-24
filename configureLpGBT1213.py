@@ -110,6 +110,7 @@ def writeToLpGBT(port, lpgbtAddr, regAddr, data):
     timeout = time.time() + 5
     while True:
         writeMessage = [0x57, 0x01, 0x30 + (2 + len(data)), addrW, regAddrLow, regAddrHigh, *data, 0x03]
+        #print(writeMessage)
         writeToUSBISS(port, writeMessage)
         status = readFromUSBISS(port)
         if status[0] == 0xff:
@@ -172,9 +173,9 @@ def colutaRegWriteTest(port, lpgbtAddr):
         writeToLpGBT(port, lpgbtAddr, 0x0fd, [0x9])
 
         #wr 0x0f8 50  7 bits of address
-        writeToLpGBT(port, lpgbtAddr, 0x0f8, [0x50])
+        writeToLpGBT(port, lpgbtAddr, 0x0f8, [0x40])
         #wr 0x0f7 07  3 bits of address
-        writeToLpGBT(port, lpgbtAddr, 0x0f7, [0x07])
+        writeToLpGBT(port, lpgbtAddr, 0x0f7, [0x00])
         #wr 0x0fd 0E  10bit address write command
         writeToLpGBT(port, lpgbtAddr, 0x0fd, [0xE])
     return
@@ -182,7 +183,16 @@ def colutaRegWriteTest(port, lpgbtAddr):
 def uplinkDataTest(port, lpgbtAddr):
 
     #0x118 is the EC data pattern -> do we need this?
+    #For lpgbt 14   
+    # writeToLpGBT(port, lpgbtAddr, 0x12d, [0xff])
+    # writeToLpGBT(port, lpgbtAddr, 0x118, [0x01])
+    # writeToLpGBT(port, lpgbtAddr, 0x119, [0x09])
+    # writeToLpGBT(port, lpgbtAddr, 0x11a, [0x09])
+    # writeToLpGBT(port, lpgbtAddr, 0x11b, [0x09])
+    # writeToLpGBT(port, lpgbtAddr, 0x11c, [0x01])
+    # writeToLpGBT(port, lpgbtAddr, 0x119, [0xaa])
 
+    # For lpgbt 12/13
     writeToLpGBT(port, lpgbtAddr, 0x118, [0x0C]) #011 00 000 
     writeToLpGBT(port, lpgbtAddr, 0x119, [0x12]) #00 011 011
     writeToLpGBT(port, lpgbtAddr, 0x11a, [0x12]) #00 011 011
@@ -190,10 +200,10 @@ def uplinkDataTest(port, lpgbtAddr):
     writeToLpGBT(port, lpgbtAddr, 0x11c, [0x02]) #00 000 011
     writeToLpGBT(port, lpgbtAddr, 0x11d, [0xFF])
 
-    writeToLpGBT(port, lpgbtAddr, 0x11e, [0xaa])
-    writeToLpGBT(port, lpgbtAddr, 0x11f, [0xaa])
-    writeToLpGBT(port, lpgbtAddr, 0x120, [0xaa])
-    writeToLpGBT(port, lpgbtAddr, 0x121, [0xaa])
+    writeToLpGBT(port, lpgbtAddr, 0x11e, [0x55])
+    writeToLpGBT(port, lpgbtAddr, 0x11f, [0x55])
+    writeToLpGBT(port, lpgbtAddr, 0x120, [0x55])
+    writeToLpGBT(port, lpgbtAddr, 0x121, [0x55])
 
     #to write consecutively
     #writeToLpGBT(port, lpgbtAddr, 0x118, [0x0c, 0x24, 0x24, 0x24, 0x04, 0xff])
