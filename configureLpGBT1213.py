@@ -194,15 +194,15 @@ def uplinkDataTest(port, lpgbtAddr):
 
     # For lpgbt 12/13
     writeToLpGBT(port, lpgbtAddr, 0x118, [0x0C]) #011 00 000 
-    writeToLpGBT(port, lpgbtAddr, 0x119, [0x12]) #00 011 011
-    writeToLpGBT(port, lpgbtAddr, 0x11a, [0x12]) #00 011 011
-    writeToLpGBT(port, lpgbtAddr, 0x11b, [0x12]) #00 011 011
-    writeToLpGBT(port, lpgbtAddr, 0x11c, [0x02]) #00 000 011
+    writeToLpGBT(port, lpgbtAddr, 0x119, [0x24]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11a, [0x24]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11b, [0x24]) #00 011 011
+    writeToLpGBT(port, lpgbtAddr, 0x11c, [0x04]) #00 000 011
     writeToLpGBT(port, lpgbtAddr, 0x11d, [0xFF])
 
-    writeToLpGBT(port, lpgbtAddr, 0x11e, [0x55])
+    writeToLpGBT(port, lpgbtAddr, 0x11e, [0xaa])
     writeToLpGBT(port, lpgbtAddr, 0x11f, [0x55])
-    writeToLpGBT(port, lpgbtAddr, 0x120, [0x55])
+    writeToLpGBT(port, lpgbtAddr, 0x120, [0xaa])
     writeToLpGBT(port, lpgbtAddr, 0x121, [0x55])
 
     #to write consecutively

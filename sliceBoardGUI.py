@@ -78,7 +78,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.lpgbtICWriteButton.clicked.connect(self.lpgbt_write)
         #self.testButton.clicked.connect(self.silly_reg_test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
-        self.testButton.clicked.connect(self.lpgbt45readBack)
+        #self.testButton.clicked.connect(self.lpgbt45readBack)
+        self.testButton.clicked.connect(lambda: self.i2cLauroc("lauroc20"))
         #self.testButton.clicked.connect(self.test_lpgbt9config_loop)
         #self.test2Button.clicked.connect(self.configure_clocks_test)
         #self.test2Button.clicked.connect(self.i2cCOLUTA)
@@ -532,7 +533,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def write_uplink_test(self):
 
-        chip = self.chips["lpgbt13"]
+        chip = self.chips['lpgbt14']
         configureLpGBT1213.uplinkDataTest(self.i2cPort, int(chip.i2cAddress, 2))
 
 
@@ -1234,23 +1235,33 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def i2cCOLUTA(self):
-        dataBits = self.colutaI2CWriteControl("coluta17", "ch1", broadcast=True)
-        dataBits += self.colutaI2CWriteControl("coluta17", "ch5", broadcast=True)
+        colutaName = "coluta20"
+        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=True)
         dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
-        lpgbtI2CAddr = self.chips["lpgbt"+self.chips["coluta17"].lpgbtMaster].i2cAddress
-        colutaI2CAddr = self.chips["coluta17"].i2cAddress
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[colutaName].i2cAddress
         colutaI2CAddr = int("".join(colutaI2CAddr.split("_")[:2]), 2)
         colutaI2CAddrH = colutaI2CAddr >> 7
         colutaI2CAddrL = colutaI2CAddr & 0b1111111
-        dataBitsGlobal = self.colutaI2CWriteControl("coluta17", "global")
+        dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
         for word in dataBits64:
-            dataBits8 = [i for i in range(1,9)]
+        #word = dataBits64[-1]
+        #print(word)
+        #while True:
+            #dataBits8 = [i for i in range(1,9)]
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-            print("0x0f9:", [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            print("0x0f9:", [*dataBits8[:4], 0x8])
-            print("0x0f9:", [*dataBits8[4:], 0x9])
-            print("0x0f7:", [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe])
+            print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
+            print("0x0f9:", [hex(x) for x in [*dataBits8[4:][::-1], 0x8]])
+            print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
+            print("0x0f7:", [hex(x) for x in [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe]])
+
+            # print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
+            # print("0x0f9:", [hex(x) for x in [0xff, 0x80, 0x00, 0x00, 0x8]])
+            # print("0x0f9:", [hex(x) for x in [0x00, 0x00, 0x00, 0x00, 0x9]])
+            # print("0x0f7:", [hex(x) for x in [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe]])
+
             # We will write 8 bytes to i2cM1Data at a time
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xa0])
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0fd, [0x00])
@@ -1261,12 +1272,46 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f8, [0x00]) i2cAddr[6:0]
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x04]) i2cAddr[9:7]
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0fd, [0x0E])
-
+            
+            #harcoded ADC sel testi
+            """
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4], 0x8])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:], 0x9])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xff, 0x80, 0x01, 0x21, 0x8])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0x43, 0x00, 0x00, 0x00, 0x9])
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe])
+            """
+            #note b0 is LSB byte, b1 is 2nd LSB etc
+            #within the LSB byte b0 the LSB is to the rightmost
+            """
+            adcSel = 0xf0
+            rw = 0x80
+            b0 = 0xc0
+            b1 = 0x18
+            b2 = 0x05
+            b3 = 0x82
+            b4 = 0x01
+            b5 = 0x01
+            """
+            # adcSel = 0xf0
+            # rw = 0x80
+            # b0 = 0x31
+            # b1 = 0xf7
+            # b2 = 0x00
+            # b3 = 0x00
+            # b4 = 0x00
+            # b5 = 0x21
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [ adcSel, rw, b0, b1, 0x8])
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [ b2, b3, b4, b5, 0x9])
+            # # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe])
+
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe])
 
         counter = 1
         for word in dataBitsGlobal64:
@@ -1277,7 +1322,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4], 0x8])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:], 0x9])
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
             counter += 1
 
 
@@ -1327,6 +1372,34 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b10001000, 0x00, 0x00, 0x00, 0x0])
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xd])
             # readFromLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x17b, 14)
+
+    def i2cLauroc(self, lauroc):
+        chip = self.chips[lauroc]
+        chipList = list(chip.values())
+        sectionChunks = defaultdict()
+        for iSection in range(0, len(chip)):
+            startReg = int(chipList[iSection].address, 0)
+            try:
+                bits = int(chipList[iSection].bits, 2)
+            except IndexError:
+                bits = 0
+            sectionChunks[startReg] = bits
+
+        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
+        laurocI2CAddr = int(self.chips[lauroc].i2cAddress[:4],2)
+        for iSection in range(0, len(chip)):
+            startReg = int(chipList[iSection].address, 0)
+            data = sectionChunks[startReg]
+            print("writing", hex(data), "to", hex(startReg))
+            #writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b10000001, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00, 0x00, 0x2])
+            print("reading back")
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2])
+            writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3])
+            readFromLpGBT(self.i2cPort, lpgbtI2CAddr, 0x178, 1)
 
 
     def i2cDataLpgbtWrite(self, lpgbtI2CAddr, dataI2CAddr, register, data):
