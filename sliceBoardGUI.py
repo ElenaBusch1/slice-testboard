@@ -79,7 +79,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.testButton.clicked.connect(self.silly_reg_test)
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         #self.testButton.clicked.connect(self.lpgbt45readBack)
-        self.testButton.clicked.connect(lambda: self.i2cLauroc("lauroc20"))
+        #self.testButton.clicked.connect(lambda: self.i2cLauroc("lauroc20"))
         #self.testButton.clicked.connect(self.test_lpgbt9config_loop)
         #self.test2Button.clicked.connect(self.configure_clocks_test)
         #self.test2Button.clicked.connect(self.i2cCOLUTA)
@@ -112,7 +112,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #Configuration Buttons
         self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
-        self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
+        #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
+        self.laurocConfigureButton.clicked.connect(self.i2cLauroc)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
@@ -1237,6 +1238,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def i2cCOLUTA(self):
         colutaName = "coluta20"
+        #colutaName = getattr(self, 'colutaConfigureBox').currentText()
         dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=False)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
@@ -1248,9 +1250,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[colutaName].i2cAddress
-        colutaI2CAddr = int("".join(colutaI2CAddr.split("_")[1:2]), 2)
-        colutaI2CAddrH = colutaI2CAddr >> 1
-        colutaI2CAddrL = colutaI2CAddr << 7
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
+        print("i2cAddr", colutaI2CAddr)
+        colutaI2CAddrH = f'00000{colutaI2CAddr[:3]}'
+        colutaI2CAddrL = f'0{colutaI2CAddr[-1]}000000'
+        print("i2cH", colutaI2CAddrH)
+        print("u2cL", colutaI2CAddrL)
         dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
         for word in dataBits64:
@@ -1337,7 +1342,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
             counter += 1
 
-
     def i2cDataLpGBT(self, lpgbt):
         chip = self.chips[lpgbt]
         chipList = list(chip.values())
@@ -1385,7 +1389,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xd])
             # readFromLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x17b, 14)
 
-    def i2cLauroc(self, lauroc):
+    def i2cLauroc(self):
+        lauroc = getattr(self, 'laurocConfigureBox').currentText()
         chip = self.chips[lauroc]
         chipList = list(chip.values())
         sectionChunks = defaultdict()
