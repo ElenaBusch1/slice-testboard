@@ -1320,6 +1320,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe])
 
+        print("Beginning writing global bits")
         counter = 1
         for word in dataBitsGlobal64:
             # print("global bits", counter)
@@ -1336,6 +1337,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
             counter += 1
+
+        print("Beginning reading global bits")
+        counter = 1
+        for _ in dataBitsGlobal64:
+            addrModification = counter*8
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xf])
+            readFromLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x189 - 8, 8)
+
 
 
     def i2cDataLpGBT(self, lpgbt):
