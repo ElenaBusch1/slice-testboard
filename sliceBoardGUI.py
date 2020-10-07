@@ -80,6 +80,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         #self.testButton.clicked.connect(self.lpgbt45readBack)
         #self.testButton.clicked.connect(lambda: self.i2cLauroc("lauroc20"))
+        self.testButton.clicked.connect(lambda: self.i2cLauroc())
         #self.testButton.clicked.connect(self.test_lpgbt9config_loop)
         #self.test2Button.clicked.connect(self.configure_clocks_test)
         #self.test2Button.clicked.connect(self.i2cCOLUTA)
@@ -93,8 +94,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
         self.dcdcConverterButton.clicked.connect(self.enableDCDCConverter)
-        self.lpgbt12ResetButton.clicked.connect(self.lpgbt12Reset)
-        self.lpgbt13ResetButton.clicked.connect(self.lpgbt13Reset)
+        self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
+        self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
 
         self.lpgbtI2CWriteButton.clicked.connect(self.lpgbt_i2c_write)
         self.lpgbtI2CReadButton.clicked.connect(self.lpgbt_i2c_read)
@@ -113,7 +114,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #Configuration Buttons
         self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
-        self.laurocConfigureButton.clicked.connect(self.i2cLauroc)
+        self.laurocControlConfigureButton.clicked.connect(self.i2cLauroc)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
@@ -421,14 +422,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(self.i2cPort, int(chip2.i2cAddress, 2), 0x052, dataToSend2)
 
 
-    def lpgbt12Reset(self):
-        chip = self.chips["lpgbt12"]
-        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), 0x12c, [0x00])
-        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), 0x12c, [0x07])
-        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), 0x12c, [0x00])
-
-    def lpgbt13Reset(self):
-        chip = self.chips["lpgbt13"]
+    def lpgbtReset(self, lpgbt):
+        chip = self.chips[lpgbt]
         writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), 0x12c, [0x00])
         writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), 0x12c, [0x07])
         writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), 0x12c, [0x00])
@@ -1237,28 +1232,33 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def i2cCOLUTA(self):
-        colutaName = "coluta20"
-        #colutaName = getattr(self, 'colutaConfigureBox').currentText()
-        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
-        #dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=False)
+        #colutaName = "coluta20"
+        colutaName = getattr(self, 'colutaConfigureBox').currentText()
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[colutaName].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+
+        #dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
+        #dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch4", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch6", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch8", broadcast=False)
+        #dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=True)
+        #dataBits += self.colutaI2CWriteControl(colutaName, "ch6", broadcast=True)
+        #dataBits += self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
+        dataBits = self.colutaI2CWriteControl(colutaName, "ch8", broadcast=False)
         dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[colutaName].i2cAddress
         colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
         print("i2cAddr", colutaI2CAddr)
-        colutaI2CAddrH = f'00000{colutaI2CAddr[:3]}'
-        colutaI2CAddrL = f'0{colutaI2CAddr[-1]}000000'
-        print("i2cH", colutaI2CAddrH)
-        print("u2cL", colutaI2CAddrL)
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        print("i2cH",hex(colutaI2CAddrH))
+        print("u2cL", hex(colutaI2CAddrL))
         dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
         for word in dataBits64:
+            #continue
             #word = dataBits64[-1]
             #print(word)
             #while True:
@@ -1267,12 +1267,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
             print("0x0f9:", [hex(x) for x in [*dataBits8[4:][::-1], 0x8]])
             print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
-            print("0x0f7:", [hex(x) for x in [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe]])
-
-            # print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
-            # print("0x0f9:", [hex(x) for x in [0xff, 0x80, 0x00, 0x00, 0x8]])
-            # print("0x0f9:", [hex(x) for x in [0x00, 0x00, 0x00, 0x00, 0x9]])
-            # print("0x0f7:", [hex(x) for x in [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe]])
+            print("0x0f7:", [hex(x) for x in [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe]])
 
             # We will write 8 bytes to i2cM1Data at a time
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xa0])
@@ -1285,49 +1280,37 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x04]) i2cAddr[9:7]
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0fd, [0x0E])
             
-            #harcoded ADC sel testi
-            """
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xff, 0x80, 0x01, 0x21, 0x8])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0x43, 0x00, 0x00, 0x00, 0x9])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe])
-            """
-            #note b0 is LSB byte, b1 is 2nd LSB etc
-            #within the LSB byte b0 the LSB is to the rightmost
-            """
-            adcSel = 0xf0
-            rw = 0x80
-            b0 = 0xc0
-            b1 = 0x18
-            b2 = 0x05
-            b3 = 0x82
-            b4 = 0x01
-            b5 = 0x01
-            """
-            # adcSel = 0xf0
-            # rw = 0x80
-            # b0 = 0x31
-            # b1 = 0xf7
-            # b2 = 0x00
-            # b3 = 0x00
-            # b4 = 0x00
-            # b5 = 0x21
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [ adcSel, rw, b0, b1, 0x8])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [ b2, b3, b4, b5, 0x9])
-            # # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe])
 
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00, 0x0])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+
+        for word in dataBits64:
+            continue
+            print("Reading back")
+            readBackBits = '01' + word[-14:]
+            readBackBits = readBackBits.zfill(64)
+            readBackBits8 = [int(readBackBits[8*i:8*(i+1)], 2) for i in range(len(readBackBits)//8)]
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[4:][::-1], 0x8])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[:4][::-1], 0x9])
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+ 
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xf])
+            readFromLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x179, 16)
+
 
         print("Beginning writing global bits")
         counter = 1
-        for word in dataBitsGlobal64:
+        #word = dataBitsGlobal64[0]
+        #bytesList = ['00000000', '00000000', '00000000', '00000000', '00000000',  '00000000', '00111011','00000000']
+        #word = ''.join(bytesList)
+        #while True:
+        for word in dataBitsGlobal64[::-1]:
+            # continue
             # print("global bits", counter)
             print(word)
             print(len(word))
@@ -1336,21 +1319,28 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             addrModification = counter*8
             dataBits8 = [i for i in range(1,9)]
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00, 0x0])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
             writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
             counter += 1
 
         print("Beginning reading global bits")
         counter = 1
         for _ in dataBitsGlobal64:
+        #while True:
             addrModification = counter*8
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xf])
-            readFromLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x189 - 8, 8)
+            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00, 0x00, 0x00, 0xf])
+            readFromLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x179, 16)
+            counter += 1
+
 
     def i2cDataLpGBT(self, lpgbt):
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[lpgbt].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+
         chip = self.chips[lpgbt]
         chipList = list(chip.values())
         dataBits14 = defaultdict(list)
@@ -1399,6 +1389,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def i2cLauroc(self):
         lauroc = getattr(self, 'laurocConfigureBox').currentText()
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+
         chip = self.chips[lauroc]
         chipList = list(chip.values())
         sectionChunks = defaultdict()
