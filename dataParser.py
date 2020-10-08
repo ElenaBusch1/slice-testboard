@@ -50,6 +50,7 @@ class dataParser:
 
         # Make dicts for each COLUTA and keep track of file number for channel
         data_groups = [x.strip() for x in getattr(self, "general").getSetting("data_chips")]
+        print(data_groups)
         for group in data_groups:
             setattr(self, group + "DecimalDict", defaultdict(list))
             setattr(self, group + "BinaryDict", defaultdict(list))
@@ -106,10 +107,11 @@ class dataParser:
         words = getattr(self, "general").getSetting("data_words")
 
         bitsPerSample = int(getattr(self, 'rootGroup').settings['total_bits'])
+        print(bitsPerSample)
 
         # Group the binaryList into 32-bit long words
         dataSamples = [sample[i:i+bitsPerSample] for sample in binaryData for i in range(0, len(sample), bitsPerSample)]
-
+        print(dataSamples)
         # TODO: This needs to be updated once we know how the data coming out of the VTRx+3/6 is formatted
         # The data from the lpGBT is packaged into 8 32-bit words called "groups"
         # In testboard v1.1, we are sending data in groups 1, 2, and 3 (groups are 0-indexed)
@@ -132,6 +134,7 @@ class dataParser:
                 msbList = configDict['msb']
                 # Take a 16-bit sample and store it in its proper channel list
                 for (chip, channel, lsb, msb) in zip(dataChips, dataChannels, lsbList, msbList):
+                    print(chip, channel, lsb, msb)
                     binaryDict = getattr(self, chip + 'BinaryDict')
                     decodedWord = sample[int(lsb):int(msb)]
                     binaryDict[channel].append(decodedWord)

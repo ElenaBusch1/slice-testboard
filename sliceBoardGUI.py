@@ -43,7 +43,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Some version-dependent parameters/values
-        self.nSamples = 4000  # default number of samples to parse from standard readout
+        self.nSamples = 5  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
@@ -88,7 +88,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.test2Button.clicked.connect(self.configure_clocks_test)
         # self.test2Button.clicked.connect(lambda: self.isLinkReady("45"))
         self.test3Button.clicked.connect(self.write_uplink_test)
-        self.test2Button.clicked.connect(self.colutaRegWriteTest)
+        self.test2Button.clicked.connect(self.scanClocks)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
@@ -931,14 +931,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtMaster = "lpgbt"+self.chips[colutaName].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
-        #dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
+        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch4", broadcast=False)
-        #dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=True)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch6", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
-        dataBits = self.colutaI2CWriteControl(colutaName, "ch8", broadcast=False)
+        #dataBits = self.colutaI2CWriteControl(colutaName, "ch8", broadcast=False)
         dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[colutaName].i2cAddress
@@ -1353,7 +1353,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             return
 
         print("Reading data")
-        dataByteArray = self.fifoAReadData("36")
+        dataByteArray = self.fifoAReadData("45")
 
         if self.pArgs.no_connect: return
 
@@ -1362,8 +1362,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
         if self.pArgs.debug: print(dataStringChunks16)
 
-        self.ODP.parseData(self.nSamples, dataString)
-        self.ODP.writeDataToFile()
+        return dataString
+        #self.ODP.parseData(self.nSamples, dataString)
+        #self.ODP.writeDataToFile()
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
@@ -1422,8 +1423,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.updateBox(boxName, sourceSetting)
 
 
-    def scanClocks():
-    	ch1_sertest_true = '1010_0100_000_01001'
+    def scanClocks(self): 
+        ch1_sertest_true = '1010_0100_000_01001'
         ch2_sertest_true = '1010_0100_001_01001'
         ch3_sertest_true = '1010_0100_010_01001'
         ch4_sertest_true = '1010_0100_011_01001'
@@ -1432,35 +1433,30 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         ch7_sertest_true = '1010_0100_110_01001'
         ch8_sertest_true = '1010_0100_111_01001'
 
-        chip = self.chips["lpgbt16"]
+        lpgbt = "lpgbt16"
+        chip = self.chips[lpgbt]
         lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
         dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
 
-        channels = [0xe6]
+        registers = [0xe6]
         #channels = [xx,xx,0xe6]
-        for chn in channels:
-        	for idx in range(0,16):
-        		value = (idx<<4)+2
-        		self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, chn, [value])
-        		time.sleep(0.1)
-    			self.takeSamples()
-    			coluta_binary_data = self.ODP.colutaBinaryDict
-	            ch1_binary_list = coluta_binary_data['channel1']
-	            ch2_binary_list = coluta_binary_data['channel2']
-	            ch3_binary_list = coluta_binary_data['channel3']
-	            ch4_binary_list = coluta_binary_data['channel4']
-	            ch5_binary_list = coluta_binary_data['channel5']
-	            ch6_binary_list = coluta_binary_data['channel6']
-	            ch7_binary_list = coluta_binary_data['channel7']
-	            ch8_binary_list = coluta_binary_data['channel8']
-	            print(ch1_binary_list)
-	            print(ch2_binary_list)
-	            print(ch3_binary_list)
-	            print(ch4_binary_list)
-	            print(ch5_binary_list)
-	            print(ch6_binary_list)
-	            print(ch7_binary_list)
-	            print(ch8_binary_list)
+        for reg in registers:
+            for idx in range(13,14):
+                value = (idx<<4)+2
+                self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg, [value])
+                time.sleep(0.1)
+                dataString = self.takeSamples()
+                sectionLen = len(dataString)//self.nSamples
+                repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
+                frame_list = [chunk[64:80] for chunk in repeats]
+                ch1_list = [chunk[96:112] for chunk in repeats]
+                ch2_list = [chunk[112:128] for chunk in repeats]
+                ch3_list = [chunk[128:144] for chunk in repeats]
+                ch4_list = [chunk[144:160] for chunk in repeats]
+                ch5_list = [chunk[160:176] for chunk in repeats]
+                ch6_list = [chunk[176:192] for chunk in repeats]
+                ch7_list = [chunk[192:208] for chunk in repeats]
+                ch8_list = [chunk[208:224] for chunk in repeats]
 
     def updateBox(self, boxName, settingValue):
         try:
