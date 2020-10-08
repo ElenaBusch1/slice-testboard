@@ -1433,30 +1433,202 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         ch7_sertest_true = '1010_0100_110_01001'
         ch8_sertest_true = '1010_0100_111_01001'
 
+        ch1_sertest_repl = ch1_sertest_true*2
+        ch2_sertest_repl = ch2_sertest_true*2
+        ch3_sertest_repl = ch3_sertest_true*2
+        ch4_sertest_repl = ch4_sertest_true*2
+        ch5_sertest_repl = ch5_sertest_true*2
+        ch6_sertest_repl = ch6_sertest_true*2
+        ch7_sertest_repl = ch7_sertest_true*2
+        ch8_sertest_repl = ch8_sertest_true*2
+        ch1_sertest_valid = []
+        ch2_sertest_valid = []
+        ch3_sertest_valid = []
+        ch4_sertest_valid = []
+        ch5_sertest_valid = []
+        ch6_sertest_valid = []
+        ch7_sertest_valid = []
+        ch8_sertest_valid = []
+        LPGBTPhaseCh1_list = [[]]     # Value of correct lpGBT phase value or NaN if test signal is unstable or incorrect
+        LPGBTPhaseCh2_list = [[]]
+        LPGBTPhaseCh3_list = [[]]
+        LPGBTPhaseCh4_list = [[]]
+        LPGBTPhaseCh5_list = [[]]
+        LPGBTPhaseCh6_list = [[]]
+        LPGBTPhaseCh7_list = [[]]
+        LPGBTPhaseCh8_list = [[]]
+        for idx in range(0, 16):
+            ch1_sertest_valid.append(ch1_sertest_repl[idx:(16+idx)])
+            ch2_sertest_valid.append(ch2_sertest_repl[idx:(16+idx)])
+            ch3_sertest_valid.append(ch3_sertest_repl[idx:(16+idx)])
+            ch4_sertest_valid.append(ch4_sertest_repl[idx:(16+idx)])
+            ch5_sertest_valid.append(ch5_sertest_repl[idx:(16+idx)])
+            ch6_sertest_valid.append(ch6_sertest_repl[idx:(16+idx)])
+            ch7_sertest_valid.append(ch7_sertest_repl[idx:(16+idx)])
+            ch8_sertest_valid.append(ch8_sertest_repl[idx:(16+idx)])
+
         lpgbt = "lpgbt16"
         chip = self.chips[lpgbt]
         lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
         dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
 
-        registers = [0xe6]
+        # [EPRX30 - 0xd8 (ch1), EPRX32 - 0xda (ch2), EPRX40 - 0xdc (ch3), EPRX42 - 0xde (ch4), EPRX50 - 0xe0]
+        registers = [0xd8, 0xda, 0xdc, 0xde, 0xe0, 0xe2, 0xe4, 0xe6]
         #channels = [xx,xx,0xe6]
-        for reg in registers:
-            for idx in range(13,14):
-                value = (idx<<4)+2
-                self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg, [value])
-                time.sleep(0.1)
-                dataString = self.takeSamples()
-                sectionLen = len(dataString)//self.nSamples
-                repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
-                frame_list = [chunk[64:80] for chunk in repeats]
-                ch1_list = [chunk[96:112] for chunk in repeats]
-                ch2_list = [chunk[112:128] for chunk in repeats]
-                ch3_list = [chunk[128:144] for chunk in repeats]
-                ch4_list = [chunk[144:160] for chunk in repeats]
-                ch5_list = [chunk[160:176] for chunk in repeats]
-                ch6_list = [chunk[176:192] for chunk in repeats]
-                ch7_list = [chunk[192:208] for chunk in repeats]
-                ch8_list = [chunk[208:224] for chunk in repeats]
+        for delay_idx in range(0,4):
+        	isStableCh1_list = []      # Is serializer test signal same across all samples?
+	        isStableCh2_list = []
+	        isStableCh3_list = []
+	        isStableCh4_list = []
+	        isStableCh5_list = []
+	        isStableCh6_list = []
+	        isStableCh7_list = []
+	        isStableCh8_list = []
+	        isValidCh1_list = []       # Is serializer test signal correct (despite word shift)?
+	        isValidCh2_list = []
+	        isValidCh3_list = []
+	        isValidCh4_list = []
+	        isValidCh5_list = []
+	        isValidCh6_list = []
+	        isValidCh7_list = []
+	        isValidCh8_list = []
+	        for lpgbt_idx in range(0,4):
+	            value = (lpgbt_idx<<4)+2
+	            for reg in registers:
+	            	self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg, [value])
+	            time.sleep(0.1)
+	            dataString = self.takeSamples()
+	            sectionLen = len(dataString)//self.nSamples
+	            repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
+	            frame_list = [chunk[64:80] for chunk in repeats]
+	            ch1_binary_list = [chunk[96:112] for chunk in repeats]
+	            ch2_binary_list = [chunk[112:128] for chunk in repeats]
+	            ch3_binary_list = [chunk[128:144] for chunk in repeats]
+	            ch4_binary_list = [chunk[144:160] for chunk in repeats]
+	            ch5_binary_list = [chunk[160:176] for chunk in repeats]
+	            ch6_binary_list = [chunk[176:192] for chunk in repeats]
+	            ch7_binary_list = [chunk[192:208] for chunk in repeats]
+	            ch8_binary_list = [chunk[208:224] for chunk in repeats]
+
+	            ## Test if metastable out of consecutive samples
+	            isStableCh1 = (len(set(ch1_binary_list)) == 1)
+	            isStableCh2 = (len(set(ch2_binary_list)) == 1)
+	            isStableCh3 = (len(set(ch3_binary_list)) == 1)
+	            isStableCh4 = (len(set(ch4_binary_list)) == 1)
+	            isStableCh5 = (len(set(ch5_binary_list)) == 1)
+	            isStableCh6 = (len(set(ch6_binary_list)) == 1)
+	            isStableCh7 = (len(set(ch7_binary_list)) == 1)
+	            isStableCh8 = (len(set(ch8_binary_list)) == 1)
+	            isStableCh1_list.append(isStableCh1)
+	            isStableCh2_list.append(isStableCh2)
+	            isStableCh3_list.append(isStableCh3)
+	            isStableCh4_list.append(isStableCh4)
+	            isStableCh5_list.append(isStableCh5)
+	            isStableCh6_list.append(isStableCh6)
+	            isStableCh7_list.append(isStableCh7)
+	            isStableCh8_list.append(isStableCh8)
+	            ## Test if data output is correct
+	            isValidCh1 = set(ch1_binary_list).issubset(ch1_sertest_valid)
+	            isValidCh2 = set(ch2_binary_list).issubset(ch2_sertest_valid)
+	            isValidCh3 = set(ch3_binary_list).issubset(ch3_sertest_valid)
+	            isValidCh4 = set(ch4_binary_list).issubset(ch4_sertest_valid)
+	            isValidCh5 = set(ch5_binary_list).issubset(ch5_sertest_valid)
+	            isValidCh6 = set(ch6_binary_list).issubset(ch6_sertest_valid)
+	            isValidCh7 = set(ch7_binary_list).issubset(ch7_sertest_valid)
+	            isValidCh8 = set(ch8_binary_list).issubset(ch8_sertest_valid)
+	            isValidCh1_list.append(isValidCh1)
+	            isValidCh2_list.append(isValidCh2)
+	            isValidCh3_list.append(isValidCh3)
+	            isValidCh4_list.append(isValidCh4)
+	            isValidCh5_list.append(isValidCh5)
+	            isValidCh6_list.append(isValidCh6)
+	            isValidCh7_list.append(isValidCh7)
+	            isValidCh8_list.append(isValidCh8)
+	 
+	 			# Find correct lpGBT phase. -99 -> invalid and unstable, -88 invalid, -77 unstable
+	            try:
+	                if isStableCh1 and isValidCh1:
+	                    LPGBTPhaseCh1 = ch1_sertest_valid.index(ch1_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh1 = -99
+	                	if isStableCh1:
+	                    	LPGBTPhaseCh1 += 11
+	                    if isValidCh1:
+	                    	LPGBTPhaseCh1 += 22
+	                if isStableCh2 and isValidCh2:
+	                    LPGBTPhaseCh2 = ch2_sertest_valid.index(ch2_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh2 = -99
+	                	if isStableCh2:
+	                    	LPGBTPhaseCh2 += 11
+	                    if isValidCh2:
+	                    	LPGBTPhaseCh2 += 22
+	                if isStableCh3 and isValidCh3:
+	                    LPGBTPhaseCh3 = ch3_sertest_valid.index(ch3_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh3 = -99
+	                	if isStableCh3:
+	                    	LPGBTPhaseCh3 += 11
+	                    if isValidCh3:
+	                    	LPGBTPhaseCh3 += 22
+	                if isStableCh4 and isValidCh4:
+	                    LPGBTPhaseCh4 = ch4_sertest_valid.index(ch4_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh4 = -99
+	                	if isStableCh4:
+	                    	LPGBTPhaseCh4 += 11
+	                    if isValidCh4:
+	                    	LPGBTPhaseCh4 += 22
+	                if isStableCh5 and isValidCh5:
+	                    LPGBTPhaseCh5 = ch5_sertest_valid.index(ch5_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh5 = -99
+	                	if isStableCh5:
+	                    	LPGBTPhaseCh5 += 11
+	                    if isValidCh5:
+	                    	LPGBTPhaseCh5 += 22
+	                if isStableCh6 and isValidCh6:
+	                    LPGBTPhaseCh6 = ch6_sertest_valid.index(ch6_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh6 = -99
+	                	if isStableCh6:
+	                    	LPGBTPhaseCh6 += 11
+	                    if isValidCh6:
+	                    	LPGBTPhaseCh6 += 22
+	                if isStableCh7 and isValidCh7:
+	                    LPGBTPhaseCh7 = ch7_sertest_valid.index(ch7_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh7 = -99
+	                	if isStableCh7:
+	                    	LPGBTPhaseCh7 += 11
+	                    if isValidCh7:
+	                    	LPGBTPhaseCh7 += 22
+	                if isStableCh8 and isValidCh8:
+	                    LPGBTPhaseCh8 = ch8_sertest_valid.index(ch8_binary_list[0])
+	                else:
+	                	LPGBTPhaseCh8 = -99
+	                	if isStableCh8:
+	                    	LPGBTPhaseCh8 += 11
+	                    if isValidCh8:
+	                    	LPGBTPhaseCh8 += 22
+	            except:
+	                print('I could not synchronize with the COLUTA.  Please power cycle and restart GUI.')
+
+	            LPGBTPhaseCh1_list[delay_idx].append(LPGBTPhaseCh1)
+	            LPGBTPhaseCh2_list[delay_idx].append(LPGBTPhaseCh2)
+	            LPGBTPhaseCh3_list[delay_idx].append(LPGBTPhaseCh3)
+	            LPGBTPhaseCh4_list[delay_idx].append(LPGBTPhaseCh4)
+	            LPGBTPhaseCh5_list[delay_idx].append(LPGBTPhaseCh5)
+	            LPGBTPhaseCh6_list[delay_idx].append(LPGBTPhaseCh6)
+	            LPGBTPhaseCh7_list[delay_idx].append(LPGBTPhaseCh7)
+	            LPGBTPhaseCh8_list[delay_idx].append(LPGBTPhaseCh8)
+		
+	    headers = [i for i in range(0,4)]
+		try:
+            from tabulate import tabulate
+            print(tabulate(LPGBTPhaseCh8, headers, tablefmt="psql"))
+        except ModuleNotFoundError:
+            print('You need the tabulate package...')
 
     def updateBox(self, boxName, settingValue):
         try:
