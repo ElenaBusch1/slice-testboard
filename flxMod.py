@@ -138,16 +138,17 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_DATA: List[int]):
 
 def reg_read64b(addr):
     addr_str = hex(addr)
-    process = subprocess.run(["pepo", "-u", "1", "-k", "-o", addr_str, "-r", "-n", "64"], capture_output=True)
+    process = subprocess.run(["fpepo", "-d", "0", "-b", "2", addr_str, "-r", "8"], capture_output=True)
     retvalue = process.stdout.decode("utf-8").split("\n")
-    ret = f"{int(retvalue[0][2:18], 16):016x}"
+    # print(retvalue)
+    ret = f"{int(retvalue[0][6:], 16):016x}"
     return ret
 
 
 def reg_write64b(addr, data):
     addr_str = hex(addr)
     data_str = hex(data)
-    subprocess.run(["pepo", "-u", "1", "-k", "-o", addr_str, "-w", data_str, "-n", "64"])
+    subprocess.run(["fpepo", "-d", "0", "-b", "2", "-n", "64", addr_str, data_str])
 
 
 def DATA64b_gen(BITIN):
