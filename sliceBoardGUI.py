@@ -32,7 +32,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         # Used to find serial port
-        self.description = 'SLICEBOARDAB'
+        self.description = 'TESTBOARDAB'
 
         # Port and serial dummy values
         self.port36, self.port45 = "Placeholder A", "Placeholder B"
@@ -56,8 +56,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status45 = status.Status(self, "45")
 
         # USB-ISS port setup
-        i2cPortFound = configureLpGBT1213.findPort()
-        self.i2cPort = configureLpGBT1213.setupSerial(i2cPortFound)
+        i2cPortFound = None
+        self.i2cPort = None
+        if not self.pArgs.no_connect:
+            i2cPortFound = configureLpGBT1213.findPort()
+            self.i2cPort = configureLpGBT1213.setupSerial(i2cPortFound)
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
@@ -426,10 +429,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def colutaRegWriteTest(self) :
 
-        chip = self.chips["lpgbt13"]
-        configureLpGBT1213.colutaRegWriteTest(self.i2cPort, int(chip.i2cAddress, 2))
-        #while True:
-        #    self.i2cCOLUTA()
+        #chip = self.chips["lpgbt13"]
+        #configureLpGBT1213.colutaRegWriteTest(self.i2cPort, int(chip.i2cAddress, 2))
+        while True:
+            print("LOOP GLOBAL COLUTA CONFIG")
+            self.i2cCOLUTA()
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -693,7 +697,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # Find the ports and store the names
             portDict = serialMod.findPorts(self)
             # self.port36, self.port45 = portDict['AB46BJOXA'], portDict['AB470WYIA']
-            self.port45 = portDict['AB46BJOXA']
+            self.port45 = portDict['AB46BJOX']
+            # self.port45 = portDict['AB470WYI']
             # Set up the serial connection to each port, pause, and test
             # self.serial36, self.serial45 = serialMod.setupSerials(self)
             self.serial45 = serialMod.setupSerials(self)
@@ -963,6 +968,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
         for word in dataBits64:
             #continue
+
             #word = dataBits64[-1]
             #print(word)
             #while True:

@@ -11,13 +11,13 @@ def findPort():
     description = 'USB_ISS_'
     platform = system()
     device = None
-    if platform == 'Windows':
+    if platform == 'Windows' or platform == 'Linux':
         ports = LP.comports()
         if ports is None:
             print('No USB found for clock chip')
             sys.exit(1)
 
-    elif platform == 'Darwin' or platform == 'Linux':
+    elif platform == 'Darwin': # or platform == 'Linux':
         ports = LP.grep(description)
         if ports is None:
             print('No USB found for clock chip')
