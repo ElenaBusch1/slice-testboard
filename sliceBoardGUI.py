@@ -1438,8 +1438,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
         dataStringCh78 = "\n".join([chunk[192:224] for chunk in repeats])
 
-        #self.controlTextBox.setPlainText(dataStringCh78)
-        self.controlTextBox.setPlainText(dataStringByteChunks)
+        self.controlTextBox.setPlainText(dataStringCh78)
+        #self.controlTextBox.setPlainText(dataStringByteChunks)
 
         #self.ODP.parseData('coluta', self.nSamples,dataString)
         self.ODP.parseData(self.nSamples,dataString)

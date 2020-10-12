@@ -1,0 +1,113 @@
+testboard
+Updating coluta1 global
+B <- fe 00 00 00 00 ff
+B <- fe 19 02 00 40 ff
+A <- 41 00
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 00 3c 28 0e ea 05 80 06 88 f0 5a
+B <- fe 01 00 00 01 ff
+Updating coluta1 ch1
+B <- fe 00 00 00 00 ff
+B <- fe 19 02 00 40 ff
+A <- 41 00
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 9b 9b 9b 98 c6 ff 8b 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 c6 ff ff 00 00 05 89 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 ea 88 a0 b8 64 00 86 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 08 00 20 01 00 10 83 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 02 00 80 40 10 04 80 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+Updating coluta1 ch2
+B <- fe 00 00 00 00 ff
+B <- fe 19 02 00 40 ff
+A <- 41 00
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 9b 9b 9b 98 c6 ff 8b 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 c6 ff ff 00 00 05 89 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 ea 88 a0 b8 64 00 86 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 08 00 20 01 00 10 83 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 02 00 80 40 10 04 80 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+Updating coluta2 global
+B <- fe 00 00 00 00 ff
+B <- fe 19 02 00 40 ff
+A <- 42 00
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 00 3c 28 0e ea 05 80 06 88 f0 5a
+B <- fe 01 00 00 01 ff
+Updating coluta2 ch1
+B <- fe 00 00 00 00 ff
+B <- fe 19 02 00 40 ff
+A <- 42 00
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 9b 9b 9b 98 c6 ff 8b 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 c6 ff ff 00 00 05 89 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 ea 88 a0 b8 64 00 86 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 08 00 20 01 00 10 83 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 02 00 80 40 10 04 80 01 80 f0 5a
+B <- fe 01 00 00 01 ff
+Updating coluta2 ch2
+B <- fe 00 00 00 00 ff
+B <- fe 19 02 00 40 ff
+A <- 42 00
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 9b 9b 9b 98 c6 ff 8b 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 c6 ff ff 00 00 05 89 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 ea 88 a0 b8 64 00 86 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 08 00 20 01 00 10 83 02 80 f0 5a
+B <- fe 01 00 00 01 ff
+B <- fe 00 00 00 00 ff
+B <- fe 01 0c 00 40 ff
+A <- 00 02 00 80 40 10 04 80 02 80 f0 5a
+B <- fe 01 00 00 01 ff
