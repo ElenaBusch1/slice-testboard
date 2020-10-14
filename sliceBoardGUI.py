@@ -93,7 +93,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.test2Button.clicked.connect(self.i2cControlLpGBT)
         # self.test2Button.clicked.connect(self.configure_clocks_test)
         # self.test2Button.clicked.connect(lambda: self.isLinkReady("45"))
-        self.test3Button.clicked.connect(self.write_uplink_test)
+        self.test3Button.clicked.connect(self.checkVoltages)
         self.test2Button.clicked.connect(self.scanClocks)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
@@ -947,13 +947,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtMaster = "lpgbt"+self.chips[colutaName].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
-        #dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
+        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch4", broadcast=False)
-        #dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=True)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=True)
         #dataBits += self.colutaI2CWriteControl(colutaName, "ch6", broadcast=True)
-        dataBits = self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
         dataBits += self.colutaI2CWriteControl(colutaName, "ch8", broadcast=False)
         dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
@@ -1112,11 +1112,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xc])
             self.i2cDataLpgbtWrite(int(lpgbtI2CAddr), dataI2CAddr, register, dataBits)
 
-            #readback = self.i2cDataLpgbtRead(int(lpgbtI2CAddr), dataI2CAddr, register, len(dataBits))
-            #if readback == dataBits:
-            #    print("Successfully readback what was written!")
-            #else:
-            #    print("Readback does not agree with what was written")
+            readback = self.i2cDataLpgbtRead(int(lpgbtI2CAddr), dataI2CAddr, register, len(dataBits))
+            if readback == dataBits:
+                print("Successfully readback what was written!")
+            else:
+                print("Readback does not agree with what was written")
             # # We will write 2 bytes to the data lpGBT
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b10001000, 0x00, 0x00, 0x00, 0x0])
             # # Write 2 byte register address
@@ -1440,12 +1440,21 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataStringByteChunks = "\n".join([dataString[i:i+32] for i in range(0,len(dataString),32)])
         dataStringByteChunks16 = "\n".join([dataString[i:i+16] for i in range(0,len(dataString),16)])
         #if self.debug: print(dataStringByteChunks16)
-        sectionLen = len(dataString)//self.nSamples
+        #sectionLen = len(dataString)//self.nSamples
+        sectionLen = 256
+        print(len(dataString))
+        print(sectionLen*self.nSamples)
+        #print(sectionLen)
         repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
+        #print(repeats)
         dataStringCh78 = "\n".join([chunk[192:224] for chunk in repeats])
+        #for chunk in repeats:
+        #  print(chunk[192:224])
 
-        self.controlTextBox.setPlainText(dataStringCh78)
-        #self.controlTextBox.setPlainText(dataStringByteChunks)
+        with open("ch78_4000_samples.txt", "w") as f:
+            f.write(dataStringCh78)
+        #self.controlTextBox.setPlainText(dataStringCh78)
+        self.controlTextBox.setPlainText(dataStringByteChunks)
 
         #self.ODP.parseData('coluta', self.nSamples,dataString)
         self.ODP.parseData(self.nSamples,dataString)
@@ -1489,6 +1498,52 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #         self.nSamples = 2047.5
         # except Exception:
         #     self.nSamples = 0
+
+    def checkVoltages(self):
+        chip = self.chips["lpgbt13"]
+        adcselect = 0x111
+        adcconfig = 0x113 
+        vrefcntr = 0x01c
+        adcstatusH = 0x1b8
+        adcstatusL = 0x1b9
+        vref = 0.9
+        #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
+        # configure input multiplexers to measure ADC0 in signle ended modePins
+        # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
+        # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcselect, [int('00111111', 2)])
+
+        # enable ADC core and set gain of the differential amplifier
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+
+        # enable internal voltage reference
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)])
+
+        # wait until voltage reference is stable
+        time.sleep(0.01)
+
+        # start ADC convertion
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)])
+        status = False
+        attempt = 0
+        while not status and attempt < 10:
+            readback = readFromLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcstatusH, 1)
+            status = readback[0] & 0x40
+            attempt += 1
+            if attempt == 10:
+                print("Failed to read voltage after 10 attemps - giving up")
+
+        adcValueH = readback[0]
+        adcValueL = readFromLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcstatusL, 1)[0]
+        print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
+
+        # clear the convert bit to finish the conversion cycle
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+
+        # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)])
+        writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)])
+
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
