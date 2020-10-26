@@ -101,7 +101,7 @@ def u16_to_bytes(val):
     return byte1, byte0
 
 
-def writeToLpGBT(port, lpgbtAddr, regAddr, data):
+def writeToLpGBTI2C(port, lpgbtAddr, regAddr, data):
     """Write to lpGBT via USB-ISS i2c interface"""
     addrW = (lpgbtAddr << 1) | 0  # for writing
 
