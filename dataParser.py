@@ -50,6 +50,7 @@ class dataParser:
 
         # Make dicts for each COLUTA and keep track of file number for channel
         data_groups = [x.strip() for x in getattr(self, "general").getSetting("data_chips")]
+        print(data_groups)
         for group in data_groups:
             setattr(self, group + "DecimalDict", defaultdict(list))
             setattr(self, group + "BinaryDict", defaultdict(list))
@@ -106,10 +107,11 @@ class dataParser:
         words = getattr(self, "general").getSetting("data_words")
 
         bitsPerSample = int(getattr(self, 'rootGroup').settings['total_bits'])
+        #print(bitsPerSample)
 
         # Group the binaryList into 32-bit long words
         dataSamples = [sample[i:i+bitsPerSample] for sample in binaryData for i in range(0, len(sample), bitsPerSample)]
-
+        #print(dataSamples)
         # TODO: This needs to be updated once we know how the data coming out of the VTRx+3/6 is formatted
         # The data from the lpGBT is packaged into 8 32-bit words called "groups"
         # In testboard v1.1, we are sending data in groups 1, 2, and 3 (groups are 0-indexed)
@@ -117,11 +119,13 @@ class dataParser:
         #  stored within each group is listed in dataConfig.cfg. This mapping can change
         #  between testboard revisions, but should be the same within a given revision
         for samples in zip(*[dataSamples[i::8] for i in range(8)]):  # take all 8 lpGBT output words
-            samples = samples[1:4]  # but only keeps words 1, 2, and 3; where are data is
+            samples = samples[3:7]  # but only keeps words 1, 2, and 3; where are data is
+            #print(samples)
             # Verify that at least one sample isn't empty. May want to change all to any
             if all(sample == '0' * bitsPerSample for sample in samples): continue
             # Loop over words and their corresponding samples, and each channel within each word
             for (sample, word) in zip(samples, words):
+                #print(sample, word)
                 # Get the parser settings
                 configDict = getattr(self, word).settings
                 # Get the names of the subgroups, e.g. frame, channel1
@@ -132,9 +136,12 @@ class dataParser:
                 msbList = configDict['msb']
                 # Take a 16-bit sample and store it in its proper channel list
                 for (chip, channel, lsb, msb) in zip(dataChips, dataChannels, lsbList, msbList):
+                    #print(chip, channel, lsb, msb)
                     binaryDict = getattr(self, chip + 'BinaryDict')
                     decodedWord = sample[int(lsb):int(msb)]
                     binaryDict[channel].append(decodedWord)
+                    #print("channel", channel)
+                    #print("word", decodedWord)
 
         # A problem with the alignment of the data coming from the COLUTAs to the lpGBT can arise
         # The misalignment for each channel is (currently) determined via trial and error, then

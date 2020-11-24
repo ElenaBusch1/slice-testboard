@@ -32,11 +32,10 @@ def findPorts(GUI):
             device = port.device
             manufac = port.manufacturer
             if manufac is not None and manufac != 'FTDI': continue
-            if port.serial_number is None: continue
-            channel = port.serial_number[:8] # Serial number configured to be "AB#xxxxxx"
+            channel = port.serial_number # Serial number configured to be "AB#xxxxxx"
             ftdiDevices.append((channel,device))
             GUI.serial_number = port.serial_number
-    elif platform == 'Darwin': #  or platform == 'Linux':
+    elif platform == 'Darwin':
         # OS X and Linux see the description of the USB, so we can grep for the
         # ports that match. If the ports' names end in 'A' and 'B', we add them.
         # If they end in '0' and '1', we change them to 'A' and 'B', respectively.

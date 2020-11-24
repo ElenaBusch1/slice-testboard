@@ -108,6 +108,8 @@ def writeToLpGBTI2C(port, lpgbtAddr, regAddr, data):
     regAddrHigh, regAddrLow = u16_to_bytes(regAddr)
 
     timeout = time.time() + 5
+    #writeMessage = [0x57, 0x01, 0x30 + (2 + len(data)), addrW, regAddrLow, regAddrHigh, *data, 0x03]
+    #writeToUSBISS(port, writeMessage)
     while True:
         writeMessage = [0x57, 0x01, 0x30 + (2 + len(data)), addrW, regAddrLow, regAddrHigh, *data, 0x03]
         #print(writeMessage)

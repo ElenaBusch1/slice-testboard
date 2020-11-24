@@ -15,6 +15,9 @@ import configureLpGBT1213
 from collections import OrderedDict, defaultdict
 from flxMod import icWriteToLpGBT as writeToLpGBT
 from flxMod import icReadLpGBT as readFromLpGBT
+from flxMod import icWriteToLpGBT, ecWriteToLpGBT
+from monitoring import MPLCanvas
+from datetime import datetime
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -27,6 +30,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # General GUI options and signals
         self.pArgs = pArgs
         self.qApp = qApp
+        #self.pOptions = pOptions
         self.setupUi(self)
 
         # Used to find serial port
@@ -44,13 +48,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Some version-dependent parameters/values
-        self.nSamples = 4000  # default number of samples to parse from standard readout
+        self.nSamples = 200  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
-        # self.status36 = status.Status(self, "36")
+        self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
         # USB-ISS port setup
@@ -84,27 +88,29 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.testButton.clicked.connect(lambda: self.isLinkReady("45"))
         #self.testButton.clicked.connect(self.lpgbt45readBack)
         #self.testButton.clicked.connect(lambda: self.i2cLauroc("lauroc20"))
+        #self.testButton.clicked.connect(lambda: self.i2cLauroc())
+        self.testButton.clicked.connect(self.lpgbt_14_test)
         #self.testButton.clicked.connect(self.test_lpgbt9config_loop)
         #self.test2Button.clicked.connect(self.configure_clocks_test)
         #self.test2Button.clicked.connect(self.i2cCOLUTA)
         #self.test2Button.clicked.connect(self.i2cControlLpGBT)
         # self.test2Button.clicked.connect(self.configure_clocks_test)
         # self.test2Button.clicked.connect(lambda: self.isLinkReady("45"))
-        self.test3Button.clicked.connect(self.write_uplink_test)
-        self.test2Button.clicked.connect(self.colutaRegWriteTest)
+        self.test3Button.clicked.connect(self.checkVoltages)
+        self.test2Button.clicked.connect(self.scanClocks)
         #self.test2Button.clicked.connect(self.lpgbt_test)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
         self.dcdcConverterButton.clicked.connect(self.enableDCDCConverter)
-        self.lpgbt12ResetButton.clicked.connect(self.lpgbt12Reset)
-        self.lpgbt13ResetButton.clicked.connect(self.lpgbt13Reset)
+        self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
+        self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
 
         self.lpgbtI2CWriteButton.clicked.connect(self.lpgbt_i2c_write)
         self.lpgbtI2CReadButton.clicked.connect(self.lpgbt_i2c_read)
         self.lpgbtICWriteButton.clicked.connect(self.lpgbt_ic_write)
 
-        self.configureClocksButton.clicked.connect(self.configure_clocks_test)
+        #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
         self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
         # self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
         self.coluta16ConfigureButton.clicked.connect(self.i2cCOLUTA)
@@ -117,7 +123,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #Configuration Buttons
         self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
-        self.laurocConfigureButton.clicked.connect(self.i2cLauroc)
+        self.laurocControlConfigureButton.clicked.connect(self.i2cLauroc)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
@@ -143,31 +149,31 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
         self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
 
-        self.isConnected = False
+        # Plotting
+        self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
+        self.nSamplesBox.textChanged.connect(self.updateNSamples)
+        self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
+                                                ylim=[0,65536],ylabel='ADC Counts')
+        self.dataGridLayout.addWidget(self.dataDisplay,0,0)
+        #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
+
+        self.isConnected = True
         #self.startup()
-        self.lpgbt_i2c_read()
+        #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
 
-    def silly_reg_test(self):
-        lpgbtI2CAddr = int(self.chips["lpgbt12"].i2cAddress,2)
-        dataI2CAddr = int(self.chips["lpgbt10"].i2cAddress,2)
-        register = 0x062
-        data = [21]
-        self.i2cDataLpgbtWriteOneReg(lpgbtI2CAddr, dataI2CAddr, register, data)
-        #self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, register, data)
-        register = 0x082
-        data = [22]
-        self.i2cDataLpgbtWriteOneReg(lpgbtI2CAddr, dataI2CAddr, register, data)
-        #self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, register, data)
-        register = 0x062
-        self.i2cDataLpgbtRead(lpgbtI2CAddr, dataI2CAddr, register, 4)
+    def lpgbt_14_test(self):
+        chip = self.chips['lpgbt14']
+        reg_addr_hex = 0xc4
+        data = [0x55]
+        lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
+        dataI2CAddr = int(chip.i2cAddress,2)
+        # while True:
+            #self.sendDataLpgbtConfigs(chipName, wordCount, reg_addr_hex, data)
+            #self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg_addr_hex, data)
+            # writeToLpGBT(dataI2CAddr, reg_addr_hex, data)
+        writeToLpGBT(dataI2CAddr, reg_addr_hex, data)
 
-        print("READ STATUS REGS")
-        readFromLpGBT(lpgbtI2CAddr, 0x174, 4)
-        print("SINGLE READ REG")
-        readFromLpGBT(lpgbtI2CAddr, 0x178, 1)
-        print("MULTI READ REG")
-        readFromLpGBT(lpgbtI2CAddr, 0x179, 16)
 
     def lpgbt_ic_write(self):
         chipName = getattr(self, 'lpgbtSelectBox').currentText()
@@ -210,7 +216,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #for word in [dataBitsToSend[i:i+8] for i in range(0,len(dataBitsToSend),8)]:
         #    print(word)
-        if chipName in ['lpgbt12', 'lpgbt13']:
+        if chipName in ['lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.sendControlLpgbtConfigs(chipName, wordCount, reg_addr, data)
         else:
             self.sendDataLpgbtConfigs(chipName, wordCount, reg_addr_hex, data)
@@ -263,13 +269,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #    return 
 
         lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-        print("lpgbt Master is ", chip.lpgbtMaster )
+        print("lpgbt Master addr is ", lpgbtI2CAddr )
         dataI2CAddr = int(chip.i2cAddress,2)
 
-        if lpgbt in ['lpgbt12', 'lpgbt13', 'lpgbt14', 'lpgbt11']:    
+        if lpgbt in ['lpgbt12', 'lpgbt13']:
+            if lpgbt == 'lpgbt12':
+                IC_EC = 0
+            else:
+                IC_EC = 1    
             if repeat == 1:
                 print("Writing", int(chip.i2cAddress, 2), reg_addr_hex, [value])
-                writeToLpGBT(int(chip.i2cAddress, 2), reg_addr_hex, [value])
+                writeToLpGBT(int(chip.i2cAddress, 2), reg_addr_hex, [value], ICEC_CHANNEL=IC_EC )
             else:
                 i = 0
                 while i < repeat:
@@ -278,18 +288,32 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     else:
                         data = [value, value, value, value]
 
-                    writeToLpGBT(int(chip.i2cAddress, 2), reg_addr_hex+i, data)
+                    writeToLpGBT(int(chip.i2cAddress, 2), reg_addr_hex+i, data, ICEC_CHANNEL=IC_EC)
                     i += len(data)
+        elif lpgbt in ['lpgbt11', 'lpgbt14']:
+            if lpgbt == 'lpgbt11':
+                IC_EC = 0
+            else:
+                IC_EC = 1    
+            i = 0
+            while i < repeat:
+                if (repeat - i) < 4:
+                    data =  [value for i in range(repeat-i)]
+                else:
+                    data = [value, value, value, value]
+                print("Len: ", len(data))
+                ecWriteToLpGBT(int(chip.i2cAddress, 2), reg_addr_hex+i, data, ICEC_CHANNEL=IC_EC)
+                i += len(data)
         else:
             if repeat == 1:
                 self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg_addr_hex, [value])
             else:
                 i = 0
                 while i < repeat:
-                    if (repeat - i) < 14:
+                    if (repeat - i) < 4:
                         data =  [value for k in range(repeat-k)]
                     else:
-                        data = [value for j in range(0,14)]
+                        data = [value for j in range(0,4)]
                     self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg_addr_hex, data)
                     i += len(data)
 
@@ -359,52 +383,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.i2cDataLpgbtRead(lpgbtI2CAddr, dataI2CAddr, reg_addr_hex, value)
             return            
 
-        else:
+        elif lpgbt in ['lpgbt12', 'lpgbt13']:
+            if lpgbt == 'lpgbt12':
+                IC_EC = 0
+            else:
+                IC_EC = 1
             if value > 4:
                 i=0
                 while i < value:
                     print("reading ", hex(reg_addr_hex + i))
-                    readFromLpGBT(int(chip.i2cAddress, 2), reg_addr_hex + i, 4)
+                    readFromLpGBT(int(chip.i2cAddress, 2), reg_addr_hex + i, 4, ICEC_CHANNEL=IC_EC )
                     i += 4
             else:
-                readFromLpGBT(int(chip.i2cAddress, 2), reg_addr_hex, value)
+                readFromLpGBT(int(chip.i2cAddress, 2), reg_addr_hex, value, ICEC_CHANNEL=IC_EC)
 
-
-    def test_lpgbt9config_loop(self):
-        print("START lpGBT14 config loop")
-        while True:
-            self.i2cControlLpGBT("lpgbt14")
-            #self.i2cDataLpGBT("lpgbt9")
-
-    def test(self):
-        """General purpose test function"""
-        # with open("tmp.txt", 'a') as f:
-        #     for (chipName, chipConfig) in self.chips.items():
-        #         f.write(chipName + "\n")
-        #         for (sectionName, section) in chipConfig.items():
-        #             f.write(f"{sectionName}: {section.bits}\n")
-        #             for (settingName, setting) in section.items():
-        #                 f.write(f"{settingName}: {setting}\n")
-        #             f.write("\n")
-        #         f.write("\n")
-
-        #erialMod.flushBuffer(self, "45")
-        #elf.status45.readbackStatus()
-        #ime.sleep(0.1)
-        #erialMod.readFromChip(self, "45", 6)
-        #elf.status45.send()
-
-        #dataBlock = 'F0EFEEEDECEBEAE9E8E7E6E5E4E3E2E1E0DFDEDDDCDBDAD9D8D7D6D5D4D3D2D1D0CFCECDCCCBCAC9C8C7C6C5C4C3C2C1C0BFBEBDBCBBBAB9B8B7B6B5B4B3B2B1B0AFAEADACABAAA9A8A7A6A5A4A3A2A1A09F9E9D9C9B9A999897969594939291908F8E8D8C8B8A898887868584838281807F7E7D7C7B7A797877767574737271706F6E6D6C6B6A696867666564636261605F5E5D5C5B5A595857565554535251504F4E4D4C4B4A494847464544434241403F3E3D3C3B3A393837363534333231302F2E2D2C2B2A292827262524232221201F1E1D1C1B1A191817161514131211110F0E0D0C0B0A09080706050403020100F00000'
-        dataBlock = 'F0EFEEEDECEBEAE9E8E7E6E5E4E3E2E1E0DFDEDDDCDBDAD9D8D7D6D5D4D3D2D1D0CFCECDCCCBCAC9C8C7C6C5C4C3C2C1C0BFBEBDBCBBBAB9B8B7B6B5B4B3B2B1B0AFAEADACABAAA9A8A7A6A5A4A3A2A1A09F9E9D9C9B9A999897969594939291908F8E8D8C8B8A898887868584838281807F7E7D7C7B7A797877767574737271706F6E6D6C6B6A696867666564636261600090C000'
-        dataBitsToSend = ''
-        for word in [dataBlock[i:i+2] for i in range(0, len(dataBlock), 2)]:
-            val = int(word,16)
-            #if val < 96:
-            #    continue
-            print(word,val)
-            dataBitsToSend += f'{val:08b}'
-
-        self.LpGBT_IC_write(None, dataBitsToSend)
 
     def enableDCDCConverter(self):
         chip = self.chips["lpgbt12"]
@@ -433,16 +425,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def lpgbt12Reset(self):
         chip = self.chips["lpgbt12"]
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00])
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07])
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00])
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL=0)
+        time.sleep(0.2)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL=0)
+        time.sleep(0.2)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL=0)
 
     def lpgbt13Reset(self):
         chip = self.chips["lpgbt13"]
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00])
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07])
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00])
-
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL=1)
+        time.sleep(2)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL=1)
+        time.sleep(2)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL=1)
+ 
     def lpgbt_test(self):
 
         chip = self.chips["lpgbt14"]
@@ -541,6 +537,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 '00010100'
 
         self.sendCOLUTAConfigs('coluta13', wordCount, data)
+
+    def lpgbtReset(self, lpgbt):
+        chip = self.chips[lpgbt]
+        if lpgbt == 'lpgbt12':
+            ICEC = 0
+        else:
+            ICEC = 1
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+        #time.sleep(0.2)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+
 
     def write_uplink_test(self):
 
@@ -668,48 +676,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         return allBits
 
 
-    def collectColutaConfigs(self):
-
-        with open("coluta_configs.txt", 'w') as f:
-            for (chipName, chipConfig) in self.chips.items():
-                if chipName.find('coluta') == -1:
-                    continue
-                f.write(chipName + "\n")
-                chipType = f'{int(chipConfig.chipType):02b}'
-                controlLpGBT = chipConfig.lpgbtMaster
-                i2cM = f'{int(chipConfig.i2cMaster):02b}'
-                controlLpGBTbit = '0'
-                if (controlLpGBT == '13'):
-                    controlLpGBTbit = '1'
-                #i2cAddr = f'{int(chipConfig.i2cAddress,0):010b}'
-                i2cAddr = '0'+chipConfig.i2cAddress
-                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
-                f.write(f'{i2cAddr[3:11]}_0 #i2cAddr[6:0]_r/w\n')
-
-                wordCount = 0;
-                dataBits = ''
-                for (sectionName, section) in chipConfig.items():
-                    # data = self.chips[chipname][sectionname].bits
-                    data = self.colutaI2CWriteControl(chipName, sectionName)
-                    datawords = [data[8*i:8*(i+1)] for i in range(len(data)//8)]
-                    localWordCount = len(datawords)
-                    dataBits += (chipName + ", " + sectionName + ": " + str(localWordCount) + " words\n")
-                    for word in datawords:
-                        dataBits += f'{word}\n'
-                        wordCount += 1
-                    dataBits += '\n'
-
-
-
-                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-                f.write(f'{wordCountByte1:08b}  #datawords {wordCount}\n')
-                f.write(f'{wordCountByte2:08b}  #datawords {wordCount}\n')
-                #if chipName.find('lpgbt') != -1:
-
-                f.write(dataBits)
-                f.write('\n')
-
-
     def configureLpGBT(self, lpgbtAddr, regAddr, data):
         print('Writing to ', hex(regAddr))
         writeStatus = writeToLpGBT(lpgbtAddr, regAddr, data)
@@ -756,42 +722,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print(word)
         #self.LpGBT_IC_write(i2cAddr, dataBitsToSend)
 
-    def collectLaurocConfigs(self):
-
-        with open("lauroc_configs.txt", 'w') as f:
-            for (chipName, chipConfig) in self.chips.items():
-                if chipName.find('lauroc') == -1:
-                    continue
-                f.write(chipName + "\n")
-                chipType = f'{int(chipConfig.chipType):02b}'
-                controlLpGBT = chipConfig.lpgbtMaster
-                i2cM = f'{int(chipConfig.i2cMaster):02b}'
-                controlLpGBTbit = '0'
-                if (controlLpGBT == '13'):
-                    controlLpGBTbit = '1'
-                #i2cAddr = f'{int(chipConfig.i2cAddress,0):010b}'
-                i2cAddr = '000'+ chipConfig.i2cAddress
-                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_{i2cAddr[:3]}  #chip_controlLpGBT_i2cMaster_i2cAddr[9:7]\n')
-                f.write(f'{i2cAddr[3:]}_0 #i2cAddr[6:0]_r/w\n')
-
-                dataBits = ''
-                wordCount = 1
-                for (sectionName, section) in chipConfig.items():
-                    data = self.chips[chipName][sectionName].bits
-                    addr = int(self.chips[chipName][sectionName].address,0)
-                    dataBits += f'{data}\n'
-                    if wordCount == 1:
-                        registerAddr = addr
-                    wordCount += 1
-
-                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-                f.write(f'{wordCountByte1:08b}  #datawords {wordCount}\n')
-                f.write(f'{wordCountByte2:08b}  #datawords {wordCount}\n')
-                f.write(f'{registerAddr:08b}  #first address\n')
-                #if chipName.find('lpgbt') != -1:
-
-                f.write(dataBits)
-                f.write('\n')
 
 
     def sendLAUROCConfigs(self, chipName, wordCount, registerAddr, dataBits):
@@ -820,48 +750,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.LpGBT_IC_write(dataBitsToSend)
 
-    def collectDataLpgbtConfigs(self):
-
-        with open("data_lpgbt_configs.txt", 'w') as f:
-            for (chipName, chipConfig) in self.chips.items():
-                if chipName.find('lpgbt') == -1:
-                    continue
-                if (chipName.find('lpgbt12') != -1 or chipName.find('lpgbt13') != -1):
-                    continue
-                f.write(chipName + "\n")
-                chipType = f'{int(chipConfig.chipType):02b}'
-                controlLpGBT = chipConfig.lpgbtMaster
-                try:
-                    i2cM = f'{int(chipConfig.i2cMaster):02b}'
-                except:
-                    i2cM = 'EC'
-                controlLpGBTbit = '0'
-                if (controlLpGBT == '13'):
-                    controlLpGBTbit = '1'
-                f.write(f'{chipType}_{controlLpGBTbit}_{i2cM}_000  #chipType_controlLpGBT_i2CMaster_000\n')
-                f.write(f'{chipConfig.i2cAddress}_0 #i2cAddr_r/w\n')
-
-                dataBits = ''
-                wordCount = 2
-                for (sectionName, section) in chipConfig.items():
-                    data = self.chips[chipName][sectionName].bits
-                    addr = int(self.chips[chipName][sectionName].address,0)
-                    dataBits += f'{data}\n'
-                    if wordCount == 2:
-                        registerAddr = addr
-                    wordCount += 1
-
-                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-                f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
-                f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
-
-                addr2, addr1 = u16_to_bytes(registerAddr)
-                f.write(f'{addr1:08b}  #first address [7:0]\n')
-                f.write(f'{addr2:08b}  #first address [15:8]\n')
-                #if chipName.find('lpgbt') != -1:
-
-                f.write(dataBits)
-                f.write('\n')
 
 
     def sendDataLpgbtConfigs(self, chipName, wordCount, registerAddr, dataBits):
@@ -898,40 +786,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.LpGBT_IC_write(dataBitsToSend)
 
-    def collectControlLpgbtConfigs(self):
-
-        with open("control_lpgbt_configs.txt", 'w') as f:
-            for (chipName, chipConfig) in self.chips.items():
-                if (chipName != 'lpgbt12' and chipName != 'lpgbt13'):
-                    continue
-                f.write(chipName + "\n")
-                chipType = f'{int(chipConfig.chipType):02b}'
-                controlLpGBT = chipConfig.lpgbtMaster
-                controlLpGBTbit = '0'
-                if (controlLpGBT == '13'):
-                    controlLpGBTbit = '1'
-
-                dataBits = ''
-                wordCount = 0
-                for (sectionName, section) in chipConfig.items():
-                    if section.updated:
-                        data = self.chips[chipName][sectionName].bits
-                        addr = int(self.chips[chipName][sectionName].address,0)
-                        dataBits += f'{data}\n'
-                        if wordCount == 0:
-                            #registerAddr = addr
-                            registerAddr = 0x1ce
-                        wordCount += 1
-
-                wordCountByte2, wordCountByte1 = u16_to_bytes(wordCount)
-                full_addr = f'{registerAddr:012b}'
-
-                f.write(f'{chipType}_{controlLpGBTbit}_{full_addr[:5]}  #chipType_controlLpGBT_1stReg[11:7]\n')
-                f.write(f'{full_addr[5:]}_0 #1stReg[6:0]_r/w\n')
-
-                f.write(f'{wordCountByte1:08b}  #datawords[7:0] {wordCount}\n')
-                f.write(f'{wordCountByte2:08b}  #datawords[15:8] {wordCount}\n')
-                #if chipName.find('lpgbt') != -1:
 
     def sendControlLpgbtConfigs(self, chipName, totalWordCount, first_reg_addr, dataBits):
 
@@ -1224,7 +1078,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def i2cLpGBT(self):
         lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
-        if lpgbt in ['lpgbt12', 'lpgbt13']:
+        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.i2cControlLpGBT(lpgbt)
         else:
             self.i2cDataLpGBT(lpgbt)
@@ -1260,22 +1114,49 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # # # writeMessage = [0x58, 0xd0]
         # configureLpGBT1213.writeToUSBISS(self.i2cPort, writeMessage)
         # configureLpGBT1213.readFromUSBISS(self.i2cPort)
-
-        for (register, dataBits) in sectionChunks.items():
-            # dataBitsStrings = [f"{dataBit:02x}" for dataBit in dataBits]
-            # print(f"{register:03x}:", dataBitsStrings)
-            self.configureLpGBT(int(chip.i2cAddress, 2), register, dataBits)
-            # writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, dataBits)
-            #readFromLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, len(dataBits))
+        if lpgbt in ['lpgbt11', 'lpgbt14']:
+            if lpgbt[-2:] == '11': 
+                ICEC_CHANNEL = 0
+            else: 
+                ICEC_CHANNEL = 1
+            print(lpgbt, ICEC_CHANNEL)
+            for (register, dataBits) in sectionChunks.items():
+                ecWriteToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
+        else:
+            if lpgbt[-2:] == '12': 
+                ICEC_CHANNEL = 0
+            elif lpgbt[-2:] == '13': 
+                ICEC_CHANNEL = 1
+            else: 
+                print("Invalid lpGBT specified (i2cControlLpGBT)")
+            print(lpgbt, ICEC_CHANNEL)
+            for (register, dataBits) in sectionChunks.items():
+                # dataBitsStrings = [f"{dataBit:02x}" for dataBit in dataBits]
+                # print(f"{register:03x}:", dataBitsStrings)
+                writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
+                # self.configureLpGBT(int(chip.i2cAddress, 2), register, dataBits)
+                # writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits)
+                # writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, dataBits)
+                #readFromLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, len(dataBits))
 
 
     def i2cCOLUTA(self):
-        colutaName = "coluta20" #????
-        #colutaName = getattr(self, 'colutaConfigureBox').currentText()
-        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=True)
-        #dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=False)
-        #dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
-        #dataBits += self.colutaI2CWriteControl(colutaName, "ch4", broadcast=False)
+        #colutaName = "coluta20"
+        colutaName = getattr(self, 'colutaConfigureBox').currentText()
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[colutaName].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+        if lpgbtMaster[-2:] == '12': 
+            ICEC_CHANNEL = 0
+        elif lpgbtMaster[-2:] == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (i2cCOLUTA)")
+
+        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=False)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=False)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
+        dataBits += self.colutaI2CWriteControl(colutaName, "ch4", broadcast=False)
         dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=False)
         dataBits += self.colutaI2CWriteControl(colutaName, "ch6", broadcast=False)
         dataBits += self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
@@ -1285,14 +1166,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         colutaI2CAddr = self.chips[colutaName].i2cAddress
         colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
         print("i2cAddr", colutaI2CAddr)
-        colutaI2CAddrH = f'00000{colutaI2CAddr[:3]}'
-        colutaI2CAddrL = f'0{colutaI2CAddr[-1]}000000'
-        print("i2cH", colutaI2CAddrH)
-        print("u2cL", colutaI2CAddrL)
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        print("i2cH",hex(colutaI2CAddrH))
+        print("u2cL", hex(colutaI2CAddrL))
         dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
         for word in dataBits64:
-            continue
+            #continue
+
             #word = dataBits64[-1]
             #print(word)
             #while True:
@@ -1301,12 +1183,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
             print("0x0f9:", [hex(x) for x in [*dataBits8[4:][::-1], 0x8]])
             print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
-            print("0x0f7:", [hex(x) for x in [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe]])
-
-            # print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
-            # print("0x0f9:", [hex(x) for x in [0xff, 0x80, 0x00, 0x00, 0x8]])
-            # print("0x0f9:", [hex(x) for x in [0x00, 0x00, 0x00, 0x00, 0x9]])
-            # print("0x0f7:", [hex(x) for x in [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe]])
+            print("0x0f7:", [hex(x) for x in [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe]])
 
             # We will write 8 bytes to i2cM1Data at a time
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xa0])
@@ -1319,72 +1196,141 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x04]) i2cAddr[9:7]
             #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0fd, [0x0E])
             
-            #harcoded ADC sel testi
-            """
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xff, 0x80, 0x01, 0x21, 0x8])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0x43, 0x00, 0x00, 0x00, 0x9])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
             # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe])
-            """
-            #note b0 is LSB byte, b1 is 2nd LSB etc
-            #within the LSB byte b0 the LSB is to the rightmost
-            """
-            adcSel = 0xf0
-            rw = 0x80
-            b0 = 0xc0
-            b1 = 0x18
-            b2 = 0x05
-            b3 = 0x82
-            b4 = 0x01
-            b5 = 0x01
-            """
-            # adcSel = 0xf0
-            # rw = 0x80
-            # b0 = 0x31
-            # b1 = 0xf7
-            # b2 = 0x00
-            # b3 = 0x00
-            # b4 = 0x00
-            # b5 = 0x21
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [ adcSel, rw, b0, b1, 0x8])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [ b2, b3, b4, b5, 0x9])
-            # # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+		
 
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
-            # writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0xe])
+
+        for word in dataBits64:
+            continue
+            print("Reading back")
+            readBackBits = '01' + word[-14:]
+            readBackBits = readBackBits.zfill(64)
+            readBackBits8 = [int(readBackBits[8*i:8*(i+1)], 2) for i in range(len(readBackBits)//8)]
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
 
         print("Beginning writing global bits")
         counter = 1
-        for word in dataBitsGlobal64:
-            # print("global bits", counter)
+        #word = dataBitsGlobal64[0]
+        #bytesList = ['00000000', '00000000', '00000000', '00000000', '00000000',  '00000000', '00111011','00000000']
+        #word = ''.join(bytesList)
+        #while True:
+        for word in dataBitsGlobal64[::-1]:
+            # continue
+            print("global bits", counter)
             print(word)
             print(len(word))
+            print(hex(int(word,2)))
             #while True:
             #addrModification = 8
             addrModification = counter*8
             dataBits8 = [i for i in range(1,9)]
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b00100000, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
-            # writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
+
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            print("wrote ", [0b10100001, 0x00, 0x00, 0x00])
+            #time.sleep(1)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, 4, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            print("wrote ", [*dataBits8[4:][::-1]])
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, 4, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            print("wrote", [*dataBits8[:4][::-1]])
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, 4, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            print("wrote", [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00])
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, 4, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            #time.sleep(1)
             counter += 1
 
         print("Beginning reading global bits")
         counter = 1
         for _ in dataBitsGlobal64:
+        #while True:
             addrModification = counter*8
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [0x02, 0x00 + addrModification, 0x00, 0x00, 0x00, 0x00, 0xf])
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189 - 8, 8)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+            counter += 1
+
+    def sendInversionBits(self, clock640, colutaName):
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[colutaName].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+
+        binary = f'{clock640:04b}'
+        inv640 = binary[0]
+        delay640 = binary[1:] 
+        self.chips[colutaName].setConfiguration("global", "INV640", inv640)
+        print(f"Updated {colutaName} global, INV640: {inv640}")
+        self.chips[colutaName].setConfiguration("global", "DELAY640", delay640)
+        print(f"Updated {colutaName} global, DELAY640: {delay640}")
+
+        dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
+        dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
+
+        counter = 1
+        for word in dataBitsGlobal64[::-1]:
+            print(word)
+            addrModification = counter*8
+            dataBits8 = [i for i in range(1,9)]
+            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
+            counter += 1
 
     def i2cDataLpGBT(self, lpgbt):
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[lpgbt].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+
         chip = self.chips[lpgbt]
         chipList = list(chip.values())
         dataBits14 = defaultdict(list)
@@ -1433,6 +1379,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def i2cLauroc(self):
         lauroc = getattr(self, 'laurocConfigureBox').currentText()
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+        if lpgbtMaster == "lpgbt12":
+            ICEC = 0
+        else:
+            ICEC = 1
+
         chip = self.chips[lauroc]
         chipList = list(chip.values())
         sectionChunks = defaultdict()
@@ -1451,52 +1405,83 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             data = sectionChunks[startReg]
             print("writing", hex(data), "to", hex(startReg))
             #writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b10000001, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00, 0x00, 0x2])
-            print("reading back")
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3])
-            readFromLpGBT(lpgbtI2CAddr, 0x178, 1)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
+            # print("reading back")
+            # writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
+            # writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
+            # writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3], ICEC_CHANNEL = ICEC)
+            # readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC)
 
 
     def i2cDataLpgbtWrite(self, lpgbtI2CAddr, dataI2CAddr, register, data):
-            print("Writing register ", hex(register))
+            if lpgbtI2CAddr == 0x72: 
+                ICEC_CHANNEL = 0
+            elif lpgbtI2CAddr == 0x73: 
+                ICEC_CHANNEL = 1
+            else: 
+                print("Invalid lpgbtMaster specified (i2cDataLpgbtWrite)")
+                return
+            print("Writing", [hex(byte) for byte in data], "to register ", hex(register))
             #print("Data ", [hex(dataWord) for dataWord in data])
             regH, regL = u16_to_bytes(register)
             # We will write 16 bytes to i2cM1Data at a time
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + ((len(data)+2) << 2), 0x00, 0x00, 0x00])
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0])
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + ((len(data)+2) << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+
+            time.sleep(0.01)
             # Write 2 byte register address, then 14 bytes of configuration
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, *data[:2]])
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8])
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, *data[:2]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            time.sleep(0.01)
             if len(data) > 2:
-                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[2:6]])
-                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x9])
+                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[2:6]], ICEC_CHANNEL=ICEC_CHANNEL)
+                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+                time.sleep(0.01)
             if len(data) > 6:    
-                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[6:10]])
-                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xa])
+                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[6:10]], ICEC_CHANNEL=ICEC_CHANNEL)
+                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xa], ICEC_CHANNEL=ICEC_CHANNEL)
+                time.sleep(0.01)
             if len(data) > 10:
-                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[10:], 0xb])
-                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xb])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00])
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc])
+                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[10:]], ICEC_CHANNEL=ICEC_CHANNEL)
+                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xb], ICEC_CHANNEL=ICEC_CHANNEL)
+                time.sleep(0.01)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
+            readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            i2cTransactionFinished = False
+            counter = 0
+            while not i2cTransactionFinished:
+                bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+                print("bit: ", bit)
+                if bit[0] == 4:
+                    i2cTransactionFinished = True
+                time.sleep(0.1)
+                if counter == 10:
+                    print("I2C Transaction Failed after 1s")
+                    break
+                counter += 1
 
     def i2cDataLpgbtRead(self, lpgbtI2CAddr, dataI2CAddr, register, nBytes):
             print("Reading register ", hex(register))
             regH, regL = u16_to_bytes(register)
             # We will write 2 bytes to the data lpGBT
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0b10001000, 0x00, 0x00, 0x00, 0x0])
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             # Write 2 byte register address
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, 0x00, 0x00, 0x8])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xc])
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
             # We will read 14 bytes from the data lpGBT
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + (nBytes << 2), 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00, 0x00, 0xd]) 
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + (nBytes << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd,  [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
             # readFromLpGBT(lpgbtI2CAddr, 0x179, 16)
             #print("Read here:")
-            ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes)
+            ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
             print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
             return ReverseReadback[::-1]
 
@@ -1659,6 +1644,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # One analog measurement will return 16 bytes, thus ask for 2*number of samples requested
         status.sendFifoAOperation(2, int(2*(self.discarded+self.nSamples)), address=address)
         time.sleep(0.01)  # Wait for data to be filled in the USB buffer
+        print("Requestion datawords:", self.dataWords, "discarded", self.discarded, "samples", self.nSamples)
         dataByteArray = serialMod.readFromChip(self, port, self.dataWords*(self.discarded+self.nSamples))
         status.send()  # reset the rising edge
         first = self.discarded * self.dataWords
@@ -1694,24 +1680,156 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #print(dataStringChunks16)
 
 
-    def takeSamples(self):
+    def takeSamplesSimple(self):
         """Read and store output from VTRx+ 3 or 6"""
         if not self.isConnected and not self.pArgs.no_connect:
             self.showError("Board is not connected")
             return
 
         print("Reading data")
-        dataByteArray = self.fifoAReadData("36")
+        dataByteArray = self.fifoAReadData("45")
 
         if self.pArgs.no_connect: return
 
         dataString = sliceMod.byteArrayToString(dataByteArray)
         dataStringChunks32 = "\n".join([dataString[i:i+32] for i in range(0, len(dataString), 32)])
         dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
+        #print(dataStringChunks16)
         if self.pArgs.debug: print(dataStringChunks16)
 
-        self.ODP.parseData(self.nSamples, dataString)
-        self.ODP.writeDataToFile()
+        return dataString
+        #self.ODP.parseData(self.nSamples, dataString)
+        #self.ODP.writeDataToFile()
+
+    def takeSamples(self,doDraw=True):
+        """Read and store output data from LpGBT buffer"""
+
+        doFFT = self.doFFTBox.isChecked()
+        #saveHDF5 = self.saveHDF5Box.isChecked()
+        csv = self.saveCSVBox.isChecked()
+        # Take data and read from the FPGA
+        if not self.isConnected: #and not self.pOptions.no_connect:
+            self.showError('Chip is not connected.')
+            return
+        #self.updateStatusBar('Taking data')
+        self.measurementTime = datetime.now().strftime("%y_%m_%d_%H_%M_%S.%f")
+        
+        # Read the data
+        print("Reading data")
+        dataByteArray = self.fifoAReadData("45")
+
+        #if self.pOptions.no_connect: return
+        #self.updateStatusBar('Writing data')
+        # Display the data on the GUI window in groups of 32 bits and in groups on 16 bits on the 
+        # terminal window for Jaro
+        dataString = sliceMod.byteArrayToString(dataByteArray)
+        dataStringByteChunks = "\n".join([dataString[i:i+32] for i in range(0,len(dataString),32)])
+        dataStringByteChunks16 = "\n".join([dataString[i:i+16] for i in range(0,len(dataString),16)])
+        #if self.debug: print(dataStringByteChunks16)
+        #sectionLen = len(dataString)//self.nSamples
+        sectionLen = 256
+        print(len(dataString))
+        print(sectionLen*self.nSamples)
+        #print(sectionLen)
+        repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
+        #print(repeats)
+        dataStringCh78 = "\n".join([chunk[192:224] for chunk in repeats])
+        #for chunk in repeats:
+        #  print(chunk[192:224])
+
+        with open("ch78_4000_samples.txt", "w") as f:
+            f.write(dataStringCh78)
+        #self.controlTextBox.setPlainText(dataStringCh78)
+        self.controlTextBox.setPlainText(dataStringByteChunks)
+
+        #self.ODP.parseData('coluta', self.nSamples,dataString)
+        self.ODP.parseData(self.nSamples,dataString)
+        #self.ODP.writeDataToFile(writeHDF5File=saveHDF5,writeCSVFile=csv)
+
+        plotChip = self.plotChipBox.currentText().lower()
+        plotChannel = self.plotChannelBox.currentText()
+        channelsRead = getattr(self.ODP,plotChip).getSetting('data_channels')
+        print("channels", channelsRead)
+        # channelsRead = ['channel2','channel1']
+
+        self.dataDisplay.resetData()
+        #self.fftDisplay.resetData()
+
+        if doDraw and plotChannel in channelsRead:
+            print("Drawing")
+            decimalDict = getattr(self.ODP,plotChip+'DecimalDict')
+            adcData = decimalDict[plotChannel]
+            self.dataDisplay.updateFigure(adcData,np.arange(len(adcData)))
+            if doFFT:
+                freq,psd,QA = colutaMod.doFFT(self,adcData)
+                QAList = [plotChannel.upper(),
+                          'ENOB: {:2f}'.format(QA['ENOB']),
+                          'SNR: {:2f} dB'.format(QA['SNR']),
+                          'SFDR: {:2f} dB'.format(QA['SFDR']),
+                          'SINAD: {:2f} dB'.format(QA['SINAD'])]
+                QAStr = '\n'.join(QAList)
+                self.controlTextBox.setPlainText(QAStr)
+                #self.fftDisplay.updateFigure(psd,freq)
+
+        #self.updateStatusBar()
+
+    def updateNSamples(self):
+        self.nSamples = int(self.nSamplesBox.toPlainText())
+        # try:
+        #     self.nSamples = int(self.nSamplesBox.toPlainText())
+        #     if self.nSamples==self.dualPortBufferDepth+1:
+        #         self.nSamples = 2047.5
+        #     elif self.nSamples > self.dualPortBufferDepth+2:
+        #         self.showError('ERROR: Exceeded maximum number of samples. Max value: 4096.')
+        #         self.nSamples = 2047.5
+        # except Exception:
+        #     self.nSamples = 0
+
+    def checkVoltages(self):
+        chip = self.chips["lpgbt13"]
+        adcselect = 0x111
+        adcconfig = 0x113 
+        vrefcntr = 0x01c
+        adcstatusH = 0x1b8
+        adcstatusL = 0x1b9
+        vref = 0.9
+        #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
+        # configure input multiplexers to measure ADC0 in signle ended modePins
+        # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
+        # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
+        writeToLpGBT(int(chip.i2cAddress, 2), adcselect, [int('00111111', 2)])
+
+        # enable ADC core and set gain of the differential amplifier
+        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+
+        # enable internal voltage reference
+        writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)])
+
+        # wait until voltage reference is stable
+        time.sleep(0.01)
+
+        # start ADC convertion
+        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)])
+        status = False
+        attempt = 0
+        while not status and attempt < 10:
+            readback = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusH, 1)
+            status = readback[0] & 0x40
+            attempt += 1
+            if attempt == 10:
+                print("Failed to read voltage after 10 attemps - giving up")
+
+        adcValueH = readback[0]
+        adcValueL = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusL, 1)[0]
+        print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
+
+        # clear the convert bit to finish the conversion cycle
+        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+
+        # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
+        writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)])
+        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)])
+
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
@@ -1769,6 +1887,255 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     boxName = targetChipName + targetSectionName + targetSettingName + "Box"
                     self.updateBox(boxName, sourceSetting)
 
+
+    def scanClocks(self): 
+        upper = 16
+
+        ch1_sertest_true = '1010010000001001'
+        ch2_sertest_true = '1010010000101001'
+        ch3_sertest_true = '1010010001001001'
+        ch4_sertest_true = '1010010001101001'
+        ch5_sertest_true = '1010010010001001'
+        ch6_sertest_true = '1010010010101001'
+        ch7_sertest_true = '1010010011001001'
+        ch8_sertest_true = '1010010011101001'
+
+        ch1_sertest_repl = ch1_sertest_true*2
+        ch2_sertest_repl = ch2_sertest_true*2
+        ch3_sertest_repl = ch3_sertest_true*2
+        ch4_sertest_repl = ch4_sertest_true*2
+        ch5_sertest_repl = ch5_sertest_true*2
+        ch6_sertest_repl = ch6_sertest_true*2
+        ch7_sertest_repl = ch7_sertest_true*2
+        ch8_sertest_repl = ch8_sertest_true*2
+        ch1_sertest_valid = []
+        ch2_sertest_valid = []
+        ch3_sertest_valid = []
+        ch4_sertest_valid = []
+        ch5_sertest_valid = []
+        ch6_sertest_valid = []
+        ch7_sertest_valid = []
+        ch8_sertest_valid = []
+        LPGBTPhaseCh1_list = [[] for i in range(0,upper)]     # Value of correct lpGBT phase value or NaN if test signal is unstable or incorrect
+        LPGBTPhaseCh2_list = [[] for i in range(0,upper)]
+        LPGBTPhaseCh3_list = [[] for i in range(0,upper)]
+        LPGBTPhaseCh4_list = [[] for i in range(0,upper)]
+        LPGBTPhaseCh5_list = [[] for i in range(0,upper)]
+        LPGBTPhaseCh6_list = [[] for i in range(0,upper)]
+        LPGBTPhaseCh7_list = [[] for i in range(0,upper)]
+        LPGBTPhaseCh8_list = [[] for i in range(0,upper)]
+        for idx in range(0, 16):
+            ch1_sertest_valid.append(ch1_sertest_repl[idx:(16+idx)])
+            ch2_sertest_valid.append(ch2_sertest_repl[idx:(16+idx)])
+            ch3_sertest_valid.append(ch3_sertest_repl[idx:(16+idx)])
+            ch4_sertest_valid.append(ch4_sertest_repl[idx:(16+idx)])
+            ch5_sertest_valid.append(ch5_sertest_repl[idx:(16+idx)])
+            ch6_sertest_valid.append(ch6_sertest_repl[idx:(16+idx)])
+            ch7_sertest_valid.append(ch7_sertest_repl[idx:(16+idx)])
+            ch8_sertest_valid.append(ch8_sertest_repl[idx:(16+idx)])
+
+        lpgbt = "lpgbt16"
+        coluta = "coluta20"
+        chip = self.chips[lpgbt]
+        lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
+        dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
+
+        # [EPRX30 - 0xd8 (ch1), EPRX32 - 0xda (ch2), EPRX40 - 0xdc (ch3), EPRX42 - 0xde (ch4), EPRX50 - 0xe0]
+        registers = [0xd8, 0xda, 0xdc, 0xde, 0xe0, 0xe2, 0xe4, 0xe6]
+        #registers = [0xe6]
+        #channels = [xx,xx,0xe6]
+        for delay_idx in range(0,16):
+            isStableCh1_list = []      # Is serializer test signal same across all samples?
+            isStableCh2_list = []
+            isStableCh3_list = []
+            isStableCh4_list = []
+            isStableCh5_list = []
+            isStableCh6_list = []
+            isStableCh7_list = []
+            isStableCh8_list = []
+            isValidCh1_list = []       # Is serializer test signal correct (despite word shift)?
+            isValidCh2_list = []
+            isValidCh3_list = []
+            isValidCh4_list = []
+            isValidCh5_list = []
+            isValidCh6_list = []
+            isValidCh7_list = []
+            isValidCh8_list = []
+
+            self.sendInversionBits(delay_idx, coluta)
+
+            for lpgbt_idx in range(0,16):
+                value = (lpgbt_idx<<4)+2
+                for reg in registers:
+                    self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg, [value])
+                    time.sleep(0.1)
+                dataString = self.takeSamplesSimple()
+                sectionLen = len(dataString)//self.nSamples
+                repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
+                frame_list = [chunk[64:80] for chunk in repeats]
+                ch1_binary_list = [chunk[112:128] for chunk in repeats]
+                ch2_binary_list = [chunk[96:112] for chunk in repeats]
+                ch4_binary_list = [chunk[128:144] for chunk in repeats]
+                ch3_binary_list = [chunk[144:160] for chunk in repeats]
+                ch6_binary_list = [chunk[160:176] for chunk in repeats]
+                ch5_binary_list = [chunk[176:192] for chunk in repeats]
+                ch8_binary_list = [chunk[192:208] for chunk in repeats]
+                ch7_binary_list = [chunk[208:224] for chunk in repeats]
+
+                ## Test if metastable out of consecutive samples
+                isStableCh1 = (len(set(ch1_binary_list)) == 1)
+                isStableCh2 = (len(set(ch2_binary_list)) == 1)
+                isStableCh3 = (len(set(ch3_binary_list)) == 1)
+                isStableCh4 = (len(set(ch4_binary_list)) == 1)
+                isStableCh5 = (len(set(ch5_binary_list)) == 1)
+                isStableCh6 = (len(set(ch6_binary_list)) == 1)
+                isStableCh7 = (len(set(ch7_binary_list)) == 1)
+                isStableCh8 = (len(set(ch8_binary_list)) == 1)
+                isStableCh1_list.append(isStableCh1)
+                isStableCh2_list.append(isStableCh2)
+                isStableCh3_list.append(isStableCh3)
+                isStableCh4_list.append(isStableCh4)
+                isStableCh5_list.append(isStableCh5)
+                isStableCh6_list.append(isStableCh6)
+                isStableCh7_list.append(isStableCh7)
+                isStableCh8_list.append(isStableCh8)
+                ## Test if data output is correct
+                isValidCh1 = set(ch1_binary_list).issubset(ch1_sertest_valid)
+                isValidCh2 = set(ch2_binary_list).issubset(ch2_sertest_valid)
+                isValidCh3 = set(ch3_binary_list).issubset(ch3_sertest_valid)
+                isValidCh4 = set(ch4_binary_list).issubset(ch4_sertest_valid)
+                isValidCh5 = set(ch5_binary_list).issubset(ch5_sertest_valid)
+                isValidCh6 = set(ch6_binary_list).issubset(ch6_sertest_valid)
+                isValidCh7 = set(ch7_binary_list).issubset(ch7_sertest_valid)
+                isValidCh8 = set(ch8_binary_list).issubset(ch8_sertest_valid)
+                isValidCh1_list.append(isValidCh1)
+                isValidCh2_list.append(isValidCh2)
+                isValidCh3_list.append(isValidCh3)
+                isValidCh4_list.append(isValidCh4)
+                isValidCh5_list.append(isValidCh5)
+                isValidCh6_list.append(isValidCh6)
+                isValidCh7_list.append(isValidCh7)
+                isValidCh8_list.append(isValidCh8)
+     
+                 # Find correct lpGBT phase. -99 -> invalid and unstable, -88 invalid, -77 unstable
+                try:
+                    if isStableCh1 and isValidCh1:
+                        LPGBTPhaseCh1 = ch1_sertest_valid.index(ch1_binary_list[0])
+                    else:
+                        LPGBTPhaseCh1 = -99
+                        if isStableCh1:
+                            LPGBTPhaseCh1 += 11
+                        if isValidCh1:
+                            LPGBTPhaseCh1 += 22
+                    if isStableCh2 and isValidCh2:
+                        LPGBTPhaseCh2 = ch2_sertest_valid.index(ch2_binary_list[0])
+                    else:
+                        LPGBTPhaseCh2 = -99
+                        if isStableCh2:
+                            LPGBTPhaseCh2 += 11
+                        if isValidCh2:
+                            LPGBTPhaseCh2 += 22
+                    if isStableCh3 and isValidCh3:
+                        LPGBTPhaseCh3 = ch3_sertest_valid.index(ch3_binary_list[0])
+                    else:
+                        LPGBTPhaseCh3 = -99
+                        if isStableCh3:
+                            LPGBTPhaseCh3 += 11
+                        if isValidCh3:
+                            LPGBTPhaseCh3 += 22
+                    if isStableCh4 and isValidCh4:
+                        LPGBTPhaseCh4 = ch4_sertest_valid.index(ch4_binary_list[0])
+                    else:
+                        LPGBTPhaseCh4 = -99
+                        if isStableCh4:
+                            LPGBTPhaseCh4 += 11
+                        if isValidCh4:
+                            LPGBTPhaseCh4 += 22
+                    if isStableCh5 and isValidCh5:
+                        LPGBTPhaseCh5 = ch5_sertest_valid.index(ch5_binary_list[0])
+                    else:
+                        LPGBTPhaseCh5 = -99
+                        if isStableCh5:
+                            LPGBTPhaseCh5 += 11
+                        if isValidCh5:
+                            LPGBTPhaseCh5 += 22
+                    if isStableCh6 and isValidCh6:
+                        LPGBTPhaseCh6 = ch6_sertest_valid.index(ch6_binary_list[0])
+                    else:
+                        LPGBTPhaseCh6 = -99
+                        if isStableCh6:
+                            LPGBTPhaseCh6 += 11
+                        if isValidCh6:
+                            LPGBTPhaseCh6 += 22
+                    if isStableCh7 and isValidCh7:
+                        LPGBTPhaseCh7 = ch7_sertest_valid.index(ch7_binary_list[0])
+                    else:
+                        LPGBTPhaseCh7 = -99
+                        if isStableCh7:
+                            LPGBTPhaseCh7 += 11
+                        if isValidCh7:
+                            LPGBTPhaseCh7 += 22
+                    if isStableCh8 and isValidCh8:
+                        LPGBTPhaseCh8 = ch8_sertest_valid.index(ch8_binary_list[0])
+                    else:
+                        LPGBTPhaseCh8 = -99
+                        if isStableCh8:
+                            LPGBTPhaseCh8 += 11
+                        if isValidCh8:
+                            LPGBTPhaseCh8 += 22
+                except:
+                    print('I could not synchronize with the COLUTA.  Please power cycle and restart GUI.')
+
+                LPGBTPhaseCh1_list[delay_idx].append(LPGBTPhaseCh1)
+                LPGBTPhaseCh2_list[delay_idx].append(LPGBTPhaseCh2)
+                LPGBTPhaseCh3_list[delay_idx].append(LPGBTPhaseCh3)
+                LPGBTPhaseCh4_list[delay_idx].append(LPGBTPhaseCh4)
+                LPGBTPhaseCh5_list[delay_idx].append(LPGBTPhaseCh5)
+                LPGBTPhaseCh6_list[delay_idx].append(LPGBTPhaseCh6)
+                LPGBTPhaseCh7_list[delay_idx].append(LPGBTPhaseCh7)
+                LPGBTPhaseCh8_list[delay_idx].append(LPGBTPhaseCh8)
+        
+        headers = [f'{i}\n' for i in range(0,16)]
+        headers.insert(0,"xPhaseSelect -> \n INV/DELAY640 ")
+        try:
+            from tabulate import tabulate
+            table8 = tabulate(LPGBTPhaseCh8_list, headers, showindex = "always", tablefmt="psql")
+            print(table8)
+        except ModuleNotFoundError:
+            print('You need the tabulate package...')
+
+        table1 = tabulate(LPGBTPhaseCh1_list, headers, showindex = "always", tablefmt="psql")
+        table2 = tabulate(LPGBTPhaseCh2_list, headers, showindex = "always", tablefmt="psql")
+        table3 = tabulate(LPGBTPhaseCh3_list, headers, showindex = "always", tablefmt="psql")
+        table4 = tabulate(LPGBTPhaseCh4_list, headers, showindex = "always", tablefmt="psql")
+        table5 = tabulate(LPGBTPhaseCh5_list, headers, showindex = "always", tablefmt="psql")
+        table6 = tabulate(LPGBTPhaseCh6_list, headers, showindex = "always", tablefmt="psql")
+        table7 = tabulate(LPGBTPhaseCh7_list, headers, showindex = "always", tablefmt="psql")
+
+        with open("clockScan.txt", "w") as f:
+            f.write("Channel 1 \n")
+            f.write(table1)
+            f.write("\n \n")
+            f.write("Channel 2 \n")
+            f.write(table2)
+            f.write("\n \n")
+            f.write("Channel 3 \n")
+            f.write(table3)
+            f.write("\n \n")
+            f.write("Channel 4 \n")
+            f.write(table4)
+            f.write("\n \n")
+            f.write("Channel 5 \n")
+            f.write(table5)
+            f.write("\n \n")
+            f.write("Channel 6 \n")
+            f.write(table6)
+            f.write("\n \n")
+            f.write("Channel 7 \n")
+            f.write(table7)
+            f.write("\n \n")
+            f.write("Channel 8 \n")
+            f.write(table8)
 
     def updateBox(self, boxName, settingValue):
         try:
