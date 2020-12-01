@@ -7,7 +7,9 @@ import numpy as np
 import chipConfiguration as CC
 import sliceMod
 import dataParser
+import clockMod
 import serialMod
+import powerMod
 import status
 import configureLpGBT1213
 from functools import partial
@@ -20,7 +22,7 @@ from flxMod import icWriteToLpGBT, ecWriteToLpGBT
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
-from clockMod import scanClocks
+
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -86,13 +88,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
         #self.testButton.clicked.connect(self.test)
-        self.testButton.clicked.connect(lpgbt_14_test)
-        self.test3Button.clicked.connect(self.checkVoltages)
-        self.test2Button.clicked.connect(scanClocks)
+        self.testButton.clicked.connect(self.sendUpdatedConfigurations)
+        self.test3Button.clicked.connect(powerMod.checkVoltages)
+        self.test2Button.clicked.connect(clockMod.scanClocks)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
-        self.dcdcConverterButton.clicked.connect(self.enableDCDCConverter)
+        self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
 
@@ -100,19 +102,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpgbtI2CReadButton.clicked.connect(self.readLPBGTRegisters)
 
         #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
-        self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
+        #self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
         # self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
-        self.coluta16ConfigureButton.clicked.connect(self.i2cCOLUTA)
+        self.coluta16ConfigureButton.clicked.connect(self.sendFullCOLUTAConfig)
         self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
+        self.laurocControlConfigureButton.clicked.connect(self.sendFullLAUROCConfigs)
+        self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
        # self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         #self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
         #self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
         #self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
 
         #Configuration Buttons
-        self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
+        #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
-        self.laurocControlConfigureButton.clicked.connect(self.sendFullLAUROCConfigs)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
@@ -139,7 +142,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
 
         # Plotting
-        self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
+        #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
         self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
                                                 ylim=[0,65536],ylabel='ADC Counts')
@@ -151,6 +154,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
 
+
+    ########################## Basic read/write control for all chips ##########################
 
     def writeToControlLPGBT(self, lpgbt, register, dataBits):
         """ Writes max 4 bytes through the EC or IC channels"""
@@ -311,6 +316,147 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3], ICEC_CHANNEL = ICEC_CHANNEL)
         readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
 
+    def writeToCOLUTAChannel(self, coluta, channel, readback = False):
+        """ Write full configuration for given COLUTA channel """
+        if self.chips[coluta].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[coluta].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToCOLUTAChannel)")
+            return
+
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[coluta].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
+        dataBits = self.colutaI2CWriteControl(coluta, channel, broadcast=False)
+        dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+
+        for word in dataBits64:
+            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+            #print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
+            #print("0x0f9:", [hex(x) for x in [*dataBits8[4:][::-1], 0x8]])
+            #print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
+            #print("0x0f7:", [hex(x) for x in [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe]])
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            if readback:
+                self.readFromCOLUTAChannel(coluta, word)
+
+    def readFromCOLUTAChannel(self, coluta, word):
+        """ Readback from region defined by word (refer to colutaI2CWriteControl for definition of word) """
+        if self.chips[coluta].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[coluta].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (readFromCOLUTAChannel)")
+            return
+
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[coluta].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])        
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+
+        readBackBits = '01' + word[-14:]
+        readBackBits = readBackBits.zfill(64)
+        readBackBits8 = [int(readBackBits[8*i:8*(i+1)], 2) for i in range(len(readBackBits)//8)]
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+        
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+        # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
+        readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL) 
+
+    def writeToCOLUTAGlobal(self, coluta):
+        """ Write all COLUTA Global bits """
+        if self.chips[coluta].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[coluta].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToCOLUTAGlobal)")
+            return
+
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[coluta].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])        
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        dataBitsGlobal = self.colutaI2CWriteControl(coluta, "global")
+        dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]       
+       
+        counter = 1
+        for word in dataBitsGlobal64[::-1]:
+            addrModification = counter*8
+            dataBits8 = [i for i in range(1,9)]
+            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            counter += 1
+
+    def readFromCOLUTAGlobal(self, coluta):
+        """ Read all COLUTA global bits """
+        if self.chips[coluta].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[coluta].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (readFromCOLUTAGlobal)")
+            return
+
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[coluta].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])        
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+
+        counter = 1
+        for _ in range(2):
+            addrModification = counter*8
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
+            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+            counter += 1   
+
+    def lpgbtReset(self, lpgbt):
+        chip = self.chips[lpgbt]
+        if lpgbt == 'lpgbt12':
+            ICEC = 0
+        elif lpgbt == 'lpgbt13':
+            ICEC = 1
+        else:
+            print("Invalid lpgbtMaster specified (lpgbtReset)")
+
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+
+
+    ########################## Functions to Write/Read from GUI Interface ##########################
 
     def sendLPGBTRegisters(self):
         """ Sends user specified value to user specified register in user specified lpgbt
@@ -405,6 +551,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.readFromControlLPGBT(lpgbt, reg_addr + i, count)
                 i += count
 
+
+    ########################## Functions to Send Full Configurations ##########################
+
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
         lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
@@ -490,41 +639,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #print("reading back")
             #self.readFromLAUROC(lauroc, startReg)
 
-    def lpgbtReset(self, lpgbt):
-        chip = self.chips[lpgbt]
-        if lpgbt == 'lpgbt12':
-            ICEC = 0
-        else:
-            ICEC = 1
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
-        #time.sleep(0.2)
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+    def sendFullCOLUTAConfig(self):
+        """ Configure all coluta channels and global bits """
+        #colutaName = "coluta20"
+        coluta = getattr(self, 'colutaConfigureBox').currentText()
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[coluta].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
 
-    def enableDCDCConverter(self):
-        chip = self.chips["lpgbt12"]
+        channels = ["ch"+str(i) for i in range(1,9)]
+        for ch in channels:
+            self.writeToCOLUTAChannel(coluta, ch, readback = False)
 
-        piodirl = '00010100'
-        piooutl = '00010100'
-        piodrivestrengthl = '00010100'
-
-        #data = ''.join([f'{0Xaa:08b}' for i in range(1,96)])
-        data = ['00001000', piodirl, '00001000', piooutl, '00000000', '00000000', '00000000', '00000000', '00001000', piodrivestrengthl]
-        dataToSend = [int(val,2) for val in data]
-
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x052, dataToSend)
-
-        chip2 = self.chips['lpgbt13']
-
-        piodirl = '00011100'
-        piooutl = '00011100'
-        piodrivestrengthl = '00011100'
-
-        data2 = ['00000000', piodirl, '00000000', piooutl, '00000000', '00000000', '00000000', '00000000', '00000000', piodrivestrengthl]
-        dataToSend2 = [int(val,2) for val in data2]
-
-        writeToLpGBT(int(chip2.i2cAddress, 2), 0x052, dataToSend2)
-
+        self.writeToCOLUTAGlobal(coluta)
+        self.readFromCOLUTAGlobal(coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -604,6 +732,138 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         return allBits
 
 
+    ########################## Functions to Set Up Configurations ##########################
+
+    def setupConfigurations(self):
+        """Sets up a Configuration object for each chip listed in self.chipsConfig"""
+        config = configparser.ConfigParser()
+        config.optionxform = str
+        config.read(self.chipsConfig)
+
+        for chip in config["Chips"]:
+            cfgFile, specFile, chipType, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chip].split(',')]
+            self.chips[chip] = CC.Configuration(self, cfgFile, specFile, chipType, lpgbtMaster, i2cMaster, i2cAddr)
+
+        powerconfig = configparser.ConfigParser()
+        powerconfig.optionxform = str
+        powerconfig.read(self.powerConfig)
+
+        for powerSetting in powerconfig["powerSettings"]:
+            lpgbt, pin = [x.strip() for x in powerconfig["powerSettings"][powerSetting].split(',')]
+            self.powerSettings[powerSetting] = [lpgbt, pin]
+
+        self.updateGUIText()
+
+
+    def updateConfigurations(self, boxName, chipName, sectionName, settingName):
+        previousValue = self.chips[chipName][sectionName][settingName]
+        length = len(previousValue)
+        name = chipName + sectionName + settingName
+        #boxName = name + "Box"
+        try:
+            box = getattr(self, boxName)
+        except AttributeError:
+            print ('AttributeError')
+            return
+        if isinstance(box, QtWidgets.QPlainTextEdit):
+            plainText = box.toPlainText()
+            try:
+                decimal = int(plainText)
+            except ValueError:
+                decimal = 0
+            binary = f"{decimal:b}".zfill(length)
+            if len(binary) > length:
+                print("Setting overflow! Configuration not changed.")
+                try:
+                    previousDecimalStr = str(int(previousValue, 2))
+                    box.document().setPlainText(previousDecimalStr)
+                except ValueError:
+                    print("Invalid input! Cannot convert to binary.")
+                return
+        elif isinstance(box, QtWidgets.QComboBox):
+            index = box.currentIndex()
+            binary = f"{index:b}".zfill(length)
+        elif isinstance(box, QtWidgets.QCheckBox):
+            binary = str(int(box.isChecked()))
+        else:
+            binary = ""
+            print(f"Could not find setting box {boxName}")
+        self.chips[chipName].setConfiguration(sectionName, settingName, binary)
+        print(f"Updated {chipName} {sectionName}, {settingName}: {binary}")
+
+
+    def sendUpdatedConfigurations(self):
+        """ Write all updated configuations for all chips """
+        badLAUROCS = ['lauroc13', 'lauroc14', 'lauroc15', 'lauroc17', 'lauroc18', 'lauroc19']
+        badCOLUTAs = ['coluta13', 'coluta14', 'coluta15', 'coluta18', 'coluta19']
+        badChips = badCOLUTAs+badLAUROCS
+        for (chipName, chipConfig) in self.chips.items():
+            if chipName in badChips:
+                continue
+            updates = {}
+            for (sectionName, section) in chipConfig.items():
+                if section.updated:
+                    addr = int(self.chips[chipName][sectionName].address,0)
+                    data = int(self.chips[chipName][sectionName].bits,2)
+                    updates[addr] = [sectionName,data]
+                    print('Updating',chipName,sectionName,sep=' ')
+                    section.updated = False
+
+            if len(updates.keys()) == 0:
+                print("No updates for ", chipName)
+                continue
+
+            if chipName in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
+                dataToSend = self.sortUpdates(updates, 4)
+                for (addr, data) in dataToSend.items():
+                    self.writeToControlLPGBT(chipName, addr, data)
+            elif chipName in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
+                dataToSend = self.sortUpdates(updates, 14)
+                for (addr, data) in dataToSend.items():
+                    self.writeToDataLPGBT(chipName, addr, data)
+            elif chipName.find('lauroc') == 0:
+                for (addr, data) in updates.items():
+                    self.writeToLAUROC(chipName, addr, data[1])
+            elif chipName.find('coluta') == 0:
+                for (addr, data) in updates.items():
+                    if data[0] == 'global':
+                        self.writeToCOLUTAGlobal(chipName)
+                    else:
+                        self.writeToCOLUTAChannel(chipName, data[0])
+            else:
+                print('ChipName Not recognized: ', chipName)
+
+
+    def sortUpdates(self, updates, maxConsecutive):
+        #Sort into groups of maxConsecutive addresses 
+        orderedUpdates = OrderedDict(sorted(updates.items(), key = lambda t:t[0]))
+        addrs = orderedUpdates.keys()
+        addrGroups, last = [[]], None
+        for addr in addrs:
+            if (last is None or abs(last - addr) == 1) and (len(addrGroups[-1]) < maxConsecutive):
+                addrGroups[-1].append(addr)
+            else:
+                addrGroups.append([addr])
+            last = addr
+
+        dataWrites = {}
+        for addrGroup in addrGroups:
+            firstAddr = addrGroup[0]
+            currentAddr = addrGroup[0]
+            finalAddr = addrGroup[-1]
+            dataToSend = []
+            while currentAddr <= finalAddr:
+                try:
+                    dataToSend.append(orderedUpdates[currentAddr][1])
+                except KeyError:
+                    print("Bad key in sortUpdates")
+                currentAddr += 1
+            dataWrites[firstAddr] = dataToSend
+        return dataWrites
+
+
+    ########################## GUI Control Functions ########################## 
+
     def startup(self):
         """Runs the standard board startup / connection routine"""
         if self.pArgs.no_connect:
@@ -643,26 +903,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if A and B:
             self.isConnected = True
 
-
-    def setupConfigurations(self):
-        """Sets up a Configuration object for each chip listed in self.chipsConfig"""
-        config = configparser.ConfigParser()
-        config.optionxform = str
-        config.read(self.chipsConfig)
-
-        for chip in config["Chips"]:
-            cfgFile, specFile, chipType, lpgbtMaster, i2cMaster, i2cAddr = [x.strip() for x in config["Chips"][chip].split(',')]
-            self.chips[chip] = CC.Configuration(self, cfgFile, specFile, chipType, lpgbtMaster, i2cMaster, i2cAddr)
-
-        powerconfig = configparser.ConfigParser()
-        powerconfig.optionxform = str
-        powerconfig.read(self.powerConfig)
-
-        for powerSetting in powerconfig["powerSettings"]:
-            lpgbt, pin = [x.strip() for x in powerconfig["powerSettings"][powerSetting].split(',')]
-            self.powerSettings[powerSetting] = [lpgbt, pin]
-
-        self.updateGUIText()
 
 
     def updateGUIText(self):
@@ -804,280 +1044,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1)    
 
 
-    def i2cCOLUTA(self):
-        #colutaName = "coluta20"
-        colutaName = getattr(self, 'colutaConfigureBox').currentText()
-        print("Resetting lpgbt master control")
-        lpgbtMaster = "lpgbt"+self.chips[colutaName].lpgbtMaster
-        self.lpgbtReset(lpgbtMaster)
-        if lpgbtMaster[-2:] == '12': 
-            ICEC_CHANNEL = 0
-        elif lpgbtMaster[-2:] == '13': 
-            ICEC_CHANNEL = 1
-        else: 
-            print("Invalid lpgbtMaster specified (i2cCOLUTA)")
-
-        dataBits = self.colutaI2CWriteControl(colutaName, "ch1", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch2", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch3", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch4", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch5", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch6", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch7", broadcast=False)
-        dataBits += self.colutaI2CWriteControl(colutaName, "ch8", broadcast=False)
-        dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
-        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
-        colutaI2CAddr = self.chips[colutaName].i2cAddress
-        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
-        print("i2cAddr", colutaI2CAddr)
-        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
-        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
-        print("i2cH",hex(colutaI2CAddrH))
-        print("u2cL", hex(colutaI2CAddrL))
-        dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
-        dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
-        for word in dataBits64:
-            #continue
-
-            #word = dataBits64[-1]
-            #print(word)
-            #while True:
-            #dataBits8 = [i for i in range(1,9)]
-            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-            print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
-            print("0x0f9:", [hex(x) for x in [*dataBits8[4:][::-1], 0x8]])
-            print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
-            print("0x0f7:", [hex(x) for x in [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe]])
-
-            # We will write 8 bytes to i2cM1Data at a time
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0xa0])
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0fd, [0x00])
-
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0x01,0x02,0x03,0x04,0x08])
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f9, [0x05,0x06,0x07,0x08,0x09])
-
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f8, [0x00]) i2cAddr[6:0]
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [0x04]) i2cAddr[9:7]
-            #writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0fd, [0x0E])
-            
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
-		
-
-
-        for word in dataBits64:
-            continue
-            print("Reading back")
-            readBackBits = '01' + word[-14:]
-            readBackBits = readBackBits.zfill(64)
-            readBackBits8 = [int(readBackBits[8*i:8*(i+1)], 2) for i in range(len(readBackBits)//8)]
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-            
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
-
-        print("Beginning writing global bits")
-        counter = 1
-        #word = dataBitsGlobal64[0]
-        #bytesList = ['00000000', '00000000', '00000000', '00000000', '00000000',  '00000000', '00111011','00000000']
-        #word = ''.join(bytesList)
-        #while True:
-        for word in dataBitsGlobal64[::-1]:
-            # continue
-            print("global bits", counter)
-            print(word)
-            print(len(word))
-            print(hex(int(word,2)))
-            #while True:
-            #addrModification = 8
-            addrModification = counter*8
-            dataBits8 = [i for i in range(1,9)]
-            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            print("wrote ", [0b10100001, 0x00, 0x00, 0x00])
-            #time.sleep(1)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, 4, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            print("wrote ", [*dataBits8[4:][::-1]])
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, 4, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            print("wrote", [*dataBits8[:4][::-1]])
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, 4, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            # writeToLpGBT(self.i2cPort, int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            print("wrote", [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00])
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, 4, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            #time.sleep(1)
-            counter += 1
-
-        print("Beginning reading global bits")
-        counter = 1
-        for _ in dataBitsGlobal64:
-        #while True:
-            addrModification = counter*8
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
-            counter += 1
-
-
-    def updateConfigurations(self, boxName, chipName, sectionName, settingName):
-        previousValue = self.chips[chipName][sectionName][settingName]
-        length = len(previousValue)
-        name = chipName + sectionName + settingName
-        #boxName = name + "Box"
-        try:
-            box = getattr(self, boxName)
-        except AttributeError:
-            print ('AttributeError')
-            return
-        if isinstance(box, QtWidgets.QPlainTextEdit):
-            plainText = box.toPlainText()
-            try:
-                decimal = int(plainText)
-            except ValueError:
-                decimal = 0
-            binary = f"{decimal:b}".zfill(length)
-            if len(binary) > length:
-                print("Setting overflow! Configuration not changed.")
-                try:
-                    previousDecimalStr = str(int(previousValue, 2))
-                    box.document().setPlainText(previousDecimalStr)
-                except ValueError:
-                    print("Invalid input! Cannot convert to binary.")
-                return
-        elif isinstance(box, QtWidgets.QComboBox):
-            index = box.currentIndex()
-            binary = f"{index:b}".zfill(length)
-        elif isinstance(box, QtWidgets.QCheckBox):
-            binary = str(int(box.isChecked()))
-        else:
-            binary = ""
-            print(f"Could not find setting box {boxName}")
-        self.chips[chipName].setConfiguration(sectionName, settingName, binary)
-        print(f"Updated {chipName} {sectionName}, {settingName}: {binary}")
-
-
-    def sendUpdatedConfigurations(self):
-        for (chipName, chipConfig) in self.chips.items():
-            updates = {}
-            for (sectionName, section) in chipConfig.items():
-                #for (settingName, setting) in section.items():
-                #category = configurations[categoryName]
-                #if sectionName not in ['piodirh','piodirl']:
-                #    continue
-                if section.updated:
-                    addr = int(self.chips[chipName][sectionName].address,0)
-                    data =  self.chips[chipName][sectionName].bits
-                    updates[addr] = [sectionName,data]
-                    print('Updating',chipName,sectionName,sep=' ')
-                    section.updated = False
-                #if True:
-
-            #Sort into groups of addresses with no more than 14 registers inbetween
-            orderedUpdates = OrderedDict(sorted(updates.items(), key = lambda t:t[0]))
-            addrs = orderedUpdates.keys()
-            addrGroups, last = [[]], None
-            for addr in addrs:
-                if last is None or abs(last - addr) <= 14:
-                    addrGroups[-1].append(addr)
-                else:
-                    addrGroups.append([addr])
-                last = addr
-            # print(addrGroups)
-            for addrGroup in addrGroups:
-                firstAddr = f'{addrGroup[0]:012b}'
-                currentAddr = addrGroup[0]
-                finalAddr = addrGroup[-1]
-                dataToSend = ''
-                wordCount = 0
-                while currentAddr <= finalAddr:
-                    try:
-                        dataToSend += orderedUpdates[currentAddr][1]
-                    except KeyError:
-                        dataToSend += "00000000"
-                    currentAddr += 1
-                    wordCount += 1
-                #print('sending: ', chipName, firstAddr, dataToSend)
-                if 'lpgbt13' == chipName: #or 'lpgbt13' == chipName:
-                    self.sendControlLpgbtConfigs(chipName, wordCount, firstAddr, dataToSend)
-                    #self.sendControlLpgbtConfigsTest(chipName, wordCount, firstAddr, dataToSend)
-                #elif 'lpgbt' in chipName:
-                #    self.sendDataLpGBTConfigs(chipName, wordCount, firstAddr, dataToSend)
-                #elif 'lauroc' in chipName:
-                #    self.sendLAUROCConfigs(chipName, wordCount, firstAddr, dataToSend)
-                #elif 'coluta' in chipName:
-                #    self.sendCOLUTAConfigs(chipName, wordCount, dataToSend)
-                else:
-                    print('ChipName Not recognized: ', chipName)
-
-                    # # if self.debug:
-                    # print('Updating',chipName,sectionName,sep=' ')
-                    # if 'lauroc' in chipName:
-                    #     #self.configureLAUROC()
-                    #     print(self.chips[chipName][sectionName].bits)
-                    #     #category.updated = False
-                    # elif 'coluta' in chipName:
-                    #     #self.configureCOLUTA()
-                    #     #category.sendUpdatedConfiguration(category.isI2C)
-                    #     #category.updated = False
-                    #     print(self.chips[chipName][sectionName].bits)
-                    # elif 'lpgbt13' == chipName or 'lpgbt12' == chipName:
-                    #     #self.configureControllpGBT()
-                    #     print(self.chips[chipName][sectionName].bits)
-                    #     #category.updated = False
-                    # elif 'lpgbt' in chipName:
-                    #     #self.configureDatalpGBT()
-                    #     print(self.chips[chipName][sectionName].bits)
-                    #     #category.updated = False
-                    # else:
-                    #     # should send LAUROC configurations
-                    #     print(f'Chip name not found : {chipName}')
-                    #     continue
-                    #     # category.sendUpdatedConfiguration(category.isI2C)
-                    # section.updated = False
-
-
     def showError(self, message):
         """Error message method. Called by numerous dependencies."""
         errorDialog = QtWidgets.QErrorMessage(self)
@@ -1135,100 +1101,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             f.write(dataStringChunks16)
         #print(dataStringChunks16)
 
-
-    def takeSamplesSimple(self):
-        """Read and store output from VTRx+ 3 or 6"""
-        if not self.isConnected and not self.pArgs.no_connect:
-            self.showError("Board is not connected")
-            return
-
-        print("Reading data")
-        dataByteArray = self.fifoAReadData("45")
-
-        if self.pArgs.no_connect: return
-
-        dataString = sliceMod.byteArrayToString(dataByteArray)
-        dataStringChunks32 = "\n".join([dataString[i:i+32] for i in range(0, len(dataString), 32)])
-        dataStringChunks16 = "\n".join([dataString[i:i+16] for i in range(0, len(dataString), 16)])
-        #print(dataStringChunks16)
-        if self.pArgs.debug: print(dataStringChunks16)
-
-        return dataString
-        #self.ODP.parseData(self.nSamples, dataString)
-        #self.ODP.writeDataToFile()
-
-    def takeSamples(self,doDraw=True):
-        """Read and store output data from LpGBT buffer"""
-
-        doFFT = self.doFFTBox.isChecked()
-        #saveHDF5 = self.saveHDF5Box.isChecked()
-        csv = self.saveCSVBox.isChecked()
-        # Take data and read from the FPGA
-        if not self.isConnected: #and not self.pOptions.no_connect:
-            self.showError('Chip is not connected.')
-            return
-        #self.updateStatusBar('Taking data')
-        self.measurementTime = datetime.now().strftime("%y_%m_%d_%H_%M_%S.%f")
-        
-        # Read the data
-        print("Reading data")
-        dataByteArray = self.fifoAReadData("45")
-
-        #if self.pOptions.no_connect: return
-        #self.updateStatusBar('Writing data')
-        # Display the data on the GUI window in groups of 32 bits and in groups on 16 bits on the 
-        # terminal window for Jaro
-        dataString = sliceMod.byteArrayToString(dataByteArray)
-        dataStringByteChunks = "\n".join([dataString[i:i+32] for i in range(0,len(dataString),32)])
-        dataStringByteChunks16 = "\n".join([dataString[i:i+16] for i in range(0,len(dataString),16)])
-        #if self.debug: print(dataStringByteChunks16)
-        #sectionLen = len(dataString)//self.nSamples
-        sectionLen = 256
-        print(len(dataString))
-        print(sectionLen*self.nSamples)
-        #print(sectionLen)
-        repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
-        #print(repeats)
-        dataStringCh78 = "\n".join([chunk[192:224] for chunk in repeats])
-        #for chunk in repeats:
-        #  print(chunk[192:224])
-
-        with open("ch78_4000_samples.txt", "w") as f:
-            f.write(dataStringCh78)
-        #self.controlTextBox.setPlainText(dataStringCh78)
-        self.controlTextBox.setPlainText(dataStringByteChunks)
-
-        #self.ODP.parseData('coluta', self.nSamples,dataString)
-        self.ODP.parseData(self.nSamples,dataString)
-        #self.ODP.writeDataToFile(writeHDF5File=saveHDF5,writeCSVFile=csv)
-
-        plotChip = self.plotChipBox.currentText().lower()
-        plotChannel = self.plotChannelBox.currentText()
-        channelsRead = getattr(self.ODP,plotChip).getSetting('data_channels')
-        print("channels", channelsRead)
-        # channelsRead = ['channel2','channel1']
-
-        self.dataDisplay.resetData()
-        #self.fftDisplay.resetData()
-
-        if doDraw and plotChannel in channelsRead:
-            print("Drawing")
-            decimalDict = getattr(self.ODP,plotChip+'DecimalDict')
-            adcData = decimalDict[plotChannel]
-            self.dataDisplay.updateFigure(adcData,np.arange(len(adcData)))
-            if doFFT:
-                freq,psd,QA = colutaMod.doFFT(self,adcData)
-                QAList = [plotChannel.upper(),
-                          'ENOB: {:2f}'.format(QA['ENOB']),
-                          'SNR: {:2f} dB'.format(QA['SNR']),
-                          'SFDR: {:2f} dB'.format(QA['SFDR']),
-                          'SINAD: {:2f} dB'.format(QA['SINAD'])]
-                QAStr = '\n'.join(QAList)
-                self.controlTextBox.setPlainText(QAStr)
-                #self.fftDisplay.updateFigure(psd,freq)
-
-        #self.updateStatusBar()
-
     def updateNSamples(self):
         self.nSamples = int(self.nSamplesBox.toPlainText())
         # try:
@@ -1240,52 +1112,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #         self.nSamples = 2047.5
         # except Exception:
         #     self.nSamples = 0
-
-    def checkVoltages(self):
-        chip = self.chips["lpgbt13"]
-        adcselect = 0x111
-        adcconfig = 0x113 
-        vrefcntr = 0x01c
-        adcstatusH = 0x1b8
-        adcstatusL = 0x1b9
-        vref = 0.9
-        #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
-        # configure input multiplexers to measure ADC0 in signle ended modePins
-        # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
-        # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
-        writeToLpGBT(int(chip.i2cAddress, 2), adcselect, [int('00111111', 2)])
-
-        # enable ADC core and set gain of the differential amplifier
-        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
-
-        # enable internal voltage reference
-        writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)])
-
-        # wait until voltage reference is stable
-        time.sleep(0.01)
-
-        # start ADC convertion
-        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)])
-        status = False
-        attempt = 0
-        while not status and attempt < 10:
-            readback = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusH, 1)
-            status = readback[0] & 0x40
-            attempt += 1
-            if attempt == 10:
-                print("Failed to read voltage after 10 attemps - giving up")
-
-        adcValueH = readback[0]
-        adcValueL = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusL, 1)[0]
-        print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
-
-        # clear the convert bit to finish the conversion cycle
-        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
-
-        # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
-        writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)])
-        writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)])
-
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
