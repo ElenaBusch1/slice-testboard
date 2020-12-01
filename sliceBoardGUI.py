@@ -15,7 +15,7 @@ import configureLpGBT1213
 from collections import OrderedDict, defaultdict
 from flxMod import icWriteToLpGBT as writeToLpGBT
 from flxMod import icReadLpGBT as readFromLpGBT
-from flxMod import ecReadLpGBT
+from flxMod import ecReadLpGBT as ecReadFromLpGBT
 from flxMod import icWriteToLpGBT, ecWriteToLpGBT
 from monitoring import MPLCanvas
 from datetime import datetime
@@ -272,9 +272,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
         # readFromLpGBT(lpgbtI2CAddr, 0x179, 16)
-        ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
-        print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
-        return ReverseReadback[::-1]
+        #ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+        #print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
+        #return ReverseReadback[::-1]
 
     def writeToLAUROC(self, lauroc, register, data):
         """ Writes data to LAUROC one register at a time """
