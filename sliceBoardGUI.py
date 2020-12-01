@@ -15,9 +15,12 @@ import configureLpGBT1213
 from collections import OrderedDict, defaultdict
 from flxMod import icWriteToLpGBT as writeToLpGBT
 from flxMod import icReadLpGBT as readFromLpGBT
+from flxMod import ecReadLpGBT
 from flxMod import icWriteToLpGBT, ecWriteToLpGBT
 from monitoring import MPLCanvas
 from datetime import datetime
+from tests import lpgbt_14_test
+from clockMod import scanClocks
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -83,9 +86,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
         #self.testButton.clicked.connect(self.test)
-        self.testButton.clicked.connect(self.lpgbt_14_test)
+        self.testButton.clicked.connect(lpgbt_14_test)
         self.test3Button.clicked.connect(self.checkVoltages)
-        self.test2Button.clicked.connect(self.scanClocks)
+        self.test2Button.clicked.connect(scanClocks)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
@@ -93,15 +96,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
 
-        self.lpgbtI2CWriteButton.clicked.connect(self.lpgbt_manual_write)
-        self.lpgbtI2CReadButton.clicked.connect(self.lpgbt_manual_read)
-        self.lpgbtICWriteButton.clicked.connect(self.lpgbt_ic_write)
+        self.lpgbtI2CWriteButton.clicked.connect(self.sendLPGBTRegisters)
+        self.lpgbtI2CReadButton.clicked.connect(self.readLPBGTRegisters)
 
         #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
         self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
         # self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
         self.coluta16ConfigureButton.clicked.connect(self.i2cCOLUTA)
-        self.lpgbtConfigureButton.clicked.connect(self.i2cLpGBT)
+        self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
        # self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         #self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
         #self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
@@ -110,7 +112,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #Configuration Buttons
         self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
-        self.laurocControlConfigureButton.clicked.connect(self.i2cLauroc)
+        self.laurocControlConfigureButton.clicked.connect(self.sendFullLAUROCConfigs)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
@@ -149,22 +151,171 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
 
-    def lpgbt_14_test(self):
-        chip = self.chips['lpgbt14']
-        reg_addr = 0xc4
-        data = [0x55]
-        lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-        dataI2CAddr = int(chip.i2cAddress,2)
-        # while True:
-            #self.sendDataLpgbtConfigs(chipName, wordCount, reg_addr, data)
-            #self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg_addr, data)
-            # writeToLpGBT(dataI2CAddr, reg_addr, data)
-        writeToLpGBT(dataI2CAddr, reg_addr, data)
+
+    def writeToControlLPGBT(self, lpgbt, register, dataBits):
+        """ Writes max 4 bytes through the EC or IC channels"""
+        chip = self.chips[lpgbt]
+        if lpgbt[-2:] == '11' or lpgbt[-2:] == '12': 
+            ICEC_CHANNEL = 0
+        elif lpgbt[-2:] == '13' or lpgbt[-2:] == '14': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpGBT specified (WriteToControlLpgbt)")
+        print(lpgbt, ICEC_CHANNEL)
+        if len(dataBits) > 4:
+            print("Error: trying to send more than 4 dataBits in writeToControlLPGBT")
+
+        if lpgbt in ['lpgbt11', 'lpgbt14']:
+            ecWriteToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
+        elif lpgbt in ['lpgbt12', 'lpgbt13']:
+            writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
+        else:
+            print("Invalid lpGBT specified (writeToControlLpgbt)")
+
+    def readFromControlLPGBT(self, lpgbt, register, nBytes):
+        """ Reads max 16 bytes through the EC or IC channels"""
+        chip = self.chips[lpgbt]
+        if lpgbt[-2:] == '11' or lpgbt[-2:] == '12': 
+            ICEC_CHANNEL = 0
+        elif lpgbt[-2:] == '13' or lpgbt[-2:] == '14': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpGBT specified (WriteToControlLpgbt)")
+        print(lpgbt, ICEC_CHANNEL)
+        if nBytes > 16:
+            print("Error: trying to send more than 16 dataBits in writeToControlLPGBT")
+
+        if lpgbt in ['lpgbt11', 'lpgbt14']:
+            ecReadFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+        elif lpgbt in ['lpgbt12', 'lpgbt13']:
+            readFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+        else:
+            print("Invalid lpGBT specified (readFromControlLpgbt)")
+
+    def writeToDataLPGBT(self, lpgbt, register, data):
+        """ Writes a maxiumum of 14 bytes to given register in data lpgbt """
+        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lpgbt].lpgbtMaster].i2cAddress,2)
+        dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
+
+        if self.chips[lpgbt].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[lpgbt].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToDataLpgbt)")
+            return
+        if (len(data)>14):
+            print("Error: length of data in writeToDataLpgbt too long")
+            return
+
+        print("Writing", [hex(byte) for byte in data], "to register ", hex(register))
+        regH, regL = u16_to_bytes(register)
+
+        # We will write 16 bytes to i2cM1Data at a time
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + ((len(data)+2) << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+        # Write 2 byte register address, then 14 bytes of configuration
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, *data[:2]], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+        if len(data) > 2:
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[2:6]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+        if len(data) > 6:    
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[6:10]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xa], ICEC_CHANNEL=ICEC_CHANNEL)
+        if len(data) > 10:
+            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[10:]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xb], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
+        
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        # i2cTransactionFinished = False
+        # counter = 0
+        # while not i2cTransactionFinished:
+        #     bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+        #     print("bit: ", bit)
+        #     if bit[0] == 4:
+        #         i2cTransactionFinished = True
+        #     time.sleep(0.1)
+        #     if counter == 10:
+        #         print("I2C Transaction Failed after 1s")
+        #         break
+        #     counter += 1
+
+    def readFromDataLPGBT(self, lpgbt, register, nBytes):
+        """ Reads nBytes back from the lpgbt, starting at the given register """
+        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lpgbt].lpgbtMaster].i2cAddress,2)
+        dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
+
+        if self.chips[lpgbt].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[lpgbt].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToDataLpgbt)")
+            return
+
+        print("Reading register ", hex(register))
+        regH, regL = u16_to_bytes(register)
+        # We will write 2 bytes to the data lpGBT
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+        # Write 2 byte register address
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
+        # We will read 14 bytes from the data lpGBT
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + (nBytes << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd,  [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
+        # readFromLpGBT(lpgbtI2CAddr, 0x179, 16)
+        ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+        print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
+        return ReverseReadback[::-1]
+
+    def writeToLAUROC(self, lauroc, register, data):
+        """ Writes data to LAUROC one register at a time """
+        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
+        laurocI2CAddr = int(self.chips[lauroc].i2cAddress[:4],2)
+
+        if self.chips[lauroc].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[lauroc].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToLAUROC)")
+            return
+
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+
+    def readFromLAUROC(self, lauroc, register):
+        """ Reads from LAUROC one register at a time """
+        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
+        laurocI2CAddr = int(self.chips[lauroc].i2cAddress[:4],2)
+
+        if self.chips[lauroc].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[lauroc].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToLAUROC)")
+            return
+
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3], ICEC_CHANNEL = ICEC_CHANNEL)
+        readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
 
 
-    def lpgbt_manual_write(self):
+    def sendLPGBTRegisters(self):
+        """ Sends user specified value to user specified register in user specified lpgbt
+            The repeat paramters sends the same value to multiple consecutive registers """
         lpgbt = getattr(self, 'lpgbtSelectBox').currentText()
-        print(lpgbt)
         chip = self.chips[lpgbt]
 
         registerBox = getattr(self, 'lpgbtregisterBox')
@@ -191,128 +342,164 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("lpgbt Master addr is ", lpgbtI2CAddr )
         dataI2CAddr = int(chip.i2cAddress,2)
 
-        if lpgbt in ['lpgbt12', 'lpgbt13']:
-            if lpgbt == 'lpgbt12':
-                IC_EC = 0
-            else:
-                IC_EC = 1    
-            if repeat == 1:
-                print("Writing", int(chip.i2cAddress, 2), reg_addr, [value])
-                writeToLpGBT(int(chip.i2cAddress, 2), reg_addr, [value], ICEC_CHANNEL=IC_EC )
-            else:
-                i = 0
-                while i < repeat:
-                    if (repeat - i) < 4:
-                        data =  [value for i in range(repeat-i)]
-                    else:
-                        data = [value, value, value, value]
-
-                    writeToLpGBT(int(chip.i2cAddress, 2), reg_addr+i, data, ICEC_CHANNEL=IC_EC)
-                    i += len(data)
-        elif lpgbt in ['lpgbt11', 'lpgbt14']:
-            if lpgbt == 'lpgbt11':
-                IC_EC = 0
-            else:
-                IC_EC = 1    
+        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:   
             i = 0
             while i < repeat:
                 if (repeat - i) < 4:
-                    data =  [value for i in range(repeat-i)]
+                    data =  [value for j in range(repeat-i)]
                 else:
                     data = [value, value, value, value]
-                print("Len: ", len(data))
-                ecWriteToLpGBT(int(chip.i2cAddress, 2), reg_addr+i, data, ICEC_CHANNEL=IC_EC)
+                self.writeToControlLPGBT(lpgbt, reg_addr+i, data)
                 i += len(data)
         else:
             i = 0
             while i < repeat:
                 if (repeat - i) < 14:
-                    data =  [value for k in range(repeat-k)]
+                    data =  [value for k in range(repeat-i)]
                 else:
                     data = [value for j in range(0,14)]
-                self.DataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg_addr+i, data)
+                self.writeToDataLPGBT(lpgbt, reg_addr+i, data)
                 i += len(data)
 
-
-
-    def lpgbt_i2c_read(self):
+    def readLPBGTRegisters(self):
+        """ Reads value from user specified register in user specified lpgbt
+            The repeat paramters determines how many consecutive registers are read """
         lpgbt = getattr(self, 'lpgbtSelectBox').currentText()
-        #lpgbt = 'lpgbt13'
         chip = self.chips[lpgbt]
-        #lpgbt11Box = getattr(self, 'lpgbt11Box')
-        #lpgbt12Box = getattr(self, 'lpgbt12Box')
-        #lpgbt13Box = getattr(self, 'lpgbt13Box')
-        #lpgbt9Box = getattr(self, 'lpgbt9Box')
-        #lpgbt10Box = getattr(self, 'lpgbt10Box')
-
-        #print(int(lpgbt11Box.isChecked()))
-        #print(int(lpgbt12Box.isChecked()))
 
         registerBox = getattr(self, 'lpgbtregisterBox')
         valueBox = getattr(self, 'lpgbtReadLengthBox')
-        #reg_addr = int(0xd7,16)
-        #value = 1
 
         try:
             reg_addr = int(registerBox.toPlainText(),16)
-            #reg_addr = int(0xd7,16)
         except:
             print("Invalid register address")
             return
         try:
             value = int(valueBox.toPlainText(),10)
-            #value = 1
         except:
             print("Invalid value - must be decimal")
             return
 
-        # if int(lpgbt12Box.isChecked()) == 1:
-        #     chip = self.chips["lpgbt12"]
-        # elif int(lpgbt13Box.isChecked()) == 1:
-        #     chip = self.chips["lpgbt13"]
-        # elif int(lpgbt11Box.isChecked()) == 1:
-        #    chip = self.chips["lpgbt11"]
-        # elif int(lpgbt9Box.isChecked()) == 1:
-        #     chip = self.chips["lpgbt9"]
-        # elif int(lpgbt10Box.isChecked()) == 1:
-        #     chip = self.chips["lpgbt10"]
-        # else:
-        #     print("please select lpgbt 12 or 11")
-        #     return
-
-        #if (int(lpgbt9Box.isChecked()) == 1) or (int(lpgbt10Box.isChecked()) ==1):
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
             lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-            #print("lpgbt Master is ", chip.lpgbtMaster )
             dataI2CAddr = int(chip.i2cAddress,2)
-            if value >4:
-                i=0
-                while i < value:
-                    if value - i < 4:
-                        count = value -i
-                    else:
-                        count = 4
-                    print("reading ", hex(reg_addr + i))
-                    self.i2cDataLpgbtRead(lpgbtI2CAddr, dataI2CAddr, reg_addr +i, count)
-                    i += count
-            else:
-                self.i2cDataLpgbtRead(lpgbtI2CAddr, dataI2CAddr, reg_addr, value)
-            return            
+            i=0
+            while i < value:
+                if value - i < 4:
+                    count = value -i
+                else:
+                    count = 4
+                print("Reading ", count, " registers from ", hex(reg_addr + i), " in lpgbt ", lpgbt)
+                self.readFromDataLPGBT(lpgbt, reg_addr +i, count)
+                i += count          
 
-        elif lpgbt in ['lpgbt12', 'lpgbt13']:
-            if lpgbt == 'lpgbt12':
-                IC_EC = 0
-            else:
-                IC_EC = 1
-            if value > 4:
-                i=0
-                while i < value:
-                    print("reading ", hex(reg_addr + i))
-                    readFromLpGBT(int(chip.i2cAddress, 2), reg_addr + i, 4, ICEC_CHANNEL=IC_EC )
-                    i += 4
-            else:
-                readFromLpGBT(int(chip.i2cAddress, 2), reg_addr, value, ICEC_CHANNEL=IC_EC)
+        elif lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
+            i=0
+            while i < value:
+                if value - i < 4:
+                    count = value -i
+                else:
+                    count = 4
+                print("Reading ", count," registers from ", hex(reg_addr + i), " in lpgbt ", lpgbt)
+                self.readFromControlLPGBT(lpgbt, reg_addr + i, count)
+                i += count
 
+    def sendFullLPGBTConfigs(self):
+        """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
+        lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
+            self.sendFullControlLPGBTConfigs(lpgbt)
+        else:
+            self.sendFullDataLPGBTConfigs(lpgbt)
+
+    def sendFullControlLPGBTConfigs(self, lpgbt):
+        """ Sends all current configurations for given control lpgbt"""
+
+        # Collect configuration in groups of 4
+        chip = self.chips[lpgbt]
+        chipList = list(chip.values())
+        sectionChunks = defaultdict(list)
+        for iSection in range(0, len(chip), 4):
+            startReg = int(chipList[iSection].address, 0)
+            for i in range(4):
+                try:
+                    bits = int(chipList[iSection+i].bits, 2)
+                except IndexError:
+                    bits = 0
+                sectionChunks[startReg].append(bits)
+
+        for (register, dataBits) in sectionChunks.items():
+            self.writeToControlLPGBT(lpgbt, register, dataBits)
+            # readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+            # if readback == dataBits:
+            #     print("Successfully readback what was written!")
+            # else:
+            #     print("Readback does not agree with what was written")     
+
+    def sendFullDataLPGBTConfigs(self, lpgbt):
+        """ Sends all current configurations for given data lpgbt"""
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[lpgbt].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+
+        #Collect configuration in groups of 14 registers
+        chip = self.chips[lpgbt]
+        chipList = list(chip.values())
+        dataBits14 = defaultdict(list)
+        for iSection in range(0, len(chip), 14):
+            startReg = int(chipList[iSection].address, 0)
+            for i in range(14):
+                try:
+                    bits = int(chipList[iSection+i].bits, 2)
+                except IndexError:
+                    bits = 0
+                dataBits14[startReg].append(bits)
+       
+        for (register, dataBits) in dataBits14.items():
+            self.writeToDataLPGBT(lpgbt, register, dataBits)
+            #readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
+            #if readback == dataBits:
+            #    print("Successfully readback what was written!")
+            #else:
+            #    print("Readback does not agree with what was written")
+
+    def sendFullLAUROCConfigs(self):
+        """ Sends all current configurations for given lauroc """
+        lauroc = getattr(self, 'laurocConfigureBox').currentText()
+        print("Resetting lpgbt master control")
+        lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
+        self.lpgbtReset(lpgbtMaster)
+
+        chip = self.chips[lauroc]
+        chipList = list(chip.values())
+        sectionChunks = defaultdict()
+        for iSection in range(0, len(chip)):
+            startReg = int(chipList[iSection].address, 0)
+            try:
+                bits = int(chipList[iSection].bits, 2)
+            except IndexError:
+                bits = 0
+            sectionChunks[startReg] = bits
+
+        for iSection in range(0, len(chip)):
+            startReg = int(chipList[iSection].address, 0)
+            data = sectionChunks[startReg]
+            print("writing", hex(data), "to", hex(startReg))
+            self.writeToLAUROC(lauroc, startReg, data)
+            #print("reading back")
+            #self.readFromLAUROC(lauroc, startReg)
+
+    def lpgbtReset(self, lpgbt):
+        chip = self.chips[lpgbt]
+        if lpgbt == 'lpgbt12':
+            ICEC = 0
+        else:
+            ICEC = 1
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+        #time.sleep(0.2)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
 
     def enableDCDCConverter(self):
         chip = self.chips["lpgbt12"]
@@ -337,18 +524,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataToSend2 = [int(val,2) for val in data2]
 
         writeToLpGBT(int(chip2.i2cAddress, 2), 0x052, dataToSend2)
-
-
-    def lpgbtReset(self, lpgbt):
-        chip = self.chips[lpgbt]
-        if lpgbt == 'lpgbt12':
-            ICEC = 0
-        else:
-            ICEC = 1
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
-        #time.sleep(0.2)
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
 
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
@@ -628,46 +803,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(int(chip.i2cAddress, 2), 0x03c, [0x01])
         readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1)    
 
-    def i2cLpGBT(self):
-        lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
-        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
-            self.i2cControlLpGBT(lpgbt)
-        else:
-            self.i2cDataLpGBT(lpgbt)
-
-    def ControlLpGBTConfigs(self, lpgbt):
-        # Collect configuration in groups of 4
-        chip = self.chips[lpgbt]
-        chipList = list(chip.values())
-        sectionChunks = defaultdict(list)
-        for iSection in range(0, len(chip), 4):
-            startReg = int(chipList[iSection].address, 0)
-            for i in range(4):
-                try:
-                    bits = int(chipList[iSection+i].bits, 2)
-                except IndexError:
-                    bits = 0
-                sectionChunks[startReg].append(bits)
-
-        self.i2cControlLpgbt(self lpgbt, sectionChunks)
-
-    def i2cControlLpgbt(self, lpgbt, sectionChunks):
-        chip = self.chips[lpgbt]
-        if lpgbt[-2:] == '11' or lpgbt[-2:] == '12': 
-            ICEC_CHANNEL = 0
-        elif lpgbt[-2:] == '13' or lpgbt[-2:] == '14': 
-            ICEC_CHANNEL = 1
-        else: 
-            print("Invalid lpGBT specified (i2cControlLpGBT)")
-        print(lpgbt, ICEC_CHANNEL)
-
-        if lpgbt in ['lpgbt11', 'lpgbt14']:
-            for (register, dataBits) in sectionChunks.items():
-                ecWriteToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
-        else:
-            for (register, dataBits) in sectionChunks.items():
-                writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
-
 
     def i2cCOLUTA(self):
         #colutaName = "coluta20"
@@ -824,143 +959,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
             readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
             counter += 1
-
-    def i2cDataLpGBT(self, lpgbt):
-        print("Resetting lpgbt master control")
-        lpgbtMaster = "lpgbt"+self.chips[lpgbt].lpgbtMaster
-        self.lpgbtReset(lpgbtMaster)
-
-        #Collect configuration in groups of 14 registers
-        chip = self.chips[lpgbt]
-        chipList = list(chip.values())
-        dataBits14 = defaultdict(list)
-        for iSection in range(0, len(chip), 14):
-            startReg = int(chipList[iSection].address, 0)
-            for i in range(14):
-                try:
-                    bits = int(chipList[iSection+i].bits, 2)
-                except IndexError:
-                    bits = 0
-                dataBits14[startReg].append(bits)
-
-        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lpgbt].lpgbtMaster].i2cAddress,2)
-        dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
-        print(lpgbtI2CAddr,"\t",dataI2CAddr)
-       
-        for (register, dataBits) in dataBits14.items():
-            self.DataLpgbtWrite(int(lpgbtI2CAddr), dataI2CAddr, register, dataBits)
-
-            #readback = self.i2cDataLpgbtRead(int(lpgbtI2CAddr), dataI2CAddr, register, len(dataBits))
-            #if readback == dataBits:
-            #    print("Successfully readback what was written!")
-            #else:
-            #    print("Readback does not agree with what was written")
-
-    def i2cLauroc(self):
-        lauroc = getattr(self, 'laurocConfigureBox').currentText()
-        print("Resetting lpgbt master control")
-        lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
-        self.lpgbtReset(lpgbtMaster)
-        if lpgbtMaster == "lpgbt12":
-            ICEC = 0
-        else:
-            ICEC = 1
-
-        chip = self.chips[lauroc]
-        chipList = list(chip.values())
-        sectionChunks = defaultdict()
-        for iSection in range(0, len(chip)):
-            startReg = int(chipList[iSection].address, 0)
-            try:
-                bits = int(chipList[iSection].bits, 2)
-            except IndexError:
-                bits = 0
-            sectionChunks[startReg] = bits
-
-        lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
-        laurocI2CAddr = int(self.chips[lauroc].i2cAddress[:4],2)
-        for iSection in range(0, len(chip)):
-            startReg = int(chipList[iSection].address, 0)
-            data = sectionChunks[startReg]
-            print("writing", hex(data), "to", hex(startReg))
-            #writeToLpGBT(self.i2cPort, lpgbtI2CAddr, 0x0f9, [0b10000001, 0x00, 0x00, 0x00, 0x0])
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
-            # print("reading back")
-            # writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), startReg, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
-            # writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC)
-            # writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3], ICEC_CHANNEL = ICEC)
-            # readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC)
-
-    def i2cDataLpgbtWrite(self, lpgbtI2CAddr, dataI2CAddr, register, data):
-            if lpgbtI2CAddr == 0x72: 
-                ICEC_CHANNEL = 0
-            elif lpgbtI2CAddr == 0x73: 
-                ICEC_CHANNEL = 1
-                # self.configureLpGBT(int(chip.i2cAddress, 2), register, dataBits)
-                # writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits)
-                # writeToLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, dataBits)
-                #readFromLpGBT(self.i2cPort, int(chip.i2cAddress, 2), register, len(dataBits))
-            else: 
-                print("Invalid lpgbtMaster specified (i2cDataLpgbtWrite)")
-                return
-            print("Writing", [hex(byte) for byte in data], "to register ", hex(register))
-            regH, regL = u16_to_bytes(register)
-
-            # We will write 16 bytes to i2cM1Data at a time
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + ((len(data)+2) << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-
-            # Write 2 byte register address, then 14 bytes of configuration
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, *data[:2]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-            if len(data) > 2:
-                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[2:6]], ICEC_CHANNEL=ICEC_CHANNEL)
-                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
-            if len(data) > 6:    
-                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[6:10]], ICEC_CHANNEL=ICEC_CHANNEL)
-                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xa], ICEC_CHANNEL=ICEC_CHANNEL)
-            if len(data) > 10:
-                writeToLpGBT(lpgbtI2CAddr, 0x0f9, [*data[10:]], ICEC_CHANNEL=ICEC_CHANNEL)
-                writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xb], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
-            readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            i2cTransactionFinished = False
-            counter = 0
-            while not i2cTransactionFinished:
-                bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-                print("bit: ", bit)
-                if bit[0] == 4:
-                    i2cTransactionFinished = True
-                time.sleep(0.1)
-                if counter == 10:
-                    print("I2C Transaction Failed after 1s")
-                    break
-                counter += 1
-
-    def i2cDataLpgbtRead(self, lpgbtI2CAddr, dataI2CAddr, register, nBytes):
-            print("Reading register ", hex(register))
-            regH, regL = u16_to_bytes(register)
-            # We will write 2 bytes to the data lpGBT
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-            # Write 2 byte register address
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
-            # We will read 14 bytes from the data lpGBT
-            writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + (nBytes << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd,  [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
-            # readFromLpGBT(lpgbtI2CAddr, 0x179, 16)
-            #print("Read here:")
-            ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
-            print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
-            return ReverseReadback[::-1]
 
 
     def updateConfigurations(self, boxName, chipName, sectionName, settingName):
