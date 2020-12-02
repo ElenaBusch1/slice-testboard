@@ -1,6 +1,7 @@
 
 from PyQt5 import uic, QtWidgets
 import os
+import sys
 import time
 import configparser
 import numpy as np
@@ -11,7 +12,6 @@ import clockMod
 import serialMod
 import powerMod
 import status
-import configureLpGBT1213
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
@@ -165,7 +165,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         elif lpgbt[-2:] == '13' or lpgbt[-2:] == '14': 
             ICEC_CHANNEL = 1
         else: 
-            print("Invalid lpGBT specified (WriteToControlLpgbt)")
+            print("Invalid lpGBT specified (writeToControlLpgbt)")
+            sys.exit(1)
         print(lpgbt, ICEC_CHANNEL)
         if len(dataBits) > 4:
             print("Error: trying to send more than 4 dataBits in writeToControlLPGBT")
@@ -185,7 +186,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         elif lpgbt[-2:] == '13' or lpgbt[-2:] == '14': 
             ICEC_CHANNEL = 1
         else: 
-            print("Invalid lpGBT specified (WriteToControlLpgbt)")
+            print("Invalid lpGBT specified (readFromControlLpgbt)")
+            sys.exit(1)
         print(lpgbt, ICEC_CHANNEL)
         if nBytes > 16:
             print("Error: trying to send more than 16 dataBits in writeToControlLPGBT")
@@ -450,6 +452,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             ICEC = 1
         else:
             print("Invalid lpgbtMaster specified (lpgbtReset)")
+            sys.exit(1)
 
         writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
         writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
@@ -492,18 +495,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             i = 0
             while i < repeat:
                 if (repeat - i) < 4:
-                    data =  [value for j in range(repeat-i)]
+                    data =  [value for _ in range(repeat - i)]
                 else:
                     data = [value, value, value, value]
-                self.writeToControlLPGBT(lpgbt, reg_addr+i, data)
+                self.writeToControlLPGBT(lpgbt, reg_addr + i, data)
                 i += len(data)
         else:
             i = 0
             while i < repeat:
                 if (repeat - i) < 14:
-                    data =  [value for k in range(repeat-i)]
+                    data = [value for _ in range(repeat - i)]
                 else:
-                    data = [value for j in range(0,14)]
+                    data = [value for _ in range(0,14)]
                 self.writeToDataLPGBT(lpgbt, reg_addr+i, data)
                 i += len(data)
 
@@ -533,11 +536,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             i=0
             while i < value:
                 if value - i < 4:
-                    count = value -i
+                    count = value - i
                 else:
                     count = 4
                 print("Reading ", count, " registers from ", hex(reg_addr + i), " in lpgbt ", lpgbt)
-                self.readFromDataLPGBT(lpgbt, reg_addr +i, count)
+                self.readFromDataLPGBT(lpgbt, reg_addr + i, count)
                 i += count          
 
         elif lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
@@ -1040,8 +1043,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def disableParity(self):
         print("Disabling parity")
         chip = self.chips["lpgbt12"]
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x03c, [0x01])
-        readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1)    
+        writeToLpGBT(int(chip.i2cAddress, 2), 0x03c, [0x01], ICEC_CHANNEL=0)
+        readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1, ICEC_CHANNEL=0)
 
 
     def showError(self, message):
@@ -1204,26 +1207,4 @@ def makeI2CSubData(dataBits,wrFlag,readBackMux,subAddress,adcSelect):
     '''Combines the control bits and adds them to the internal address'''
     # {{dataBitsSubset}, {wrFlag,readBackMux,subAddress}, {adcSelect}}, pad with zeros
     return (dataBits+wrFlag+readBackMux+subAddress+adcSelect).zfill(64)
-
-def makeWishboneCommand(dataBits,i2cWR,STP,counter,tenBitMode,chipIdHi,wrBit,chipIDLo,address):
-    '''Arrange bits in the Wishbone standard order.'''
-    wbTerminator = '00000000'
-    wbByte0 = i2cWR+STP+counter # 5a
-    wbByte1 = tenBitMode+chipIdHi+wrBit # f0
-    wbByte2 = chipIDLo+address
-    bitsToSend = wbTerminator+dataBits+wbByte2+wbByte1+wbByte0
-    return bitsToSend
-
-def attemptWrite(coluta,dataBitsToSend,i2cAddress,address):
-    nDataBytes = int(len(dataBitsToSend)/8)+2 # should be 10
-    nDataBytesStr = '{0:04b}'.format(nDataBytes)
-    i2cAddressStr = '{0:06b}'.format(i2cAddress)
-    bitsToSend = makeWishboneCommand(dataBitsToSend,'010','1',nDataBytesStr,'11110','00','0','01',i2cAddressStr)
-    #nByte = int(len(bitsToSend)/8) # should be 12
-    #coluta.status.send(coluta)
-    #coluta.status.sendFifoAOperation(coluta,1,nByte,address)
-    #serialResult = serialMod.writeToChip(coluta,'A',bitsToSend)
-    #coluta.status.sendI2Ccommand(coluta)
-
-    return bitsToSend
 

@@ -33,6 +33,9 @@ import numpy as np
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_DEPACKING
 
+READBACK = True
+DEBUG = False
+
 REG_IC_CONTROL=0x6640
 
 REG_IC_1_TX_DATA_0=0x6650
@@ -122,20 +125,24 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     #print("Writing",GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
     [TXDATA0, TXDATA1, TXDATA2, TXDATA3]=IC_PACKING(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
 
-    print("---------------Tx information------------------")
-    print("Check the Rx packet")
-    print("GBTX I2C ADDR: " + str(hex(GBTX_I2CADDR)))
     print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-    print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
-    print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-    if GBTX_RW==0:
-        print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
-    print("-------------Tx packet--------------------------")
+    print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
 
-    print(hex(TXDATA0))
-    print(hex(TXDATA1))
-    print(hex(TXDATA2))
-    print(hex(TXDATA3))
+    if DEBUG:
+        print("---------------Tx information------------------")
+        print("Check the Rx packet")
+        print("GBTX I2C ADDR: " + str(hex(GBTX_I2CADDR)))
+        print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
+        print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
+        print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
+        if GBTX_RW==0:
+            print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
+        print("-------------Tx packet--------------------------")
+
+        print(hex(TXDATA0))
+        print(hex(TXDATA1))
+        print(hex(TXDATA2))
+        print(hex(TXDATA3))
 
     reg_write64b(REG_IC_TX_DATA_0, TXDATA0)
     reg_write64b(REG_IC_TX_DATA_1, TXDATA1)
@@ -147,33 +154,47 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     reg_write64b(REG_IC_CONTROL, 0x000)
 
 # """
-    try: 
-        RXDATA0=int(reg_read64b(REG_IC_RX_DATA_0),16)
-        RXDATA1=int(reg_read64b(REG_IC_RX_DATA_1),16)
-        RXDATA2=int(reg_read64b(REG_IC_RX_DATA_2),16)
-        RXDATA3=int(reg_read64b(REG_IC_RX_DATA_3),16)
+    if READBACK:
+        try:
+            RXDATA0 = int(reg_read64b(REG_IC_RX_DATA_0), 16)
+            RXDATA1 = int(reg_read64b(REG_IC_RX_DATA_1), 16)
+            RXDATA2 = int(reg_read64b(REG_IC_RX_DATA_2), 16)
+            RXDATA3 = int(reg_read64b(REG_IC_RX_DATA_3), 16)
+
+            [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK] = IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
+            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+        except Exception as e:
+            print(f"Couldn't read back register {GBTX_ADDR:03x}")
+            print(e)
+
+    if DEBUG:
+        try:
+            RXDATA0=int(reg_read64b(REG_IC_RX_DATA_0),16)
+            RXDATA1=int(reg_read64b(REG_IC_RX_DATA_1),16)
+            RXDATA2=int(reg_read64b(REG_IC_RX_DATA_2),16)
+            RXDATA3=int(reg_read64b(REG_IC_RX_DATA_3),16)
 
 
-        print("-------------Rx packet--------------------------")
-        print(hex(RXDATA0))
-        print(hex(RXDATA1))
-        print(hex(RXDATA2))
-        print(hex(RXDATA3))
+            print("-------------Rx packet--------------------------")
+            print(hex(RXDATA0))
+            print(hex(RXDATA1))
+            print(hex(RXDATA2))
+            print(hex(RXDATA3))
 
 
-        [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
-        print("-------------Check the Rx packet--------------------")
-        print("GBTX DEVICE ADDR: " + str(hex(GBTX_I2CADDR)))
-        print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-        print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
-        print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-        print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
-        if GBTX_RW==0:
-            print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
-        print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
-    except Exception as e:
-        print(f"Couldn't read back register {GBTX_ADDR:03x}")
-        print(e)
+            [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
+            print("-------------Check the Rx packet--------------------")
+            print("GBTX DEVICE ADDR: " + str(hex(GBTX_I2CADDR)))
+            print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
+            print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
+            print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
+            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+            if GBTX_RW==0:
+                print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
+            print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
+        except Exception as e:
+            print(f"Couldn't read back register {GBTX_ADDR:03x}")
+            print(e)
 # """
 
 def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC_CHANNEL):
@@ -215,20 +236,21 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     #print("Writing",GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
     [TXDATA0, TXDATA1, TXDATA2, TXDATA3]=IC_PACKING(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
 
-    print("---------------Tx information------------------")
-    print("Check the Rx packet")
-    print("GBTX I2C ADDR: " + str(hex(GBTX_I2CADDR)))
-    print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-    print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
-    print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-    if GBTX_RW==0:
-        print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
-    print("-------------Tx packet--------------------------")
+    if DEBUG:
+        print("---------------Tx information------------------")
+        print("Check the Rx packet")
+        print("GBTX I2C ADDR: " + str(hex(GBTX_I2CADDR)))
+        print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
+        print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
+        print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
+        if GBTX_RW==0:
+            print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
+        print("-------------Tx packet--------------------------")
 
-    print(hex(TXDATA0))
-    print(hex(TXDATA1))
-    print(hex(TXDATA2))
-    print(hex(TXDATA3))
+        print(hex(TXDATA0))
+        print(hex(TXDATA1))
+        print(hex(TXDATA2))
+        print(hex(TXDATA3))
 
     reg_write64b(REG_EC_TX_DATA_0, TXDATA0)
     reg_write64b(REG_EC_TX_DATA_1, TXDATA1)
@@ -240,33 +262,47 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     reg_write64b(REG_IC_CONTROL, 0x000)
 
 # """
-    try: 
-        RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
-        RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
-        RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
-        RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
+    if READBACK:
+        try:
+            RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
+            RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
+            RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
+            RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
+
+            [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
+            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+        except Exception as e:
+            print(f"Couldn't read back register {GBTX_ADDR:03x}")
+            print(e)
+
+    if DEBUG:
+        try:
+            RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
+            RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
+            RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
+            RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
 
 
-        print("-------------Rx packet--------------------------")
-        print(hex(RXDATA0))
-        print(hex(RXDATA1))
-        print(hex(RXDATA2))
-        print(hex(RXDATA3))
+            print("-------------Rx packet--------------------------")
+            print(hex(RXDATA0))
+            print(hex(RXDATA1))
+            print(hex(RXDATA2))
+            print(hex(RXDATA3))
 
 
-        [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
-        print("-------------Check the Rx packet--------------------")
-        # print("GBTX DEVICE ADDR: " + str(hex(GBTX_I2CADDR)))
-        print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-        print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
-        print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-        print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
-        if GBTX_RW==0:
-            print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
-        print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
-    except Exception as e:
-        print(f"Couldn't read back register {GBTX_ADDR:03x}")
-        print(e)
+            [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
+            print("-------------Check the Rx packet--------------------")
+            # print("GBTX DEVICE ADDR: " + str(hex(GBTX_I2CADDR)))
+            print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
+            print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
+            print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
+            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+            if GBTX_RW==0:
+                print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
+            print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
+        except Exception as e:
+            print(f"Couldn't read back register {GBTX_ADDR:03x}")
+            print(e)
 # """
 
 def icReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
@@ -430,126 +466,20 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
 
 ################################################################
 
-# def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_DATA: List[int]):
-#     GBTX_LEN = len(GBTX_DATA)
-#     GBTX_RW = 0
-#     channel = 2
-#     [TXDATA0, TXDATA1, TXDATA2, TXDATA3] = IC_PACKING(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
-
-#     print("---------------Tx information------------------")
-#     print("Check the Rx packet")
-#     print("TX GBT CHANNEL: " + str(channel))
-#     print("GBTX I2C ADDR: " + str(hex(GBTX_I2CADDR)))
-#     print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-#     print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
-#     print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-#     if GBTX_RW == 0:
-#         print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
-#     print("-------------Tx packet--------------------------")
-#     print(hex(TXDATA0))
-#     print(hex(TXDATA1))
-#     print(hex(TXDATA2))
-#     print(hex(TXDATA3))
-
-#     reg_write64b(REG_ICEC_CHANSEL, channel*257)
-
-#     reg_write64b(REG_TX_IC1_DATA_63to0, TXDATA0)
-#     reg_write64b(REG_TX_IC1_DATA_127to64, TXDATA1)
-#     reg_write64b(REG_TX_IC1_DATA_191to128, TXDATA2)
-#     reg_write64b(REG_TX_IC1_DATA_255to192, TXDATA3)
-
-#     reg_write64b(REG_ICEC_TRIG, 2**channel)
-#     reg_write64b(REG_ICEC_TRIG, 0x0)
-#     done=0
-#     BUSY_SIGNAL=int(reg_read64b(REG_ICECBUSY),16)
-#     reg_write64b(REG_BITERROR_RESET, 0x1)
-#     reg_write64b(REG_BITERROR_RESET, 0x0)
-#     FEC_ERROR=int(reg_read64b(REG_FECERROR),16)
-
-#     rxchannel = 0
-#     if int(BUSY_SIGNAL/(2**(channel)))%2 ==0 and int(FEC_ERROR/(2**(channel)))%2 ==0:
-#         done=1
-#         rxchannel=channel
-#         print("the same RX GBT channel get replied message")
-#     else:
-#         temp=BUSY_SIGNAL
-#         err_temp=FEC_ERROR
-
-#         for i in range(24):
-#             print(i)
-#             if temp%2==0 and err_temp%2==0 :
-#                 rxchannel=i
-#                 print("the RX GBT channel %d get replied message" % rxchannel)
-#                 done=1
-#                 break;
-#             else:
-#                 temp=int(temp/2)
-#                 err_temp=int(err_temp/2)
-#     if done==0:
-#         print("operation failed")
-
-
-#     reg_write64b(REG_ICEC_CHANSEL, rxchannel*257)
-
-#     RXDATA0=int(reg_read64b(REG_RX_IC1_DATA_63to0),16)
-#     RXDATA1=int(reg_read64b(REG_RX_IC1_DATA_127to64),16)
-#     RXDATA2=int(reg_read64b(REG_RX_IC1_DATA_191to128),16)
-#     RXDATA3=int(reg_read64b(REG_RX_IC1_DATA_255to192),16)
-#     '''
-#     RXDATA0=TXDATA0
-#     RXDATA1=TXDATA1
-#     RXDATA2=TXDATA2
-#     RXDATA3=TXDATA3
-#     '''
-#     print("-------------Rx packet--------------------------")
-#     print(hex(RXDATA0))
-#     print(hex(RXDATA1))
-#     print(hex(RXDATA2))
-#     print(hex(RXDATA3))
-
-
-#     [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
-#     print("-------------Check the Rx packet--------------------")
-#     print("RX GBT CHANNEL: " + str(rxchannel))
-#     print("GBTX DEVICE ADDR: " + str(hex(GBTX_I2CADDR)))
-#     print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-#     print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
-#     print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-#     print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
-#     if GBTX_RW==0:
-#         print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
-#     print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
-
-################################################################
-
 def reg_read64b(addr):
-    addr_str=str(hex(addr))
-    cmd="fpepo " + addr_str
-    retvalue = os.popen(cmd).readlines()[0][6:22]
-    #print(retvalue)
-    return retvalue
+    addr_str = str(hex(addr))
+    cmd = "fpepo " + addr_str
+    return_value = os.popen(cmd).readlines()[0][6:22]
+    # print(return_value)
+    return return_value
+
 
 def reg_write64b(addr,data):
-    addr_str=str(hex(addr))
-    data_str=str(hex(data))
-    os.system("fpepo " + addr_str + " "+ data_str)
-
-#def reg_read64b(addr):
-#    addr_str = hex(addr)
-#    process = subprocess.run(["fpepo", "-d", "0", "-b", "2", addr_str, "-r", "8"], capture_output=True)
-#    retvalue = process.stdout.decode("utf-8").split("\n")
-#    # print(retvalue)
-#    ret = f"{int(retvalue[0][6:], 16):016x}"
-#    return ret
-
-
-#def reg_write64b(addr, data):
-#    addr_str = hex(addr)
-#    data_str = hex(data)
-#    process = subprocess.run(["fpepo", "-d", "0", "-b", "2", "-n", "64", addr_str, data_str], capture_output=True)
-#    retvalue = process.stdout.decode("utf-8").split("\n")
-#    ret = f"{int(retvalue[0][6:], 16):016x}"
-#    return ret
+    addr_str = str(hex(addr))
+    data_str = str(hex(data))
+    cmd = "fpepo " + addr_str + " "+ data_str
+    return_value = os.popen(cmd).readlines()[0][6:22]
+    # print(return_value)
 
 
 def DATA64b_gen(BITIN):
@@ -577,7 +507,6 @@ def DATA64b_gen(BITIN):
     return DATA0, DATA1, DATA2, DATA3
 
 
-
 def parity_gen(DATAALL):
     length=len(DATAALL)
     PARITY=0
@@ -585,13 +514,6 @@ def parity_gen(DATAALL):
         PARITY=PARITY ^ DATAALL[i]
 
     return PARITY
-
-# def parity_gen(DATAALL):
-#     PARITY = 0
-#     for word in DATAALL:
-#         PARITY ^= word
-
-#     return PARITY
 
 
 def bit_stuffing_and_delimiter(IN):
