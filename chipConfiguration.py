@@ -119,7 +119,7 @@ class Section(dict):
             self.update({"Fill": "00000000"})
         self.bits = "".join([setting for setting in self.values()]).zfill(self.total)
         self.address = internalAddr
-        self.updated = True
+        self.updated = False
 
     def __setitem__(self, key, value):
         """Override setitem to show section has been updated"""

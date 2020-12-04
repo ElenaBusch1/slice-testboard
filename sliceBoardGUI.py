@@ -88,7 +88,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
         #self.testButton.clicked.connect(self.test)
-        self.testButton.clicked.connect(self.sendUpdatedConfigurations)
         self.test3Button.clicked.connect(powerMod.checkVoltages)
         self.test2Button.clicked.connect(clockMod.scanClocks)
 
@@ -104,9 +103,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
         #self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
         # self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
-        self.coluta16ConfigureButton.clicked.connect(self.sendFullCOLUTAConfig)
+        self.configureAllButton.clicked.connect(self.configureAll)
+        self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
         self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
-        self.laurocControlConfigureButton.clicked.connect(self.sendFullLAUROCConfigs)
+        self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
         self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
        # self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         #self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
@@ -445,6 +445,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             counter += 1   
 
     def lpgbtReset(self, lpgbt):
+        print("Resetting", lpgbt, "master")
         chip = self.chips[lpgbt]
         if lpgbt == 'lpgbt12':
             ICEC = 0
@@ -556,6 +557,50 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     ########################## Functions to Send Full Configurations ##########################
+    def configureAll(self):
+        """ Configures LPGBT9-16, COLUTA16/17/20 and LAUROC16/20 """
+        print("Configuring lpgbt12")
+        self.sendFullControlLPGBTConfigs("lpgbt12")
+        time.sleep(0.5)
+        print("Configuring lpgbt11")
+        self.sendFullControlLPGBTConfigs("lpgbt11")
+        time.sleep(0.5)
+        print("Configuring lpgbt10")
+        self.sendFullDataLPGBTConfigs("lpgbt10")
+        time.sleep(0.5)
+        print("Configuring lpgbt9")
+        self.sendFullDataLPGBTConfigs("lpgbt9")
+        time.sleep(0.5)
+        print("Configuring lpgbt13")
+        self.sendFullControlLPGBTConfigs("lpgbt13")
+        time.sleep(0.5)
+        print("Configuring lpgbt14")
+        self.sendFullControlLPGBTConfigs("lpgbt14")
+        time.sleep(0.5)
+        print("Configuring lpgbt15")
+        self.sendFullDataLPGBTConfigs("lpgbt15")
+        time.sleep(0.5)
+        print("Configuring lpgbt16")
+        self.sendFullDataLPGBTConfigs("lpgbt16")
+        time.sleep(0.5)
+       
+        print("Configuring COLUTA16")
+        self.sendFullCOLUTAConfig("coluta16")
+        time.sleep(0.5) 
+        print("Configuring COLUTA17")
+        self.sendFullCOLUTAConfig("coluta17")
+        time.sleep(0.5) 
+        print("Configuring COLUTA20")
+        self.sendFullCOLUTAConfig("coluta20")
+        time.sleep(0.5) 
+
+        print("Configuring LAUROC16")
+        self.sendFullLAUROCConfigs("lauroc16")
+        time.sleep(0.5)
+        print("Configuring LAUROC20")
+        self.sendFullLAUROCConfigs("lauroc20")
+        time.sleep(0.5)
+        
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
@@ -616,9 +661,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #else:
             #    print("Readback does not agree with what was written")
 
-    def sendFullLAUROCConfigs(self):
+    def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
-        lauroc = getattr(self, 'laurocConfigureBox').currentText()
+        if laurocName == 'box':
+            lauroc = getattr(self, 'laurocConfigureBox').currentText()
+        else:
+            lauroc = laurocName
         print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
@@ -642,10 +690,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #print("reading back")
             #self.readFromLAUROC(lauroc, startReg)
 
-    def sendFullCOLUTAConfig(self):
+    def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
         #colutaName = "coluta20"
-        coluta = getattr(self, 'colutaConfigureBox').currentText()
+        if colutaName == 'box':
+            coluta = getattr(self, 'colutaConfigureBox').currentText()
+        else:
+            coluta = colutaName
         print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[coluta].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
@@ -816,6 +867,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("No updates for ", chipName)
                 continue
 
+            lpgbtMaster = "lpgbt"+self.chips[chipName].lpgbtMaster
+            self.lpgbtReset(lpgbtMaster) 
             if chipName in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
                 dataToSend = self.sortUpdates(updates, 4)
                 for (addr, data) in dataToSend.items():
