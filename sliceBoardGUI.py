@@ -141,6 +141,24 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
         self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
 
+        self.coluta13SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "1"))
+        self.coluta14SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "1"))
+        self.coluta15SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "1"))
+        self.coluta16SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "1"))
+        self.coluta17SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "1"))
+        self.coluta18SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "1"))
+        self.coluta19SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "1"))
+        self.coluta20SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "1"))
+
+        self.coluta13SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "0"))
+        self.coluta14SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "0"))
+        self.coluta15SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "0"))
+        self.coluta16SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "0"))
+        self.coluta17SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "0"))
+        self.coluta18SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "0"))
+        self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
+        self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
+
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
@@ -1248,6 +1266,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             pass
         else:
             print(f'Could not find setting box {boxName}.')
+
+
+    def serializerTestMode(self, colutaName, setting):
+        coluta = self.chips[colutaName]
+        for i in range(1,9):
+            channel = coluta[f"ch{i}"]
+            boxName = colutaName + f"ch{i}" + "SerializerTestModeBox"
+            self.updateBox(boxName, setting)
 
 
 ## Helper functions
