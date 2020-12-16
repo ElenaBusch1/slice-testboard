@@ -126,7 +126,7 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     [TXDATA0, TXDATA1, TXDATA2, TXDATA3]=IC_PACKING(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
 
     print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
-    print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
+    print("GBTX DATA TO SENT: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
 
     if DEBUG:
         print("---------------Tx information------------------")
@@ -162,7 +162,8 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
             RXDATA3 = int(reg_read64b(REG_IC_RX_DATA_3), 16)
 
             [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK] = IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
-            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+            print("GBTX READBACK REGISTER: " + str(hex(GBTX_ADDR)))
+            print("GBTX DATA READBACK: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
         except Exception as e:
             print(f"Couldn't read back register {GBTX_ADDR:03x}")
             print(e)
@@ -188,7 +189,7 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
             print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
             print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
             print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+            print("GBTX DATA READBACK: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
             if GBTX_RW==0:
                 print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
             print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
@@ -244,7 +245,7 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
         print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
         print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
         if GBTX_RW==0:
-            print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
+            print("GBTX DATA TO SENT: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
         print("-------------Tx packet--------------------------")
 
         print(hex(TXDATA0))
@@ -270,7 +271,8 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
             RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
 
             [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
-            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+            print("GBTX READBACK REGISTER: " + str(hex(GBTX_ADDR)))
+            print("GBTX DATA READBACK: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
         except Exception as e:
             print(f"Couldn't read back register {GBTX_ADDR:03x}")
             print(e)
@@ -296,7 +298,7 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
             print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
             print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
             print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
-            print("GBTX DATA READBACK: " + str(GBTX_DATA[0:GBTX_LEN]))
+            print("GBTX DATA READBACK: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
             if GBTX_RW==0:
                 print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
             print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
@@ -382,7 +384,7 @@ def icReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
     #    print("GBTX TX PARITY CHECK, 1 means no error: " + str(TXCHK))
     # print("GBTX RX PARITY CHECK, 1 means no error: " + str(RXCHK))
 
-    print("address", str(hex(GBTX_ADDR)), "read " + str(GBTX_DATA[0:GBTX_LEN]))
+    print("address", str(hex(GBTX_ADDR)), "read " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
     return GBTX_DATA[0:GBTX_LEN]
 
 def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):

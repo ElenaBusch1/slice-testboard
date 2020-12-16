@@ -86,9 +86,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
 
-
         #self.testButton.clicked.connect(self.test)
-        self.test3Button.clicked.connect(powerMod.checkVoltages)
+        self.test3Button.clicked.connect(lambda: powerMod.checkVoltages(self))
         self.test2Button.clicked.connect(clockMod.scanClocks)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
@@ -102,13 +101,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
         #self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
-        # self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
+        #self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
         self.configureAllButton.clicked.connect(self.configureAll)
         self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
         self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
         self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
         self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
-       # self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
+        #self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
         #self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
         #self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
         #self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
@@ -167,7 +166,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         else: 
             print("Invalid lpGBT specified (writeToControlLpgbt)")
             sys.exit(1)
-        print(lpgbt, ICEC_CHANNEL)
+        # print(lpgbt, ICEC_CHANNEL)
         if len(dataBits) > 4:
             print("Error: trying to send more than 4 dataBits in writeToControlLPGBT")
 
@@ -188,7 +187,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         else: 
             print("Invalid lpGBT specified (readFromControlLpgbt)")
             sys.exit(1)
-        print(lpgbt, ICEC_CHANNEL)
+        # print(lpgbt, ICEC_CHANNEL)
         if nBytes > 16:
             print("Error: trying to send more than 16 dataBits in writeToControlLPGBT")
 
@@ -278,9 +277,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd,  [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
-        # readFromLpGBT(lpgbtI2CAddr, 0x179, 16)
-        #ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
-        #print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
+        # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+        ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+        print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
         #return ReverseReadback[::-1]
 
     def writeToLAUROC(self, lauroc, register, data):
@@ -565,17 +564,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring lpgbt11")
         self.sendFullControlLPGBTConfigs("lpgbt11")
         time.sleep(0.5)
-        print("Configuring lpgbt10")
-        self.sendFullDataLPGBTConfigs("lpgbt10")
-        time.sleep(0.5)
-        print("Configuring lpgbt9")
-        self.sendFullDataLPGBTConfigs("lpgbt9")
-        time.sleep(0.5)
         print("Configuring lpgbt13")
         self.sendFullControlLPGBTConfigs("lpgbt13")
         time.sleep(0.5)
         print("Configuring lpgbt14")
         self.sendFullControlLPGBTConfigs("lpgbt14")
+        time.sleep(0.5)
+        print("Configuring lpgbt10")
+        self.sendFullDataLPGBTConfigs("lpgbt10")
+        time.sleep(0.5)
+        print("Configuring lpgbt9")
+        self.sendFullDataLPGBTConfigs("lpgbt9")
         time.sleep(0.5)
         print("Configuring lpgbt15")
         self.sendFullDataLPGBTConfigs("lpgbt15")

@@ -1,11 +1,11 @@
 # Start the FLX
-cd /home/kchen/software/drivers_rcc/script
+cd /home/dawillia/FLX/software/drivers_rcc/script
 sudo ./drivers_flx_local start
 
 # Initialize FLX
 flx-init
 
-cd /home/kchen/testboard/slice-testboard
+cd /home/dawillia/FLX/slice-testboard
 
 #Enable 10 Ghz clock
 fpepo 0x65a0 0xffffffffffff

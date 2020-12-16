@@ -1,5 +1,7 @@
 from flxMod import icWriteToLpGBT as writeToLpGBT
+from flxMod import icReadLpGBT as readFromLpGBT
 from datetime import datetime
+import time
 
 def enableDCDCConverter():
     chip = self.chips["lpgbt12"]
@@ -25,8 +27,9 @@ def enableDCDCConverter():
 
     writeToLpGBT(int(chip2.i2cAddress, 2), 0x052, dataToSend2, ICEC_CHANNEL = 1)
 
-def checkVoltages():
-    chip = self.chips["lpgbt13"]
+def checkVoltages(GUI):
+    chip = GUI.chips["lpgbt13"] 
+    ICEC_CHANNEL = 1
     adcselect = 0x111
     adcconfig = 0x113 
     vrefcntr = 0x01c
@@ -37,35 +40,35 @@ def checkVoltages():
     # configure input multiplexers to measure ADC0 in signle ended modePins
     # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
     # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
-    writeToLpGBT(int(chip.i2cAddress, 2), adcselect, [int('00111111', 2)])
+    writeToLpGBT(int(chip.i2cAddress, 2), adcselect, [int('00111111', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
 
     # enable ADC core and set gain of the differential amplifier
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
 
     # enable internal voltage reference
-    writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)])
+    writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
 
     # wait until voltage reference is stable
     time.sleep(0.01)
 
     # start ADC convertion
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)])
+    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
     status = False
     attempt = 0
     while not status and attempt < 10:
-        readback = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusH, 1)
+        readback = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusH, 1, ICEC_CHANNEL=ICEC_CHANNEL)
         status = readback[0] & 0x40
         attempt += 1
         if attempt == 10:
             print("Failed to read voltage after 10 attemps - giving up")
 
     adcValueH = readback[0]
-    adcValueL = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusL, 1)[0]
+    adcValueL = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusL, 1, ICEC_CHANNEL=ICEC_CHANNEL)[0]
     print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
 
     # clear the convert bit to finish the conversion cycle
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
 
     # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
-    writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)])
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)])
+    writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
+    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
