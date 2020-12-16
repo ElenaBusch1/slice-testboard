@@ -184,12 +184,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def readFromLPGBT(self, lpgbt, register, nBytes):
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
-            self.readFromControlLpgbt(lpgbt, register, nBytes)
+            readback = self.readFromControlLPGBT(lpgbt, register, nBytes)
         elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
-            self.readFromDataLPGBT(lpgbt, register, nBytes)
+            readback = self.readFromDataLPGBT(lpgbt, register, nBytes)
         else:
             print("Bad LPGBT value in readFromLPGBT")
-
+        return readback
 
     def writeToControlLPGBT(self, lpgbt, register, dataBits):
         """ Writes max 4 bytes through the EC or IC channels"""
@@ -227,11 +227,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Error: trying to send more than 16 dataBits in writeToControlLPGBT")
 
         if lpgbt in ['lpgbt11', 'lpgbt14']:
-            ecReadFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+            readback = ecReadFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
         elif lpgbt in ['lpgbt12', 'lpgbt13']:
-            readFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+            readback = readFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
         else:
             print("Invalid lpGBT specified (readFromControlLpgbt)")
+        return readback
 
     def writeToDataLPGBT(self, lpgbt, register, data):
         """ Writes a maxiumum of 14 bytes to given register in data lpgbt """
@@ -315,7 +316,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
         ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
         print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
-        #return ReverseReadback[::-1]
+        return ReverseReadback[::-1]
 
     def writeToLAUROC(self, lauroc, register, data):
         """ Writes data to LAUROC one register at a time """
