@@ -1,5 +1,7 @@
 from flxMod import icWriteToLpGBT as writeToLpGBT
+from flxMod import icReadLpGBT as readFromLpGBT
 from datetime import datetime
+import time
 
 def enableDCDCConverter():
     chip = self.chips["lpgbt12"]
@@ -25,8 +27,9 @@ def enableDCDCConverter():
 
     writeToLpGBT(int(chip2.i2cAddress, 2), 0x052, dataToSend2, ICEC_CHANNEL = 1)
 
-def checkVoltages():
-    chip = self.chips["lpgbt13"]
+def checkVoltages(GUI):
+    chip = GUI.chips["lpgbt13"] 
+    ICEC_CHANNEL = 1
     adcselect = 0x111
     adcconfig = 0x113 
     vrefcntr = 0x01c
