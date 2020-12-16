@@ -87,7 +87,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
 
         #self.testButton.clicked.connect(self.test)
-        self.test3Button.clicked.connect(lambda: powerMod.checkVoltages(self))
+        self.test3Button.clicked.connect(lambda: powerMod.checkAllVoltages(self))
         self.test2Button.clicked.connect(clockMod.scanClocks)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
@@ -173,6 +173,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     ########################## Basic read/write control for all chips ##########################
+
+    def writeToLPGBT(self, lpgbt, register, dataBits):
+        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
+            self.writeToControlLPGBT(lpgbt,register,dataBits)
+        elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
+            self.writeToDataLpgbt(lpgbt,register,dataBits)
+        else:
+            print("Bad LPGBT value in writeToLPGBT")
+
+    def readFromLPGBT(self, lpgbt, register, nBytes):
+        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
+            self.readFromControlLpgbt(lpgbt, register, nBytes)
+        elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
+            self.readFromDataLPGBT(lpgbt, register, nBytes)
+        else:
+            print("Bad LPGBT value in readFromLPGBT")
+
 
     def writeToControlLPGBT(self, lpgbt, register, dataBits):
         """ Writes max 4 bytes through the EC or IC channels"""

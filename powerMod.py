@@ -27,7 +27,58 @@ def enableDCDCConverter():
 
     writeToLpGBT(int(chip2.i2cAddress, 2), 0x052, dataToSend2, ICEC_CHANNEL = 1)
 
-def checkVoltages(GUI):
+def checkAllVoltages(GUI):
+    """ Loops through all voltages to fill GUI """
+    checkVoltages(GUI, 3, 'lpgbt13')
+
+def checkVoltages(GUI, adc, lpgbt):
+    """ Checks voltage on given ADC """
+    chip = GUI.chips[lpgbt] 
+    ICEC_CHANNEL = 1
+    adcselect = 0x111
+    adcconfig = 0x113 
+    vrefcntr = 0x01c
+    adcstatusH = 0x1b8
+    adcstatusL = 0x1b9
+    vref = 0.9
+    #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
+    # configure input multiplexers to measure ADC0 in signle ended modePins
+    # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
+    # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), adcselect, [adc<<4+int('1111', 2)])
+
+    # enable ADC core and set gain of the differential amplifier
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+
+    # enable internal voltage reference
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)])
+
+    # wait until voltage reference is stable
+    time.sleep(0.01)
+
+    # start ADC convertion
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)])
+    status = False
+    attempt = 0
+    while not status and attempt < 10:
+        readback = GUI.readFromLPGBT(int(chip.i2cAddress, 2), adcstatusH, 1)
+        status = readback[0] & 0x40
+        attempt += 1
+        if attempt == 10:
+            print("Failed to read voltage after 10 attemps - giving up")
+
+    adcValueH = readback[0]
+    adcValueL = GUI.readFromLPGBT(int(chip.i2cAddress, 2), adcstatusL, 1)[0]
+    print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
+
+    # clear the convert bit to finish the conversion cycle
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)])
+
+    # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)])
+    GUI.writeToLPGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)])
+
+def checkVoltagesTest(GUI):
     chip = GUI.chips["lpgbt13"] 
     ICEC_CHANNEL = 1
     adcselect = 0x111
@@ -75,8 +126,6 @@ def checkVoltages(GUI):
 
 def checkAllTemps():
     adc5H, adc5L = checkTemp(5, 'lpgbt12')
-    
-    checkTemp()
 
 def checkTemp(adc, lpgbt):
 
