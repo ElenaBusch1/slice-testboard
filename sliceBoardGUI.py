@@ -840,8 +840,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         for powerSetting in powerconfig["powerSettings"]:
             lpgbt, pin = [x.strip() for x in powerconfig["powerSettings"][powerSetting].split(',')]
             self.powerSettings[powerSetting] = [lpgbt, pin]
-        for voltageSetting in powerconfig["voltageSetting"]:
-	    lpgbt, pin = [x.strip() for x in powerconfig["voltageSettings"][voltageSetting].split(',')]
+        for voltageSetting in powerconfig["voltageSettings"]:
+            lpgbt, pin = [x.strip() for x in powerconfig["voltageSettings"][voltageSetting].split(',')]
             self.powerSettings[voltageSetting] = [lpgbt, pin]
         self.updateGUIText()
 
