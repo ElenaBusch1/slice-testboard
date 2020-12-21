@@ -112,6 +112,7 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
     GUI.writeToLPGBT(lpgbt, vrefcntr, [int('00000000', 2)])
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000000', 2)])
+    return adcValueH, adcValueL
 
 def checkVoltagesTest(GUI):
     chip = GUI.chips["lpgbt13"] 
@@ -164,7 +165,7 @@ def checkAllTemps(GUI):
     for temp in temperatures:
         lpgbt = GUI.powerSettings[temp][0]
         adc = GUI.powerSettings[temp][1]
-        adcH, adcL = checkVoltages(GIU, adc, lpgbt, True)
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, True)
         adcCounts = adcH<<8 + adcL
         tempVal = (adcCounts - 486.2)/2.105
         boxName = 'temperature'+temp+'Box'
