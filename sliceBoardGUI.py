@@ -722,8 +722,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             data = sectionChunks[startReg]
             print("writing", hex(data), "to", hex(startReg))
             self.writeToLAUROC(lauroc, startReg, data)
-            #print("reading back")
-            #self.readFromLAUROC(lauroc, startReg)
+            print("reading back")
+            self.readFromLAUROC(lauroc, startReg)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """

@@ -237,6 +237,9 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     #print("Writing",GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
     [TXDATA0, TXDATA1, TXDATA2, TXDATA3]=IC_PACKING(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA)
 
+    print("GBTX REG ADDR: " + str(hex(GBTX_ADDR)))
+    print("GBTX DATA TO SENT: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
+
     if DEBUG:
         print("---------------Tx information------------------")
         print("Check the Rx packet")
