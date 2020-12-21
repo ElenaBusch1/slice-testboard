@@ -78,6 +78,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.powerSettings = {}
         self.chipsConfig = os.path.join(os.path.abspath("."), "config", "chips.cfg")
         self.powerConfig = os.path.join(os.path.abspath("."), "config", "power.cfg")
+        self.voltageSettings = {}
+        self.temperatureSettings = {}
 
         # Fill internal dictionaries with configurations from .cfg files
         self.setupConfigurations()
@@ -113,6 +115,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
 
         #Configuration Buttons
+        self.readTemperatureButton.clicked.connect(lambda: powerMod.checkAllTemps(self))
+        self.readVoltageButton.clicked.connect(lambda: powerMod.checkAllVoltages(self))
         #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
@@ -840,9 +844,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         for powerSetting in powerconfig["powerSettings"]:
             lpgbt, pin = [x.strip() for x in powerconfig["powerSettings"][powerSetting].split(',')]
             self.powerSettings[powerSetting] = [lpgbt, pin]
+        
         for voltageSetting in powerconfig["voltageSettings"]:
             lpgbt, pin = [x.strip() for x in powerconfig["voltageSettings"][voltageSetting].split(',')]
-            self.powerSettings[voltageSetting] = [lpgbt, pin]
+            self.voltageSettings[voltageSetting] = [lpgbt, pin]
+
+        for tempSetting in powerconfig["temperatureSettings"]:
+            lpgbt, pin = [x.strip() for x in powerconfig["temperatureSettings"][tempSetting].split(',')]
+            self.temperatureSettings[tempSetting] = [lpgbt, pin]
+
         self.updateGUIText()
 
 

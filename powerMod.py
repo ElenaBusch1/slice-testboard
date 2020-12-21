@@ -29,24 +29,54 @@ def enableDCDCConverter():
 
 def checkAllVoltages(GUI):
     """ Loops through all voltages to fill GUI """
+    for volt in GUI.voltageSettings.keys():
+        lpgbt = GUI.voltageSettings[volt][0]
+        adc = GUI.voltageSettings[volt][1]
+        #voltage = int(adc)
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, False)
+        adcCounts = adcH<<8 + adcL
+        voltage = adcCounts*0.001
+        boxName = volt+'Box'
+        try:
+            box = getattr(GUI, boxName)
+        except AttributeError:
+            print('Bad box name powerMod/checkAllVoltages')
+            continue
+        box.document().setPlainText(str(voltage))
 
-    for volt in voltages:
-        lpgbt = GUI.powerSettings[volt][0]
-        adc = GUI.powerSettings[volt][1]
-        adcH, adcL = checkVoltages(GIU, adc, lpgbt, False)
+
+def checkAllTemps(GUI):
+    #temperatures = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'VTRx3', 'VTRx4', 'VTRx5', 'VTRx6']
+    for temp in GUI.temperatureSettings.keys():
+        lpgbt = GUI.temperatureSettings[temp][0]
+        adc = GUI.temperatureSettings[temp][1]
+        #tempVal = int(adc)
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, True)
         adcCounts = adcH<<8 + adcL
         tempVal = (adcCounts - 486.2)/2.105
         boxName = 'temperature'+temp+'Box'
         try:
             box = getattr(GUI, boxName)
         except AttributeError:
-            print('Bad box name powerMod/checkAllTemps')
-            return
-        if isinstance(box, QtWidgets.QPlainTextEdit):
-            decimalString = str(tempVal)
-            box.document().setPlainText(decimalString)
-        else:
-            print('Bad box name powerMod/checkAllTemps')
+            print("Bad boxname powerMod/ checkAllTemps")
+            continue
+        box.document().setPlainText(str(tempVal))
+
+    # write 14 to ADCInPSelect[3:0] - internal lpgbt temp
+    lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
+    for lpgbt in lpgbts:
+        adcH, adcL = checkVoltages(GUI, 14, lpgbt, False)
+        adcCounts = adcH<<8 + adcL
+        tempVal = (adcCounts - 486.2)/2.105
+        #tempVal = lpgbt
+        boxName = lpgbt+'InternalTempBox'
+        try:
+            box = getattr(GUI, boxName)
+        except AttributeError:
+            print("Bad boxname powerMod/ checkAllTemps")
+            continue
+        box.document().setPlainText(str(tempVal))
+
 
 def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     """ Checks voltage on given ADC """
@@ -159,24 +189,4 @@ def checkVoltagesTest(GUI):
     # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
     writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
     writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
-
-def checkAllTemps(GUI):
-    temperatures = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'VTRx3', 'VTRx4', 'VTRx5', 'VTRx6']
-    for temp in temperatures:
-        lpgbt = GUI.powerSettings[temp][0]
-        adc = GUI.powerSettings[temp][1]
-        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, True)
-        adcCounts = adcH<<8 + adcL
-        tempVal = (adcCounts - 486.2)/2.105
-        boxName = 'temperature'+temp+'Box'
-        try:
-            box = getattr(GUI, boxName)
-        except AttributeError:
-            print('Bad box name powerMod/checkAllTemps')
-            return
-        if isinstance(box, QtWidgets.QPlainTextEdit):
-            decimalString = str(tempVal)
-            box.document().setPlainText(decimalString)
-        else:
-            print('Bad box name powerMod/checkAllTemps')
 
