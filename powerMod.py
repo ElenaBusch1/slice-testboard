@@ -29,6 +29,7 @@ def enableDCDCConverter():
 
 def checkAllVoltages(GUI):
     """ Loops through all voltages to fill GUI """
+    for voltageSetting in self.powerconfig["voltageSetting"]
     checkVoltages(GUI, 3, 'lpgbt13')
 
 def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
@@ -48,7 +49,7 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
     if tempEnable == True:
         # set current value
-        GUI.writeToLPGBT(lpgbt, CURDACSelect, [int('00001000', 2)])
+        GUI.writeToLPGBT(lpgbt, CURDACSelect, [200])
 
         # enable DAC current
         GUI.writeToLPGBT(lpgbt, DACConfigH, [int('01000000',2)])
