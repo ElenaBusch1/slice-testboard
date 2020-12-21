@@ -31,7 +31,7 @@ def checkAllVoltages(GUI):
     """ Loops through all voltages to fill GUI """
     checkVoltages(GUI, 3, 'lpgbt13')
 
-def checkVoltages(GUI, adc, lpgbt):
+def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     """ Checks voltage on given ADC """
     chip = GUI.chips[lpgbt] 
     ICEC_CHANNEL = 1
@@ -41,7 +41,21 @@ def checkVoltages(GUI, adc, lpgbt):
     adcstatusH = 0x1b8
     adcstatusL = 0x1b9
     vref = 0.9
+    CURDACChn = 0x6b
+    CURDACSelect = 0x6a
+    DACConfigH = 0x68
+    
     #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
+    if tempEnable == True:
+        # set current value
+        GUI.writeToLPGBT(lpgbt, CURDACSelect, [int('00001000', 2)])
+
+        # enable DAC current
+        GUI.writeToLPGBT(lpgbt, DACConfigH, [int('01000000',2)])
+
+        # connect to ADC
+        GUI.writeToLPGBT(lpgbt, CURDACChn, [1<<adc])
+
     # configure input multiplexers to measure ADC0 in signle ended modePins
     # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
     # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
@@ -73,6 +87,10 @@ def checkVoltages(GUI, adc, lpgbt):
 
     # clear the convert bit to finish the conversion cycle
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000100', 2)])
+
+    if tempEnable == True:
+        # disable DAC current
+        GUI.writeToLPGBT(lpgbt, DACConfigH, [int('00000000',2)])
 
     # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
     GUI.writeToLPGBT(lpgbt, vrefcntr, [int('00000000', 2)])
@@ -124,8 +142,26 @@ def checkVoltagesTest(GUI):
     writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
     writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
 
-def checkAllTemps():
-    adc5H, adc5L = checkTemp(5, 'lpgbt12')
+def checkAllTemps(GUI):
+    temperatures = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'VTRx3', 'VTRx4', 'VTRx5', 'VTRx6']
+    for temp in temperatures:
+        lpgbt = GUI.powerSettings[temp][0]
+        adc = GUI.powerSettings[temp][1]
+        adcH, adcL = checkVoltages(GIU, adc, lpgbt, True)
+        adcCounts = adcH<<8 + adcL
+        tempVal = (adcCounts - 486.2)/2.105
+        boxName = 'temperature'+temp+'Box'
+        try:
+            box = getattr(GUI, boxName)
+        except AttributeError:
+            print('Bad box name powerMod/checkAllTemps')
+            return
+        if isinstance(box, QtWidgets.QPlainTextEdit):
+            decimalString = str(tempVal)
+            box.document().setPlainText(decimalString)
+        else:
+            print('Bad box name powerMod/checkAllTemps')
+
 
 def checkTemp(adc, lpgbt):
 
@@ -136,7 +172,11 @@ def checkTemp(adc, lpgbt):
     adcstatusH = 0x1b8
     adcstatusL = 0x1b9
     vref = 0.9
+
+
     #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
+
+
     # configure input multiplexers to measure ADC0 in single ended modePins
     # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
     # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)

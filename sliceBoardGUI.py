@@ -87,7 +87,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
 
         #self.testButton.clicked.connect(self.test)
-        self.test3Button.clicked.connect(lambda: powerMod.checkAllVoltages(self))
+        self.test3Button.clicked.connect(lambda: powerMod.checkAllTemps(self))
         self.test2Button.clicked.connect(clockMod.scanClocks)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
