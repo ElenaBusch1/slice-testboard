@@ -88,8 +88,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
 
-        #self.testButton.clicked.connect(self.test)
-        self.test3Button.clicked.connect(lambda: powerMod.checkAllTemps(self))
+        self.test2Button.clicked.connect(self.testFunc)
+        #self.test3Button.clicked.connect(lambda: powerMod.checkAllTemps(self))
         self.test2Button.clicked.connect(clockMod.scanClocks)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
@@ -175,6 +175,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
 
+    def testFunc(self):
+        while True:
+          #print("Configuring LAUROC20")
+          #self.sendFullLAUROCConfigs("lauroc20")
+          print("Configuring COLUTA20")
+          self.sendFullCOLUTAConfig("coluta20")
+          time.sleep(0.5)
 
     ########################## Basic read/write control for all chips ##########################
 
@@ -335,9 +342,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Invalid lpgbtMaster specified (writeToLAUROC)")
             return
 
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
 
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
@@ -352,9 +362,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Invalid lpgbtMaster specified (writeToLAUROC)")
             return
 
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00, 0x00, 0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00, 0x00, 0x3], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
         readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
 
     def writeToCOLUTAChannel(self, coluta, channel, readback = False):
