@@ -32,9 +32,21 @@ def checkAllVoltages(GUI):
     for volt in GUI.voltageSettings.keys():
         lpgbt = GUI.voltageSettings[volt][0]
         adc = GUI.voltageSettings[volt][1]
+        #if lpgbt != 'lpgbt12' and lpgbt != 'lpgbt13' and lpgbt != 'lpgbt14' and lpgbt != 'lpgbt11':
+        #    continue
+        if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
+            GUI.lpgbtReset("lpgbt12")
+        elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
+            GUI.lpgbtReset("lpgbt13")
         #voltage = int(adc)
         adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, False)
-        adcCounts = adcH<<8 + adcL
+        print(adcH, adcL)
+        adcbin = bin(adcH)[7:9]
+        adcint = int(adcbin)
+        adcshift = adcint<<8
+        print(int(bin(adcH)[7:9],2)<<8, adcL)
+        adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+        print(adcCounts)
         voltage = adcCounts*0.001
         boxName = volt+'Box'
         try:
@@ -42,7 +54,7 @@ def checkAllVoltages(GUI):
         except AttributeError:
             print('Bad box name powerMod/checkAllVoltages')
             continue
-        box.document().setPlainText(str(voltage))
+        box.document().setPlainText(f'{voltage:.3f}')
 
 
 def checkAllTemps(GUI):
@@ -50,9 +62,13 @@ def checkAllTemps(GUI):
     for temp in GUI.temperatureSettings.keys():
         lpgbt = GUI.temperatureSettings[temp][0]
         adc = GUI.temperatureSettings[temp][1]
+        if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
+            GUI.lpgbtReset("lpgbt12")
+        elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
+            GUI.lpgbtReset("lpgbt13")
         #tempVal = int(adc)
         adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, True)
-        adcCounts = adcH<<8 + adcL
+        adcCounts = (adcH<<8) + adcL
         tempVal = (adcCounts - 486.2)/2.105
         boxName = 'temperature'+temp+'Box'
         try:
@@ -60,13 +76,17 @@ def checkAllTemps(GUI):
         except AttributeError:
             print("Bad boxname powerMod/ checkAllTemps")
             continue
-        box.document().setPlainText(str(tempVal))
+        box.document().setPlainText(f'{tempVal:.1f}')
 
     # write 14 to ADCInPSelect[3:0] - internal lpgbt temp
     lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
     for lpgbt in lpgbts:
+        if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
+            GUI.lpgbtReset("lpgbt12")
+        elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
+            GUI.lpgbtReset("lpgbt13")
         adcH, adcL = checkVoltages(GUI, 14, lpgbt, False)
-        adcCounts = adcH<<8 + adcL
+        adcCounts = (adcH<<8) + adcL
         tempVal = (adcCounts - 486.2)/2.105
         #tempVal = lpgbt
         boxName = lpgbt+'InternalTempBox'
@@ -75,7 +95,7 @@ def checkAllTemps(GUI):
         except AttributeError:
             print("Bad boxname powerMod/ checkAllTemps")
             continue
-        box.document().setPlainText(str(tempVal))
+        box.document().setPlainText(f'{tempVal:.1f}')
 
 
 def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
@@ -106,7 +126,7 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     # configure input multiplexers to measure ADC0 in signle ended modePins
     # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
     # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
-    GUI.writeToLPGBT(lpgbt, adcselect, [adc<<4+int('1111', 2)])
+    GUI.writeToLPGBT(lpgbt, adcselect, [(adc<<4)+int('1111', 2)])
 
     # enable ADC core and set gain of the differential amplifier
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000100', 2)])

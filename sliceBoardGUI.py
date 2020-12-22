@@ -182,7 +182,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.writeToControlLPGBT(lpgbt,register,dataBits)
         elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
-            self.writeToDataLpgbt(lpgbt,register,dataBits)
+            self.writeToDataLPGBT(lpgbt,register,dataBits)
         else:
             print("Bad LPGBT value in writeToLPGBT")
 
