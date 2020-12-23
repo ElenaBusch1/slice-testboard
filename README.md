@@ -19,15 +19,15 @@
 
 1. To configure all chips on the board with their default configuration, press **Configure All** in the Control tab. This takes 4-5 minutes.
 
-2. To configure only specific chips, choose the chip from the drop down menu on the Control tab, and press the corresponding **Configure** button. 
+2. To configure only specific chips, choose the chip from the drop down menu on the Control tab, and press the corresponding **Configure** button. <br />
 _Note_: lpgbt12 must be configured before any other chips on the lpgbt12 side of the board, and likewise for lpgbt13.
 
-3. To write and read specific lpgbt registers, use the drop down menu on the Control tab to select an lpgbt. Enter the register to write/read in hex. If writing, also enter the value to write in hex. If you want to write the same value to more than one consecutive register, or read from multiple consecutive registers, enter the number of consecutive registers as a decimal. Press **Write to LpGBT** or **Read From LpGBT**. 
-_Note_: If you are switching between data lpGBTs, you will need to do a master reset each time you switch. This can be done with the _Reset lpGBT12/13 I2C Control_ buttons.  
+3. To write and read specific lpgbt registers, use the drop down menu on the Control tab to select an lpgbt. Enter the register to write/read in hex. If writing, also enter the value to write in hex. If you want to write the same value to more than one consecutive register, or read from multiple consecutive registers, enter the number of consecutive registers as a decimal. Press **Write to LpGBT** or **Read From LpGBT**. <br />
+_Note_: If you are switching between data lpGBTs, you will need to do a master reset each time you switch. This can be done with the **Reset lpGBT12/13 I2C Control** buttons.  
 
 4. To update a configuration, navigate to the chip using the LAUROC/ COLUTA/ lpGBT tabs. Change the configuration settings, then return to the Control tab and press **Send Updated Configurations**. 
 
-## Configurations for taking Data ##
+### Configurations for taking Data ###
 5. By default, COLUTA channels 1-6 come up in Serializer Test Mode, and channels 7-8 come up in normal mode. This can be changed in the COLUTA/Channel/DDPU tab. Additionally, in Channel 1 for each COLUTA there are **Turn On Serialier Mode** and **Turn Off Serializer Mode** buttons, which change serializer mode for all channels. 
 
 6. For now, if you want to change between trigger mode and single ADC mode, you'll need to edit takeTriggerData.py directly. Comments in the file indicate which settings are needed for each mode.
