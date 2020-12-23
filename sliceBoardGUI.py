@@ -1,4 +1,3 @@
-
 from PyQt5 import uic, QtWidgets
 import os
 import sys
@@ -12,6 +11,7 @@ import clockMod
 import serialMod
 import powerMod
 import status
+import subprocess
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
@@ -91,6 +91,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.test2Button.clicked.connect(self.testFunc)
         #self.test3Button.clicked.connect(lambda: powerMod.checkAllTemps(self))
         self.test2Button.clicked.connect(clockMod.scanClocks)
+        self.takeTriggerDataButton.clicked.connect(self.takeTriggerData)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
@@ -1166,6 +1167,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
+    def takeTriggerData(self):
+        """Run script"""
+        subprocess.call("pythontakeTriggerData.py", shell=True)
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
