@@ -5,7 +5,7 @@ import sliceMod
 class Configuration(dict):
     """Handles, holds, and manipulates configuration bits and settings."""
 
-    def __init__(self, GUI, cfgFileName, specFileName, lpgbtMaster, i2cMaster, i2cAddress):
+    def __init__(self, GUI, cfgFileName, specFileName, chipType, lpgbtMaster, i2cMaster, i2cAddress):
         super(Configuration, self).__init__()
         self.GUI = GUI
         self.defaultCfgFile = os.path.join(os.path.abspath("."), "config", cfgFileName)
@@ -13,6 +13,7 @@ class Configuration(dict):
         self.lpgbtMaster = lpgbtMaster
         self.i2cMaster = i2cMaster
         self.i2cAddress = i2cAddress
+        self.chipType = chipType
 
         self.readCfgFile()
         # self.updated = True
@@ -31,7 +32,7 @@ class Configuration(dict):
         Class implementation of deepcopy
         Reference: https://stackoverflow.com/questions/6279305/typeerror-cannot-deepcopy-this-pattern-object
         """
-        return Configuration(self.GUI, self.defaultCfgFile, self.specialCfgFile, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
+        return Configuration(self.GUI, self.defaultCfgFile, self.specialCfgFile, self.chipType, self.lpgbtMaster, self.i2cMaster, self.i2cAddress)
 
 
     def clone(self):
@@ -118,7 +119,7 @@ class Section(dict):
             self.update({"Fill": "00000000"})
         self.bits = "".join([setting for setting in self.values()]).zfill(self.total)
         self.address = internalAddr
-        self.updated = True
+        self.updated = False
 
     def __setitem__(self, key, value):
         """Override setitem to show section has been updated"""

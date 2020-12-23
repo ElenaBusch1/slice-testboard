@@ -14,7 +14,7 @@ def findPorts(GUI):
     # We will create a list of ftdi devices, which are obtained in a different way
     # for each platform
     ftdiDevices = []
-    if platform == 'Windows':
+    if platform == 'Windows' or platform == 'Linux':
         ports = LP.comports()
         # If no ports found, then show the error and exit the script
         if ports is None:
@@ -35,7 +35,7 @@ def findPorts(GUI):
             channel = port.serial_number # Serial number configured to be "AB#xxxxxx"
             ftdiDevices.append((channel,device))
             GUI.serial_number = port.serial_number
-    elif platform == 'Darwin' or platform == 'Linux':
+    elif platform == 'Darwin':
         # OS X and Linux see the description of the USB, so we can grep for the
         # ports that match. If the ports' names end in 'A' and 'B', we add them.
         # If they end in '0' and '1', we change them to 'A' and 'B', respectively.
@@ -68,13 +68,13 @@ def findPorts(GUI):
 def setupSerials(GUI):
     """Sets up Serial objects for the GUI."""
     try:
-        serial36 = serial.Serial( port     = GUI.port36,
-                                 baudrate = GUI.baudrate,
-                                 parity   = GUI.parity,
-                                 stopbits = GUI.stopbits,
-                                 bytesize = GUI.bytesize,
-                                 timeout  = GUI.timeout,
-                                 write_timeout = GUI.timeout )
+        # serial36 = serial.Serial( port     = GUI.port36,
+        #                          baudrate = GUI.baudrate,
+        #                          parity   = GUI.parity,
+        #                          stopbits = GUI.stopbits,
+        #                          bytesize = GUI.bytesize,
+        #                          timeout  = GUI.timeout,
+        #                          write_timeout = GUI.timeout )
 
         serial45 = serial.Serial( port     = GUI.port45,
                                  baudrate = GUI.baudrate,
@@ -84,7 +84,8 @@ def setupSerials(GUI):
                                  timeout  = GUI.timeout,
                                  write_timeout = GUI.timeout )
 
-        return serial36, serial45
+        # return serial36, serial45
+        return serial45
     except:
         GUI.showError('Unable to connect to chip.')
         return None, None
@@ -103,14 +104,15 @@ def checkSerials(GUI):
         GUI.showError(f'Unknown platform {pf}')
         return False
 
-    print(type(GUI.serial36), type(GUI.serial45))
-    isPortConnected36 = isinstance(GUI.serial36, serialType.Serial)
+    # print(type(GUI.serial36), type(GUI.serial45))
+    # isPortConnected36 = isinstance(GUI.serial36, serialType.Serial)
     isPortConnected45 = isinstance(GUI.serial45, serialType.Serial)
 
-    if not (isPortConnected36 and isPortConnected45):
-        GUI.showError('SERIALMOD: Handshaking procedure failed. Not connected.')
+    # if not (isPortConnected36 and isPortConnected45):
+    #     GUI.showError('SERIALMOD: Handshaking procedure failed. Not connected.')
 
-    return isPortConnected36, isPortConnected45
+    # return isPortConnected36, isPortConnected45
+    return True, isPortConnected45
 
 
 def readFromChip(GUI, port, nBytes):
