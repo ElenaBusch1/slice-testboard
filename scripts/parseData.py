@@ -3,7 +3,90 @@ from math import *
 import matplotlib.pyplot as plt
 import sys
 import struct
+import h5py
 
+#-------------------------------------------------------------------------
+def writeToHDF5(chanData,fileName):
+
+  counter = 0
+  f = h5py.File(fileName.replace('.dat','')+'.hdf5','a')
+  chipNames = ['Chip1', 'Chip2','Coherence']
+  for chan in chanData:
+    print('channel '+str(counter))
+    print(chan) # (Chip1,Chip2,Coherence)
+    counter += 1
+    #if counter != 7:
+    #  continue
+    chanSort = list(zip(*chan))
+    for chip, chipName in zip(chanSort, chipNames):
+      print('chipName: ', chipName, ', chip: ', chip)
+  
+
+#-------------------------------------------------------------------------
+def makeAllChans(chanData,saveDir):
+  counter = 0
+  chipNames = ['Chip1', 'Chip2', 'Coherence']
+  for chan in chanData:
+    counter += 1
+    #if counter != 7:
+    #  continue
+    chanSort = list(zip(*chan))
+    for chip, chipName in zip(chanSort, chipNames):
+      fig, ax = plt.subplots()
+      avg = np.mean(chip)
+      std = np.std(chip)
+      lbl = (
+          r'$\mu$: {:.1f}'.format(avg) + '\n' +
+          r'$\sigma$: {:.2f}'.format(std)
+      )
+      #chip1+chip2
+      if chipName == "Coherence":
+        ex_std = np.sqrt(np.std(chanSort[0])**2 + np.std(chanSort[1])**2)
+        lbl = (
+          r'$\mu$: {:.1f}'.format(avg) + '\n' +
+          r'$\sigma$: {:.2f}'.format(std) + '\n' +
+          r'E[$\sigma$]: {:.2f}'.format(ex_std)
+        )
+      bins = max(chip)-min(chip)+1
+      plt.hist(chip, bins = bins, range = (min(chip), max(chip)+1))
+      plt.title(chipName + " Channel "+str(counter))
+      plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
+      #plt.show()
+      plt.savefig(saveDir+"channel"+str(counter)+chipName+".png")
+      print('Saved fig '+saveDir+"channel"+str(counter)+chipName+".png")
+      plt.clf()
+      plt.close()
+
+#-------------------------------------------------------------------------
+def makeCrossChans(chanData,saveDir):
+  ch6 = list(zip(*chanData[5]))
+  ch7 = list(zip(*chanData[6]))
+  chip1ch67 = [x+y for (x,y) in zip(ch6[0],ch7[0])]
+  chip2ch67 = [x+y for (x,y) in zip(ch6[1],ch7[1])]
+  ch76 = [chip1ch67, chip2ch67]
+  i = 0
+  for chip in ch76:
+    fig, ax = plt.subplots()
+    avg = np.mean(chip)
+    std = np.std(chip)
+    ex_std = np.sqrt(np.std(ch6[i])**2 + np.std(ch7[i])**2)
+    lbl = (
+      r'$\mu$: {:.1f}'.format(avg) + '\n' +
+      r'$\sigma$: {:.2f}'.format(std) + '\n' +
+      r'E[$\sigma$]: {:.2f}'.format(ex_std)
+    )
+    i += 1
+    bins = max(chip)-min(chip)+1
+    plt.hist(chip, bins = bins, range = (min(chip), max(chip)+1))
+    plt.title("Ch6-Ch7 Coherence, Chip "+str(i))
+    plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
+    #plt.show()
+    plt.savefig(saveDir+"ch6ch7chip"+str(i)+".png")
+    print('Saved fig '+saveDir+"ch6ch7chip"+str(i)+".png")
+    plt.clf()
+    plt.close()
+
+#-------------------------------------------------------------------------
 def parseData(fileName):
 
   #fileName = "/home/kirbybri/SCRATCH/2020_ATLAS_sliceTestboard/sliceAnalysis/alldata-1.dat" 
@@ -15,8 +98,8 @@ def parseData(fileName):
   #get binary data using struct
   allData = []
   readCount = 0
-  maxNumReads = 1000000
-  #maxNumReads = 10000
+  #maxNumReads = 1000000
+  maxNumReads = 10000
   with open(fileName, mode='rb') as fp:
     #fileContent = fp.read()
     while True :
@@ -34,6 +117,7 @@ def parseData(fileName):
   tempPacket = []
   foundBeef = False
   for num,line in enumerate(allData) :
+    #print('Num: ', num, ', line: ', line)
     if len(line) != 2 :
       print("WEIRD ERROR")
       return None
@@ -52,10 +136,9 @@ def parseData(fileName):
   chanData = [[],[],[],[],[],[],[],[]]
   reqPacketLength = 168
   for num,packet in enumerate(allPackets) :
-    #print(packet)
+    #print('NEW packet: ', packet)
     #if num>20:
     #  break
-    #print("NEW PACKET")
     if len(packet) != reqPacketLength :
       print("WEIRD ERROR")
       return None
@@ -91,6 +174,7 @@ def parseData(fileName):
     chanData[5].append((cu1ch6, cu2ch6, cu1ch6+cu2ch6))
     chanData[6].append((cu1ch7, cu2ch7, cu1ch7+cu2ch7))
     chanData[7].append((cu1ch8, cu2ch8, cu1ch8+cu2ch8))
+
     
     #print( hex(frame) )
     if num % 500 == 0:
@@ -100,76 +184,29 @@ def parseData(fileName):
   #print(len(chanData))
   return chanData
 
+#-------------------------------------------------------------------------
 def makeHistograms(chanData):
   saveDir = "plots/"
-  counter = 0
-  chipNames = ['Chip1', 'Chip2', 'Coherence']
-  for chan in chanData:
-    counter += 1
-    #if counter != 7:
-    #  continue
-    chanSort = list(zip(*chan))
-    for chip, chipName in zip(chanSort, chipNames):
-      fig, ax = plt.subplots()
-      avg = np.mean(chip)
-      std = np.std(chip)
-      lbl = (
-          r'$\mu$: {:.1f}'.format(avg) + '\n' +
-          r'$\sigma$: {:.2f}'.format(std)
-      )
-      if chipName == "Coherence":
-        ex_std = np.sqrt(np.std(chanSort[0])**2 + np.std(chanSort[1])**2)
-        lbl = (
-          r'$\mu$: {:.1f}'.format(avg) + '\n' +
-          r'$\sigma$: {:.2f}'.format(std) + '\n' +
-          r'E[$\sigma$]: {:.2f}'.format(ex_std)
-        )
-      bins = max(chip)-min(chip)+1
-      plt.hist(chip, bins = bins, range = (min(chip), max(chip)+1))
-      plt.title(chipName + " Channel "+str(counter))
-      plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
-      #plt.show()
-      plt.savefig(saveDir+"channel"+str(counter)+chipName+".png")
-      plt.clf()
-      plt.close()
 
-  ch6 = list(zip(*chanData[5]))
-  ch7 = list(zip(*chanData[6]))
-  chip1ch67 = [x+y for (x,y) in zip(ch6[0],ch7[0])]
-  chip2ch67 = [x+y for (x,y) in zip(ch6[1],ch7[1])]
-  ch76 = [chip1ch67, chip2ch67]
-  i = 0
-  for chip in ch76:
-    fig, ax = plt.subplots()
-    avg = np.mean(chip)
-    std = np.std(chip)
-    ex_std = np.sqrt(np.std(ch6[i])**2 + np.std(ch7[i])**2)
-    lbl = (
-      r'$\mu$: {:.1f}'.format(avg) + '\n' +
-      r'$\sigma$: {:.2f}'.format(std) + '\n' +
-      r'E[$\sigma$]: {:.2f}'.format(ex_std)
-    )
-    i += 1
-    bins = max(chip)-min(chip)+1
-    plt.hist(chip, bins = bins, range = (min(chip), max(chip)+1))
-    plt.title("Ch6-Ch7 Coherence, Chip "+str(i))
-    plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
-    #plt.show()
-    plt.savefig(saveDir+"ch6ch7chip"+str(i)+".png")
-    plt.clf()
-    plt.close()
+  #----  All chans
+  makeAllChans(chanData,saveDir)
+
+  #----  Cross-channel coherence
+  makeCrossChans(chanData,saveDir)
     
 
+#-------------------------------------------------------------------------
 def main():
   if len(sys.argv) != 2 :
     print("ERROR, program requires filename argument")
     return
   fileName = sys.argv[1]
   chanData = parseData(fileName)
-  makeHistograms(chanData)
+  print('chanData: ', chanData)
   print("Number of samples",len(chanData))
+  makeHistograms(chanData)
+  writeToHDF5(chanData,fileName)
   return None
   
-#-------------------------------------------------------------------------
 if __name__ == "__main__":
   main()
