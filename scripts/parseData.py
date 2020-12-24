@@ -8,19 +8,21 @@ import h5py
 #-------------------------------------------------------------------------
 def writeToHDF5(chanData,fileName):
 
-  counter = 0
-  f = h5py.File(fileName.replace('.dat','')+'.hdf5','a')
-  chipNames = ['Chip1', 'Chip2','Coherence']
-  for chan in chanData:
-    print('channel '+str(counter))
-    print(chan) # (Chip1,Chip2,Coherence)
-    counter += 1
-    #if counter != 7:
-    #  continue
-    chanSort = list(zip(*chan))
-    for chip, chipName in zip(chanSort, chipNames):
-      print('chipName: ', chipName, ', chip: ', chip)
-  
+  out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','a')
+  print("Creating hdf5 file: "+ fileName.replace('.dat','')+'.hdf5')
+  print(np.shape(chanData)) #8 channels, m measurements, 2 chips
+
+  #for m in range(np.shape(chanData)[1]):
+  #  out_file.create_group("Measurement_" + str(m))
+  for c in range(np.shape(chanData)[2]-1): 
+    out_file.create_group("coluta"+str(c+1))
+    for h in range(np.shape(chanData)[0]): 
+      out_file.create_group("coluta"+str(c+1)+"/channel"+str(h+1))
+      out_file.create_dataset("coluta"+str(c+1)+"/channel"+str(h+1)+"/samples",data=list(zip(*chanData[h]))[c])
+  #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
+
+
+  out_file.close()  
 
 #-------------------------------------------------------------------------
 def makeAllChans(chanData,saveDir):
@@ -98,8 +100,7 @@ def parseData(fileName):
   #get binary data using struct
   allData = []
   readCount = 0
-  #maxNumReads = 1000000
-  maxNumReads = 10000
+  maxNumReads = 10000000
   with open(fileName, mode='rb') as fp:
     #fileContent = fp.read()
     while True :
@@ -202,9 +203,8 @@ def main():
     return
   fileName = sys.argv[1]
   chanData = parseData(fileName)
-  print('chanData: ', chanData)
   print("Number of samples",len(chanData))
-  makeHistograms(chanData)
+  #makeHistograms(chanData)
   writeToHDF5(chanData,fileName)
   return None
   
