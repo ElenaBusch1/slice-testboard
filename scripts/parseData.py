@@ -7,31 +7,36 @@ import h5py
 import argparse
 from datetime import datetime
 
+
 #-------------------------------------------------------------------------
 def make_chanData_trigger(allPackets):
 
   chanData = [[],[],[],[],[],[],[],[]]
   reqPacketLength = 168
   for num,packet in enumerate(allPackets) :
-    #print('NEW packet: ', packet)
+    #print('NEW packet: ', len(packet), packet)
     #if num>20:
     #  break
     if len(packet) != reqPacketLength :
       print("WEIRD ERROR")
       return None
     #print( len(packet) )
-    #for num, line in enumerate(packet) :
-    #  print(num,"\t","0x "+"".join('%02x ' % c for c in line) )
-    cu1frame = packet[132][1]
-    cu1ch1 = packet[132][0]
-    cu1ch2 = packet[131][1]
-    cu1ch3 = packet[131][0]
-    cu1ch4 = packet[130][1]
-    cu1ch5 = packet[130][0]
-    cu1ch6 = packet[129][1]
-    cu1ch7 = packet[129][0]
-    cu1ch8 = packet[128][1]
-    
+    for num, line in enumerate(packet) :
+      if num > 7: print(num,"\t","0x "+"".join('%02x ' % c for c in line) )
+
+    # ADC 7 
+    cu1frame1 = packet[132][1] # frame  
+    cu1ch1 = packet[132][0] # lo 
+    cu1ch2 = packet[131][1] # hi 
+    cu1ch3 = packet[131][0] # hi 
+    cu1ch4 = packet[130][1] # lo 
+    cu1ch5 = packet[130][0] # lo 
+    cu1ch6 = packet[129][1] # hi 
+    cu1ch7 = packet[129][0] # hi 
+    cu1ch8 = packet[128][1] # lo
+    cu1frame2 = packet[128][0] # lo
+  
+    # ??? 
     cu2frame1 = packet[160][0]
     cu2ch1 = packet[159][1]
     cu2ch2 = packet[159][0]
@@ -107,18 +112,18 @@ def make_packets(allData):
   allPackets = []
   tempPacket = []
   for num,line in enumerate(allData) :
-    print('Num: ', num, ', 32 bit line: ', line)
+    #print('Num: ', num, ', 32 bit line: ', line)
     if len(line) != 2 :
       print("WEIRD ERROR")
       return None
 
     #when we find dead beef, add current packet to stack and start fresh
     if (line[0] == 0xdead ) and (line[1] == 0xbeef) :
-      print('this is dead beef: '+str(hex(line[0]))+' '+str(hex(line[1])))
+      #print('this is dead beef: '+str(hex(line[0]))+' '+str(hex(line[1])))
       allPackets.append( tempPacket.copy()  )
       tempPacket.clear()
     tempPacket.append(line)
-    print(num, "0x "+"".join('%02x ' % c for c in line) ,"\t",len(tempPacket))
+    #print(num, "0x "+"".join('%02x ' % c for c in line) ,"\t",len(tempPacket))
 
   #first packet is always wrong
   allPackets.pop(0)
@@ -253,6 +258,17 @@ def parseData(fileName,dataType,maxNumReads):
 #-------------------------------------------------------------------------
 def main():
 
+  # make ADC dictionary 
+  orig_ADC = 31
+  orig_line = 8
+  #d_ADCs = np.zeros((32,2))
+  d_ADCs = {}
+  for y in range(31,-1,-1):
+    d_ADCs[y] = [orig_line, orig_line + 4]
+    orig_line +=5
+  print(d_ADCs)
+
+
   parser = argparse.ArgumentParser()
   parser.add_argument("-f", "--file", default = '', type=str,
                      help="file to parse")
@@ -269,12 +285,12 @@ def main():
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
-  chanData = parseData(fileName,dataType,maxNumReads)
-  print("Number of samples",len(chanData))
-  #makeHistograms(chanData)
-  writeToHDF5(chanData,fileName)
-  print('runtime: ',datetime.now() - startTime)
-  return None
+  #chanData = parseData(fileName,dataType,maxNumReads)
+  #print("Number of samples",len(chanData))
+  ##makeHistograms(chanData)
+  #writeToHDF5(chanData,fileName)
+  #print('runtime: ',datetime.now() - startTime)
+  #return None
   
 if __name__ == "__main__":
   main()
