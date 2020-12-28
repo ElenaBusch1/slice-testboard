@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import sys
 import struct
 import h5py
+from datetime import datetime
 
 #-------------------------------------------------------------------------
 def writeToHDF5(chanData,fileName):
@@ -100,17 +101,17 @@ def parseData(fileName):
   #get binary data using struct
   allData = []
   readCount = 0
-  maxNumReads = 10000000
+  maxNumReads = 10000
   with open(fileName, mode='rb') as fp:
     #fileContent = fp.read()
     while True :
       data = fp.read(struct_len)
       if not data: break
       s = struct_unpack(data)
+      if readCount % 10000000 == 0: print(readCount)
       allData.append(s)
       readCount = readCount + 1
-      if readCount > maxNumReads:
-        break
+      #if readCount > maxNumReads: break
   
   #each element in the list is 4 bytes ie 32 bits
   #detect Jack's 0xdeadbeef words, organize according to that
@@ -198,6 +199,8 @@ def makeHistograms(chanData):
 
 #-------------------------------------------------------------------------
 def main():
+
+  startTime = datetime.now()
   if len(sys.argv) != 2 :
     print("ERROR, program requires filename argument")
     return
@@ -205,7 +208,8 @@ def main():
   chanData = parseData(fileName)
   print("Number of samples",len(chanData))
   #makeHistograms(chanData)
-  writeToHDF5(chanData,fileName)
+  #writeToHDF5(chanData,fileName)
+  print(datetime.now() - startTime)
   return None
   
 if __name__ == "__main__":
