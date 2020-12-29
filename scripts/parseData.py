@@ -7,62 +7,62 @@ import h5py
 import argparse
 from datetime import datetime
 
+#-------------------------------------------------------------------------
+def make_adc_dict():
+  orig_ADC = 32
+  orig_line = 8 #first 7 are header info
+  #d_ADCs = np.zeros((32,2))
+  d_ADCs = {}
+  for y in range(32,0,-1):
+    d_ADCs[y] = [orig_line, orig_line + 4]
+    orig_line +=5 #each ADC data = 160 bits = 5 32-bit lines
+  
+  return d_ADCs
 
 #-------------------------------------------------------------------------
 def make_chanData_trigger(allPackets):
 
-  chanData = [[],[],[],[],[],[],[],[]]
+  print('Starting to make chanData...')
+
   reqPacketLength = 168
+  d_ADCs = make_adc_dict()
+  chanData = [] # 0, 128
+  for z in range(128): chanData.append([[],[]])
+
+  # each packet has 32 chans of readout 
   for num,packet in enumerate(allPackets) :
     #print('NEW packet: ', len(packet), packet)
-    #if num>20:
-    #  break
     if len(packet) != reqPacketLength :
       print("WEIRD ERROR")
       return None
-    #print( len(packet) )
-    for num, line in enumerate(packet) :
-      if num > 7: print(num,"\t","0x "+"".join('%02x ' % c for c in line) )
 
-    # ADC 7 
-    cu1frame1 = packet[132][1] # frame  
-    cu1ch1 = packet[132][0] # lo 
-    cu1ch2 = packet[131][1] # hi 
-    cu1ch3 = packet[131][0] # hi 
-    cu1ch4 = packet[130][1] # lo 
-    cu1ch5 = packet[130][0] # lo 
-    cu1ch6 = packet[129][1] # hi 
-    cu1ch7 = packet[129][0] # hi 
-    cu1ch8 = packet[128][1] # lo
-    cu1frame2 = packet[128][0] # lo
-  
-    # ??? 
-    cu2frame1 = packet[160][0]
-    cu2ch1 = packet[159][1]
-    cu2ch2 = packet[159][0]
-    cu2ch3 = packet[158][1]
-    cu2ch4 = packet[158][0]
-    cu2ch5 = packet[157][1]
-    cu2ch6 = packet[157][0]
-    cu2ch7 = packet[156][1]
-    cu2ch8 = packet[156][0]
-    cu2frame2 = packet[155][1]
+    #for num, line in enumerate(packet) :
+    #  print(num,"\t","0x "+"".join('%02x ' % c for c in line), line )
 
-    #select channel to 
-    chanData[0].append((cu1ch1, cu2ch1))
-    chanData[1].append((cu1ch2, cu2ch2))
-    chanData[2].append((cu1ch3, cu2ch3))
-    chanData[3].append((cu1ch4, cu2ch4))
-    chanData[4].append((cu1ch5, cu2ch5))
-    chanData[5].append((cu1ch6, cu2ch6))
-    chanData[6].append((cu1ch7, cu2ch7))
-    chanData[7].append((cu1ch8, cu2ch8))
+    chanNum=127 #start at 128 and go in reverse order
+    for adc in d_ADCs: # loop over all 32 adcs 
+      cu1frame1 = packet[d_ADCs[adc][0]+4][1] # frame  
+      cu_ch0_lo = packet[d_ADCs[adc][0]+4][0] 
+      cu_ch0_hi = packet[d_ADCs[adc][0]+3][1] 
+      cu_ch1_hi = packet[d_ADCs[adc][0]+3][0] 
+      cu_ch1_lo = packet[d_ADCs[adc][0]+2][1] 
+      cu_ch2_lo = packet[d_ADCs[adc][0]+2][0] 
+      cu_ch2_hi = packet[d_ADCs[adc][0]+1][1] 
+      cu_ch3_hi = packet[d_ADCs[adc][0]+1][0] 
+      cu_ch3_lo = packet[d_ADCs[adc][0]][1] 
+      cu1frame2 = packet[d_ADCs[adc][0]][0] # frame
+    
+      # add to master channel dataset 
+      chanData[chanNum][0].append(cu_ch0_lo) #index 0 is low gain, index 1 is high gain
+      chanData[chanNum][1].append(cu_ch0_hi) 
+      chanData[chanNum-1][0].append(cu_ch1_lo)
+      chanData[chanNum-1][1].append(cu_ch1_hi)
+      chanData[chanNum-2][0].append(cu_ch2_lo)
+      chanData[chanNum-2][1].append(cu_ch2_hi)
+      chanData[chanNum-3][0].append(cu_ch3_lo)
+      chanData[chanNum-3][1].append(cu_ch3_hi)
+      chanNum -= 4
 
-    #print( hex(frame) )
-    if num % 500 == 0:
-        print("Packet #: ",num,"frame",hex(cu1frame),"ch1",hex(cu1ch1),"ch2",hex(cu1ch2),"ch3",hex(cu1ch3),"ch4",hex(cu1ch4),"ch5",hex(cu1ch5),"ch6",hex(cu1ch6),"ch7", hex(cu1ch7),"ch8",hex(cu1ch8))
-        print("frame1",hex(cu2frame1),"ch1",hex(cu2ch1),"ch2",hex(cu2ch2),"ch3",hex(cu2ch3),"ch4",hex(cu2ch4),"ch5",hex(cu2ch5),"ch6",hex(cu2ch6),"ch7", hex(cu2ch7),"ch8",hex(cu2ch8), "frame2", hex(cu2frame2))
-    #print( hex(ch8) )
 
   return chanData
 
@@ -152,74 +152,31 @@ def writeToHDF5(chanData,fileName):
 
 #-------------------------------------------------------------------------
 def makeHistograms(chanData):
+  print('Making histograms... ')
   saveDir = "plots/"
 
-  #----  All chans
-  makeAllChans(chanData,saveDir)
-  #----  Cross-channel coherence
-  makeCrossChans(chanData,saveDir)
-#-------------------------------------------------------------------------
-def makeAllChans(chanData,saveDir):
-  counter = 0
-  chipNames = ['Chip1', 'Chip2', 'Coherence']
-  for chan in chanData:
-    counter += 1
-    #if counter != 7:
-    #  continue
-    chanSort = list(zip(*chan))
-    for chip, chipName in zip(chanSort, chipNames):
+  adc = 0
+  for chan in range(len(chanData)): 
+    if (chan) % 4 == 0: adc += 1
+    for gain in range(len(chanData[chan])): #lo, hi 
+      data = chanData[chan][gain]
       fig, ax = plt.subplots()
-      avg = np.mean(chip)
-      std = np.std(chip)
+      avg = np.mean(data)
+      std = np.std(data)
       lbl = (
           r'$\mu$: {:.1f}'.format(avg) + '\n' +
           r'$\sigma$: {:.2f}'.format(std)
       )
-      #chip1+chip2
-      if chipName == "Coherence":
-        ex_std = np.sqrt(np.std(chanSort[0])**2 + np.std(chanSort[1])**2)
-        lbl = (
-          r'$\mu$: {:.1f}'.format(avg) + '\n' +
-          r'$\sigma$: {:.2f}'.format(std) + '\n' +
-          r'E[$\sigma$]: {:.2f}'.format(ex_std)
-        )
-      bins = max(chip)-min(chip)+1
-      plt.hist(chip, bins = bins, range = (min(chip), max(chip)+1))
-      plt.title(chipName + " Channel "+str(counter))
+      bins = int(np.divide(max(data)-min(data)+1,10))
+
+      plt.hist(data)
+      if gain == 0: plt.title("Channel "+str(chan)+", ADC "+str(adc)+", lo gain")
+      else: plt.title("Channel "+str(chan)+", ADC "+str(adc)+", hi gain")
       plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
-      #plt.show()
-      plt.savefig(saveDir+"channel"+str(counter)+chipName+".png")
-      print('Saved fig '+saveDir+"channel"+str(counter)+chipName+".png")
+      plt.savefig(saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
+      print('Saved fig '+saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
       plt.clf()
       plt.close()
-#-------------------------------------------------------------------------
-def makeCrossChans(chanData,saveDir):
-  ch6 = list(zip(*chanData[5]))
-  ch7 = list(zip(*chanData[6]))
-  chip1ch67 = [x+y for (x,y) in zip(ch6[0],ch7[0])]
-  chip2ch67 = [x+y for (x,y) in zip(ch6[1],ch7[1])]
-  ch76 = [chip1ch67, chip2ch67]
-  i = 0
-  for chip in ch76:
-    fig, ax = plt.subplots()
-    avg = np.mean(chip)
-    std = np.std(chip)
-    ex_std = np.sqrt(np.std(ch6[i])**2 + np.std(ch7[i])**2)
-    lbl = (
-      r'$\mu$: {:.1f}'.format(avg) + '\n' +
-      r'$\sigma$: {:.2f}'.format(std) + '\n' +
-      r'E[$\sigma$]: {:.2f}'.format(ex_std)
-    )
-    i += 1
-    bins = max(chip)-min(chip)+1
-    plt.hist(chip, bins = bins, range = (min(chip), max(chip)+1))
-    plt.title("Ch6-Ch7 Coherence, Chip "+str(i))
-    plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
-    #plt.show()
-    plt.savefig(saveDir+"ch6ch7chip"+str(i)+".png")
-    print('Saved fig '+saveDir+"ch6ch7chip"+str(i)+".png")
-    plt.clf()
-    plt.close()
 
 
 #-------------------------------------------------------------------------
@@ -258,15 +215,6 @@ def parseData(fileName,dataType,maxNumReads):
 #-------------------------------------------------------------------------
 def main():
 
-  # make ADC dictionary 
-  orig_ADC = 31
-  orig_line = 8
-  #d_ADCs = np.zeros((32,2))
-  d_ADCs = {}
-  for y in range(31,-1,-1):
-    d_ADCs[y] = [orig_line, orig_line + 4]
-    orig_line +=5
-  print(d_ADCs)
 
 
   parser = argparse.ArgumentParser()
@@ -285,9 +233,9 @@ def main():
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
-  #chanData = parseData(fileName,dataType,maxNumReads)
-  #print("Number of samples",len(chanData))
-  ##makeHistograms(chanData)
+  chanData = parseData(fileName,dataType,maxNumReads)
+  print("Number of samples",len(chanData))
+  makeHistograms(chanData)
   #writeToHDF5(chanData,fileName)
   #print('runtime: ',datetime.now() - startTime)
   #return None
