@@ -8,6 +8,36 @@ import argparse
 from datetime import datetime
 
 #-------------------------------------------------------------------------
+def makeHistograms(chanData):
+  print('Making histograms... ')
+  saveDir = "plots/"
+
+  adc = 0
+  for chan in range(len(chanData)): 
+    if (chan) % 4 == 0: adc += 1
+    for gain in range(len(chanData[chan])): #lo, hi 
+      data = chanData[chan][gain]
+      if np.all(np.asarray(data)==0): continue #dont bother plotting
+      fig, ax = plt.subplots()
+      avg = np.mean(data)
+      std = np.std(data)
+      lbl = (
+          r'$\mu$: {:.1f}'.format(avg) + '\n' +
+          r'$\sigma$: {:.2f}'.format(std)
+      )
+      bins = int(np.divide(max(data)-min(data)+1,10))
+
+      plt.hist(data)
+      if gain == 0: plt.title("Channel "+str(chan)+", ADC "+str(adc)+", lo gain")
+      else: plt.title("Channel "+str(chan)+", ADC "+str(adc)+", hi gain")
+      plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
+      plt.savefig(saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
+      print('Saved fig '+saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
+      plt.clf()
+      plt.close()
+
+
+#-------------------------------------------------------------------------
 def make_adc_dict():
   orig_ADC = 32
   orig_line = 8 #first 7 are header info
@@ -41,16 +71,27 @@ def make_chanData_trigger(allPackets):
 
     chanNum=127 #start at 128 and go in reverse order
     for adc in d_ADCs: # loop over all 32 adcs 
-      cu1frame1 = packet[d_ADCs[adc][0]+4][1] # frame  
-      cu_ch0_lo = packet[d_ADCs[adc][0]+4][0] 
-      cu_ch0_hi = packet[d_ADCs[adc][0]+3][1] 
-      cu_ch1_hi = packet[d_ADCs[adc][0]+3][0] 
-      cu_ch1_lo = packet[d_ADCs[adc][0]+2][1] 
-      cu_ch2_lo = packet[d_ADCs[adc][0]+2][0] 
-      cu_ch2_hi = packet[d_ADCs[adc][0]+1][1] 
-      cu_ch3_hi = packet[d_ADCs[adc][0]+1][0] 
-      cu_ch3_lo = packet[d_ADCs[adc][0]][1] 
-      cu1frame2 = packet[d_ADCs[adc][0]][0] # frame
+      cu1frame1 = packet[d_ADCs[adc][0]+4][1] # bits 15:0
+      if int(cu1frame1) == int(0xfa1): # fake data 
+        cu_ch0_lo =  0
+        cu_ch0_hi =  0
+        cu_ch1_hi =  0
+        cu_ch1_lo =  0
+        cu_ch2_lo =  0
+        cu_ch2_hi =  0
+        cu_ch3_hi =  0
+        cu_ch3_lo =  0  
+      else: 
+        cu_ch0_lo = packet[d_ADCs[adc][0]+4][0] # bits 31:16 = ADC ch1
+        cu_ch0_hi = packet[d_ADCs[adc][0]+3][1] # ADC ch2  
+        cu_ch1_hi = packet[d_ADCs[adc][0]+3][0] # ADC ch3
+        cu_ch1_lo = packet[d_ADCs[adc][0]+2][1] 
+        cu_ch2_lo = packet[d_ADCs[adc][0]+2][0] 
+        cu_ch2_hi = packet[d_ADCs[adc][0]+1][1] 
+        cu_ch3_hi = packet[d_ADCs[adc][0]+1][0] 
+        cu_ch3_lo = packet[d_ADCs[adc][0]][1] # ADC ch8
+      cu1frame8 = packet[d_ADCs[adc][0]][0] # frame
+      #if int(cu1frame8) == int(0xfa8): continue # will never get to here
     
       # add to master channel dataset 
       chanData[chanNum][0].append(cu_ch0_lo) #index 0 is low gain, index 1 is high gain
@@ -68,6 +109,7 @@ def make_chanData_trigger(allPackets):
 
 
 #-------------------------------------------------------------------------
+#TODO 
 def make_chanData_adc(allPackets):
   reqPacketLength = 16
   prevCounter = 0
@@ -86,9 +128,6 @@ def make_chanData_adc(allPackets):
       print("WEIRD ERROR")
       return chanData
 
-    #print("\t",hex(packet[1][0]),"\t",int(packet[1][0]))
-    #print("\t",hex(packet[6][0]),"\t",int(packet[6][0]))
-    #print("\t",hex(packet[11][1]),"\t",int(packet[11][1]))
     counter = int(packet[0][1]) & 0xFF
     chData = [ packet[4][1], packet[4][0], packet[3][1], packet[3][0], packet[2][1], packet[2][0], packet[1][1], packet[1][0] ]
     chanData.append( chData )
@@ -96,10 +135,6 @@ def make_chanData_adc(allPackets):
     chanData.append( chData )
     chData = [ packet[15][0], packet[14][1], packet[14][0], packet[13][1], packet[13][0], packet[12][1], packet[12][0], packet[11][1] ]
     chanData.append( chData )
-
-    #chanData.append( (packet[1][1] , packet[1][0]) )
-    #chanData.append( (packet[6][1] , packet[6][0]) )
-    #chanData.append( (packet[12][0], packet[11][1]) )
   #end for loop
   return chanData
 
@@ -151,35 +186,6 @@ def writeToHDF5(chanData,fileName):
   out_file.close()  
 
 #-------------------------------------------------------------------------
-def makeHistograms(chanData):
-  print('Making histograms... ')
-  saveDir = "plots/"
-
-  adc = 0
-  for chan in range(len(chanData)): 
-    if (chan) % 4 == 0: adc += 1
-    for gain in range(len(chanData[chan])): #lo, hi 
-      data = chanData[chan][gain]
-      fig, ax = plt.subplots()
-      avg = np.mean(data)
-      std = np.std(data)
-      lbl = (
-          r'$\mu$: {:.1f}'.format(avg) + '\n' +
-          r'$\sigma$: {:.2f}'.format(std)
-      )
-      bins = int(np.divide(max(data)-min(data)+1,10))
-
-      plt.hist(data)
-      if gain == 0: plt.title("Channel "+str(chan)+", ADC "+str(adc)+", lo gain")
-      else: plt.title("Channel "+str(chan)+", ADC "+str(adc)+", hi gain")
-      plt.text(0.98,0.85, lbl, horizontalalignment='right', transform = ax.transAxes)
-      plt.savefig(saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
-      print('Saved fig '+saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
-      plt.clf()
-      plt.close()
-
-
-#-------------------------------------------------------------------------
 def parseData(fileName,dataType,maxNumReads):
 
   struct_fmt = ">2H"
@@ -215,8 +221,6 @@ def parseData(fileName,dataType,maxNumReads):
 #-------------------------------------------------------------------------
 def main():
 
-
-
   parser = argparse.ArgumentParser()
   parser.add_argument("-f", "--file", default = '', type=str,
                      help="file to parse")
@@ -237,8 +241,8 @@ def main():
   print("Number of samples",len(chanData))
   makeHistograms(chanData)
   #writeToHDF5(chanData,fileName)
-  #print('runtime: ',datetime.now() - startTime)
-  #return None
+  print('runtime: ',datetime.now() - startTime)
+  return None
   
 if __name__ == "__main__":
   main()
