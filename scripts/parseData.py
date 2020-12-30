@@ -171,15 +171,15 @@ def writeToHDF5(chanData,fileName):
 
   out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','a')
   print("Creating hdf5 file: "+ fileName.replace('.dat','')+'.hdf5')
-  print(np.shape(chanData)) #8 channels, m measurements, 2 chips
 
   #for m in range(np.shape(chanData)[1]):
   #  out_file.create_group("Measurement_" + str(m))
-  for c in range(np.shape(chanData)[2]-1): 
-    out_file.create_group("coluta"+str(c+1))
-    for h in range(np.shape(chanData)[0]): 
-      out_file.create_group("coluta"+str(c+1)+"/channel"+str(h+1))
-      out_file.create_dataset("coluta"+str(c+1)+"/channel"+str(h+1)+"/samples",data=list(zip(*chanData[h]))[c])
+  for c in range(len(chanData)): 
+    out_file.create_group("channel"+str(c))
+    out_file.create_group("channel"+str(c)+"/hi")
+    out_file.create_group("channel"+str(c)+"/lo")
+    out_file.create_dataset("channel"+str(c)+"/lo/samples",data=chanData[c][0])
+    out_file.create_dataset("channel"+str(c)+"/hi/samples",data=chanData[c][1])
   #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
 
 
@@ -239,8 +239,8 @@ def main():
   startTime = datetime.now()
   chanData = parseData(fileName,dataType,maxNumReads)
   print("Number of samples",len(chanData))
-  makeHistograms(chanData)
-  #writeToHDF5(chanData,fileName)
+  #makeHistograms(chanData)
+  writeToHDF5(chanData,fileName)
   print('runtime: ',datetime.now() - startTime)
   return None
   
