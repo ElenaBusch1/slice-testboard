@@ -118,6 +118,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #Configuration Buttons
         self.readTemperatureButton.clicked.connect(lambda: powerMod.checkAllTemps(self))
         self.readVoltageButton.clicked.connect(lambda: powerMod.checkAllVoltages(self))
+        self.selectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self))
+        self.selectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self))
         #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
