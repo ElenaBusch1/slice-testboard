@@ -39,21 +39,32 @@ def checkAllVoltages(GUI):
     points1p2Volts = ["VDD", "1p2"]
     points2p5Volts = ["2p5"]
     for volt in GUI.voltageSettings.keys():
+        ## Check if voltage is selected
+        selectBoxName = volt+"SelectBox"
+        try:
+            selectBox = getattr(GUI, selectBoxName)
+        except AttributeError:
+            print('Bad select box name powerMod/checkAllVoltages')
+            continue
+        if not selectBox.isChecked():
+            continue
+        ## Find correct lpGBT and ADC pin
         print(volt)
         lpgbt = GUI.voltageSettings[volt][0]
         adc = GUI.voltageSettings[volt][1]
-        #if lpgbt != 'lpgbt12' and lpgbt != 'lpgbt13' and lpgbt != 'lpgbt14' and lpgbt != 'lpgbt11':
-        #    continue
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
             GUI.lpgbtReset("lpgbt12")
         elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
             GUI.lpgbtReset("lpgbt13")
+        ## Read Voltages
         #voltage = int(adc)
         adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, False)
         print(adcH, adcL)
         print(int(bin(adcH)[7:9],2)<<8, adcL)
+        ## Convert ADC counts to decimal
         adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
         print(adcCounts)
+        ## Apply scale factors
         voltage = adcCounts*(vref*0.5/512)
         if (volt.find("2p5") > -1):
             scaledVoltage = voltage*resistorDivider2p5
@@ -65,6 +76,7 @@ def checkAllVoltages(GUI):
             scaledVoltage = voltage*resistorDividerMainPS24V
         else:
             scaledVoltage = voltage
+        ## Update GUI
         boxName = volt+'Box'
         try:
             box = getattr(GUI, boxName)
@@ -81,22 +93,35 @@ def checkAllTemps(GUI):
     resistorDividerMainPS24V = 40.322
     resistorDividerMainPS48V = 81.508
     for temp in GUI.temperatureSettings.keys():
-        #if temp != "T1":
-        #    continue
+        ## Check if voltage is selected
+        selectBoxName = temp+"TempSelectBox"
+        try:
+            selectBox = getattr(GUI, selectBoxName)
+        except AttributeError:
+            print('Bad select box name powerMod/checkAllTemps')
+            continue
+        if not selectBox.isChecked():
+            continue
+        ## Find correct lpGBT and ADC pin
+        print(temp)
+        continue
         lpgbt = GUI.temperatureSettings[temp][0]
         adc = GUI.temperatureSettings[temp][1]
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
             GUI.lpgbtReset("lpgbt12")
         elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
             GUI.lpgbtReset("lpgbt13")
+        ## Read Temperature
         #tempVal = int(adc)
         print(adc, lpgbt)
         adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, True)
         adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+        ## Convert ADC counts to temp
         #tempVal = (adcCounts - 486.2)/2.105
         voltage = adcCounts*(vref*0.5/512)
         resistivity = voltage/(IDAC*1E-6)
         tempVal = (resistivity - 1000)/3.79
+        ## Update GUI
         boxName = 'temperature'+temp+'Box'
         try:
             box = getattr(GUI, boxName)
@@ -110,6 +135,18 @@ def checkAllTemps(GUI):
     # write 14 to ADCInPSelect[3:0] - internal lpgbt temp
     lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
     for lpgbt in lpgbts:
+        ## Check if voltage is selected
+        selectBoxName = lpgbt+"TempSelectBox"
+        try:
+            selectBox = getattr(GUI, selectBoxName)
+        except AttributeError:
+            print('Bad select box name powerMod/checkAllTemps')
+            continue
+        if not selectBox.isChecked():
+            continue
+        ## Read temps
+        print(lpgbt)
+        continue
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
             GUI.lpgbtReset("lpgbt12")
         elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
@@ -191,6 +228,21 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     GUI.writeToLPGBT(lpgbt, vrefcntr, [int('00000000', 2)])
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000000', 2)])
     return adcValueH, adcValueL
+
+def selectAllVoltages(GUI):
+    for volt in GUI.voltageSettings.keys():
+        boxName = volt+"SelectBox"
+        GUI.updateBox(boxName,'1')
+
+def selectAllTemps(GUI):
+    for temp in GUI.temperatureSettings.keys():
+        boxName = temp+"TempSelectBox"
+        GUI.updateBox(boxName,'1')
+    lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
+    for lpgbt in lpgbts:
+        boxName = lpgbt+"TempSelectBox"
+        GUI.updateBox(boxName,'1')    
+
 
 def checkVoltagesTest(GUI):
     chip = GUI.chips["lpgbt13"] 
