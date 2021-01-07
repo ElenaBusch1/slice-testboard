@@ -34,10 +34,12 @@ def parseData(fileName):
   tempPacket = []
   foundBeef = False
   for num,line in enumerate(allData) :
+    print('Num: ', num, ', line: ', line)
     if len(line) != 2 :
       print("WEIRD ERROR")
       return None
     if (line[0] == 0xdead ) and (line[1] == 0xbeef) :
+      print('found dead beef')
       allPackets.append( tempPacket.copy()  )
       tempPacket.clear()
       #foundBeef = True
