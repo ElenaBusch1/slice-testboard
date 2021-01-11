@@ -41,6 +41,7 @@ def checkAllVoltages(GUI):
     resistorDividerMainPS24V = 40.322
     points1p2Volts = ["VDD", "1p2"]
     points2p5Volts = ["2p5"]
+    displayADCBox = getattr(GUI, 'displayADCCountsVoltBox')
     for volt in GUI.voltageSettings.keys():
         ## Check if voltage is selected
         selectBoxName = volt+"SelectBox"
@@ -92,7 +93,10 @@ def checkAllVoltages(GUI):
         except AttributeError:
             print('Bad box name powerMod/checkAllVoltages')
             continue
-        box.document().setPlainText(f'{adcCounts} {scaledVoltage:.2f}')
+        if displayADCBox.isChecked():
+            box.document().setPlainText(f'{scaledVoltage:.2f} ({adcCounts})')
+        else:
+            box.document().setPlainText(f'{scaledVoltage:.2f}')
 
 
 def checkAllTemps(GUI):
@@ -102,6 +106,7 @@ def checkAllTemps(GUI):
     resistorDividerMainPS24V = 40.322
     resistorDividerMainPS48V = 81.508
     IDACCalibration = 0.272
+    displayADCBox = getattr(GUI, 'displayADCCountsTempBox')
     for temp in GUI.temperatureSettings.keys():
         ## Check if voltage is selected
         selectBoxName = temp+"TempSelectBox"
@@ -149,8 +154,10 @@ def checkAllTemps(GUI):
             print("Bad boxname powerMod/ checkAllTemps")
             continue
         #box.document().setPlainText(f'{tempVal:.1f}')
-        box.document().setPlainText(f'{tempVal:.1f} {voltage:.3f} {adcCounts}')
-    
+        if displayADCBox.isChecked():
+            box.document().setPlainText(f'{tempVal:.2f} ({adcCounts})')
+        else:
+            box.document().setPlainText(f'{tempVal:.2f}')
     #return
     # write 14 to ADCInPSelect[3:0] - internal lpgbt temp
     lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
@@ -182,7 +189,10 @@ def checkAllTemps(GUI):
         except AttributeError:
             print("Bad boxname powerMod/ checkAllTemps")
             continue
-        box.document().setPlainText(f'{tempVal:.1f}')
+        if displayADCBox.isChecked():
+            box.document().setPlainText(f'{tempVal:.2f} ({adcCounts})')
+        else:
+            box.document().setPlainText(f'{tempVal:.2f}')
 
 
 def checkVoltages(GUI, adc, lpgbt, ADC_INP_INN, tempEnable=False, vrefTune = 0, IDACCur = 106):
@@ -259,19 +269,19 @@ def checkVoltages(GUI, adc, lpgbt, ADC_INP_INN, tempEnable=False, vrefTune = 0, 
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000000', 2)])
     return adcValueH, adcValueL
 
-def selectAllVoltages(GUI):
+def selectAllVoltages(GUI, value):
     for volt in GUI.voltageSettings.keys():
         boxName = volt+"SelectBox"
-        GUI.updateBox(boxName,'1')
+        GUI.updateBox(boxName,value)
 
-def selectAllTemps(GUI):
+def selectAllTemps(GUI, value):
     for temp in GUI.temperatureSettings.keys():
         boxName = temp+"TempSelectBox"
-        GUI.updateBox(boxName,'1')
+        GUI.updateBox(boxName,value)
     lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
     for lpgbt in lpgbts:
         boxName = lpgbt+"TempSelectBox"
-        GUI.updateBox(boxName,'1')    
+        GUI.updateBox(boxName,value)    
 
 def vrefTest(GUI):
     lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
