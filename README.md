@@ -5,10 +5,11 @@
 2. Configure the FLX with the proper firmware (it is currently located on flx-srv-atlas and you want the newest version), then reboot (soft reboot - a hard reboot will wipeout the firmware configuration you just did!). 
 
 3. Create a conda virtual environment.  This only needs to be done once per installation instance of Python. Run the following commands in shell to generate the environment:
-`conda config --add channels conda-forge`
-`conda create --name coluta python=3 pyserial pyqt=5.9.2 numpy matplotlib h5py`
-`conda activate coluta`
-
+```
+conda config --add channels conda-forge
+conda create --name coluta python=3 pyserial pyqt=5.9.2 numpy matplotlib h5py
+conda activate coluta
+```
 ### If the computer is already setup but you just (soft) rebooted, start here! ### 
 4. cd to the ~/FLX/slice-testboard/ directory on flx-srv-atlas and run `source flx_setup1.sh`. This will start the driver, start the FLX, and set up the FLX to send the clock and start to be ready to take data.
 
