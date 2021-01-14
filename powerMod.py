@@ -319,7 +319,7 @@ def vrefTest(GUI):
     #        string = 
             
 def vrefCalibrate(GUI):
-    lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
+    lpgbts = ['lpgbt'+str(x) for x in range(14,17)]
     adcs = [str(x) for x in range(0,8)]
     tables = {}
     headers = ["Channel", "vrefTune", "Counts", "VREF"]
@@ -340,7 +340,7 @@ def vrefCalibrate(GUI):
                 voltage = (1.2*0.42)/(adcCounts/1024)
                 print(lpgbt,adc,vrefTune,adcCounts,voltage)
                 vrefTune_log.write(lpgbt+"  "+adc+"  "+str(vrefTune)+"  "+str(adcCounts)+"  "+str(voltage)+"\n")
-                if adcCounts == 511 or adcCounts == 512:
+                if adcCounts == 511 or adcCounts == 512 or adcCounts == 513:
                     break
                 vrefTune += 1
             vref[int(adc)].append(adc)
@@ -354,7 +354,7 @@ def vrefCalibrate(GUI):
         vrefTune_log.write("\n \n")
 
     vrefTune_log.close()
-    with open("vrefCalibrate.txt", "w") as f:
+    with open("vrefCalibrate14-15-16.txt", "w") as f:
         for lpgbt in lpgbts:
             table = tables[lpgbt]
             f.write(lpgbt+"\n")

@@ -33,7 +33,7 @@ import numpy as np
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_DEPACKING
 
-VERBOSE = False
+VERBOSE = True
 READBACK = False
 DEBUG = False
 

@@ -1175,7 +1175,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def takeTriggerData(self):
         """Run script"""
-        subprocess.call("pythontakeTriggerData.py", shell=True)
+        subprocess.call("python takeTriggerData.py", shell=True)
+        # subprocess.call("python ")        
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
