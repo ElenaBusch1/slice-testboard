@@ -8,6 +8,16 @@ import argparse
 from datetime import datetime
 
 #-------------------------------------------------------------------------
+def convert_to_bin(num):
+    binNum=str(int(bin(num)[2:]))
+    while(len(str(binNum)) < 16):
+      binNum = '0'+binNum
+    returnArr = []
+    for i in binNum:
+      returnArr.append(int(i))
+    return returnArr
+
+#-------------------------------------------------------------------------
 def makeHistograms(chanData):
   print('Making histograms... ')
   saveDir = "plots/"
@@ -158,18 +168,18 @@ def make_chanData_singleADC(allPackets,chanNum = 31):
 
     counter = int(packet[0][1]) & 0xFF
     # 3 samples for this ADC in each packet
-    cu_ch0_lo = [packet[4][1], packet[9][1], packet[15][0]] # bits 31:16 = ADC ch1
-    cu_ch0_hi = [packet[4][0], packet[9][0], packet[14][1]] # ADC ch2  
-    cu_ch1_hi = [packet[3][1], packet[8][1], packet[14][0]] # ADC ch3
-    cu_ch1_lo = [packet[3][0], packet[8][0], packet[13][1]] 
-    cu_ch2_lo = [packet[2][1], packet[7][1], packet[13][0]] 
-    cu_ch2_hi = [packet[2][0], packet[7][0], packet[12][1]] 
-    cu_ch3_hi = [packet[1][1], packet[6][1], packet[12][0]] 
-    cu_ch3_lo = [packet[1][0], packet[6][0], packet[11][1]] #ADC ch8
+    cu_ch0_lo = [convert_to_bin(packet[4][1]), convert_to_bin(packet[9][1]), convert_to_bin(packet[15][0])] # bits 31:16 = ADC ch1
+    cu_ch0_hi = [convert_to_bin(packet[4][0]), convert_to_bin(packet[9][0]), convert_to_bin(packet[14][1])] # ADC ch2  
+    cu_ch1_hi = [convert_to_bin(packet[3][1]), convert_to_bin(packet[8][1]), convert_to_bin(packet[14][0])] # ADC ch3
+    cu_ch1_lo = [convert_to_bin(packet[3][0]), convert_to_bin(packet[8][0]), convert_to_bin(packet[13][1])] 
+    cu_ch2_lo = [convert_to_bin(packet[2][1]), convert_to_bin(packet[7][1]), convert_to_bin(packet[13][0])] 
+    cu_ch2_hi = [convert_to_bin(packet[2][0]), convert_to_bin(packet[7][0]), convert_to_bin(packet[12][1])] 
+    cu_ch3_hi = [convert_to_bin(packet[1][1]), convert_to_bin(packet[6][1]), convert_to_bin(packet[12][0])] 
+    cu_ch3_lo = [convert_to_bin(packet[1][0]), convert_to_bin(packet[6][0]), convert_to_bin(packet[11][1])] #ADC ch8
 
     # add to master channel dataset 
-    chanData[chanNum][0].append(cu_ch0_lo) #index 0 is low gain, index 1 is high gain
-    chanData[chanNum][1].append(cu_ch0_hi) 
+    chanData[chanNum][0].append(  cu_ch0_lo) #index 0 is low gain, index 1 is high gain
+    chanData[chanNum][1].append(  cu_ch0_hi) 
     chanData[chanNum-1][0].append(cu_ch1_lo)
     chanData[chanNum-1][1].append(cu_ch1_hi)
     chanData[chanNum-2][0].append(cu_ch2_lo)
@@ -244,11 +254,15 @@ def writeToHDF5(chanData,fileName,dataType,chan=28):
   #  out_file.create_group("Measurement_" + str(m))
   out_file.create_group("Measurement_0")
   for c in range(len(chanData)): 
-    out_file.create_group("Measurement_0/channel"+str(c))
-    out_file.create_group("Measurement_0/channel"+str(c)+"/hi")
-    out_file.create_group("Measurement_0/channel"+str(c)+"/lo")
-    out_file.create_dataset("Measurement_0/channel"+str(c)+"/lo/samples",data=chanData[c][0])
-    out_file.create_dataset("Measurement_0/channel"+str(c)+"/hi/samples",data=chanData[c][1])
+    if c < 10: cc = '00'+str(c)
+    elif c >=10 and c< 100: cc = '0'+str(c)
+    elif c >= 100: cc =str(c)
+
+    out_file.create_group("Measurement_0/channel"+cc)
+    out_file.create_group("Measurement_0/channel"+cc+"/hi")
+    out_file.create_group("Measurement_0/channel"+cc+"/lo")
+    out_file.create_dataset("Measurement_0/channel"+cc+"/lo/samples",data=chanData[c][0])
+    out_file.create_dataset("Measurement_0/channel"+cc+"/hi/samples",data=chanData[c][1])
   #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
 
 
@@ -308,7 +322,7 @@ def main():
   startTime = datetime.now()
   chanData = parseData(fileName,dataType,maxNumReads)
   print("Number of samples",len(chanData))
-  makePlots(chanData)
+  #makePlots(chanData)
   #makeHistograms(chanData)
   writeToHDF5(chanData,fileName,dataType)
   print('runtime: ',datetime.now() - startTime)
