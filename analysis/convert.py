@@ -293,11 +293,6 @@ def convertPulse(output_dir, input_file, gain_dict, n_pulses = 8, n_samples_per_
 #-------------------------------------------------------------------------
 def main():
   
-  data_dir = "/data/users/acs2325/slice/"
-
-  raw_dir = hf.checkDir(datadir+"/Data/Raw/Pulses/")
-  raw_dir_pedestal = hf.checkDir(datadir+"/Data/Raw/Pedestal/")
-  raw_dir_tf = hf.checkDir(datadir+"/Data/Raw/Test/")
 
   #Get directories to run in
   parser = argparse.ArgumentParser()
@@ -307,14 +302,20 @@ def main():
                      help="start measurement")
   parser.add_argument("-e", "--end", default = 1200, type=int, nargs='+',
                      help="end measurement")
+  parser.add_argument("-d", "--data_dir", default = "/data/users/acs2325/slice/", type=int, nargs='+',
+                     help="end measurement")
   parser.add_argument("-sar", "--sar_dir", default='', type=str,
                      help="parent directory containing textfile with sar weights")
   
+  raw_dir = hf.checkDir(datadir+"/Data/Raw/Pulses/")
+  raw_dir_pedestal = hf.checkDir(datadir+"/Data/Raw/Pedestal/")
+  raw_dir_tf = hf.checkDir(datadir+"/Data/Raw/Test/")
   #Allow user input for choice of runs
   args = parser.parse_args()
   runs = [raw_dir + run + "/" for run in args.runs]
   startMeas = args.start[0]
   endMeas = args.end[0]
+  data_dir = args.data_dir[0]
 
   global sar_dir 
   sar_dir = args.sar_dir
