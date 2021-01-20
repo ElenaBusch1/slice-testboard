@@ -116,11 +116,6 @@ def make_chanData_trigger(allPackets):
       chanData[chanNum-3][1].append(cu_ch3_hi)
       chanNum -= 4
 
-  for i in chanData:
-    for j in range(2): 
-      print(chanData[i][j])
-      print(np.concatenate(chanData[i][j],axis=0))
-      chanData[i][j] = np.concatenate(chanData[i][j],axis=0)
   return chanData
 
 
@@ -181,7 +176,15 @@ def make_chanData_singleADC(allPackets,chanNum = 31):
     chanData[chanNum-2][1].append(cu_ch2_hi)
     chanData[chanNum-3][0].append(cu_ch3_lo)
     chanData[chanNum-3][1].append(cu_ch3_hi)
- 
+
+  for i in range(len(chanData)):
+    for j in range(2):
+      if len(chanData[i][j]) > 0: 
+        #print(chanData[i][j])
+        #print(np.concatenate(chanData[i][j],axis=0))
+        chanData[i][j] = (np.concatenate(chanData[i][j],axis=0))
+
+  print(np.shape(chanData))
   #end for loop
   return chanData
 
@@ -194,7 +197,6 @@ def make_packets(allData,dataType):
   allPackets = []
   tempPacket = []
   for num,line in enumerate(allData) :
-    print('Num: ', num, ', line: ', line)
     #print('Num: ', num, ', 32 bit line: ', line)
 
     if len(line) != 2 :
