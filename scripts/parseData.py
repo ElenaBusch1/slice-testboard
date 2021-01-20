@@ -194,8 +194,9 @@ def make_packets(allData,dataType):
   allPackets = []
   tempPacket = []
   for num,line in enumerate(allData) :
+    print('Num: ', num, ', line: ', line)
     #print('Num: ', num, ', 32 bit line: ', line)
- 
+
     if len(line) != 2 :
       print("WEIRD ERROR")
       return None

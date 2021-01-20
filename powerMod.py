@@ -1,9 +1,12 @@
 from flxMod import icWriteToLpGBT as writeToLpGBT
 from flxMod import icReadLpGBT as readFromLpGBT
 from datetime import datetime
+from vref import vref as vREF
 import time
+import numpy as np
 
-vref = 0.9
+#vref = 0.9
+IDAC = 106
 
 def enableDCDCConverter():
     chip = self.chips["lpgbt12"]
@@ -38,23 +41,40 @@ def checkAllVoltages(GUI):
     resistorDividerMainPS24V = 40.322
     points1p2Volts = ["VDD", "1p2"]
     points2p5Volts = ["2p5"]
+    displayADCBox = getattr(GUI, 'displayADCCountsVoltBox')
     for volt in GUI.voltageSettings.keys():
+        ## Check if voltage is selected
+        selectBoxName = volt+"SelectBox"
+        try:
+            selectBox = getattr(GUI, selectBoxName)
+        except AttributeError:
+            print('Bad select box name powerMod/checkAllVoltages')
+            continue
+        if not selectBox.isChecked():
+            continue
+        ## Find correct lpGBT and ADC pin
         print(volt)
         lpgbt = GUI.voltageSettings[volt][0]
         adc = GUI.voltageSettings[volt][1]
-        #if lpgbt != 'lpgbt12' and lpgbt != 'lpgbt13' and lpgbt != 'lpgbt14' and lpgbt != 'lpgbt11':
-        #    continue
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
             GUI.lpgbtReset("lpgbt12")
         elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
             GUI.lpgbtReset("lpgbt13")
+        ## Read Voltages
         #voltage = int(adc)
-        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, False)
+        ADC_INP_INN = (int(adc)<<4)+int('1111',2)
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, ADC_INP_INN,False)
         print(adcH, adcL)
         print(int(bin(adcH)[7:9],2)<<8, adcL)
+        ## Convert ADC counts to decimal
         adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
         print(adcCounts)
-        voltage = adcCounts*(vref*0.5/512)
+        ## Apply scale factors
+        ## old voltage calc
+        #voltage = adcCounts*(vref*0.5/512)
+        ## new voltage calc
+        vref = vREF[lpgbt][int(adc)]
+        voltage = (vref/1024)*adcCounts
         if (volt.find("2p5") > -1):
             scaledVoltage = voltage*resistorDivider2p5
         elif (volt.find("1p2") > -1) or (volt.find("VDD") > -1):
@@ -65,38 +85,68 @@ def checkAllVoltages(GUI):
             scaledVoltage = voltage*resistorDividerMainPS24V
         else:
             scaledVoltage = voltage
+        
+        ## Update GUI
         boxName = volt+'Box'
         try:
             box = getattr(GUI, boxName)
         except AttributeError:
             print('Bad box name powerMod/checkAllVoltages')
             continue
-        box.document().setPlainText(f'{scaledVoltage:.3f}')
+        if displayADCBox.isChecked():
+            box.document().setPlainText(f'{scaledVoltage:.2f} ({adcCounts})')
+        else:
+            box.document().setPlainText(f'{scaledVoltage:.2f}')
 
 
 def checkAllTemps(GUI):
     #temperatures = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'VTRx3', 'VTRx4', 'VTRx5', 'VTRx6']
     #vref = 0.95
-    IDAC = 200
+    #IDAC = 200
     resistorDividerMainPS24V = 40.322
     resistorDividerMainPS48V = 81.508
+    IDACCalibration = 0.272
+    displayADCBox = getattr(GUI, 'displayADCCountsTempBox')
     for temp in GUI.temperatureSettings.keys():
-        #if temp != "T1":
-        #    continue
+        ## Check if voltage is selected
+        selectBoxName = temp+"TempSelectBox"
+        try:
+            selectBox = getattr(GUI, selectBoxName)
+        except AttributeError:
+            print('Bad select box name powerMod/checkAllTemps')
+            continue
+        if not selectBox.isChecked():
+            continue
+        ## Find correct lpGBT and ADC pin
         lpgbt = GUI.temperatureSettings[temp][0]
         adc = GUI.temperatureSettings[temp][1]
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
             GUI.lpgbtReset("lpgbt12")
         elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
             GUI.lpgbtReset("lpgbt13")
+        ## Read Temperature
         #tempVal = int(adc)
-        print(adc, lpgbt)
-        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, True)
+        print(temp, adc, lpgbt)
+        ADC_INP_INN = (int(adc)<<4)+int('1111',2)
+        if temp in ['VTRx3', 'VTRRx4', 'VTRx5', 'VTRx6']:
+            IDACCur = 10
+        else:
+            IDACCur = IDAC
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, ADC_INP_INN, True, 0, IDACCur)
         adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+        ## Convert ADC counts to temp
         #tempVal = (adcCounts - 486.2)/2.105
-        voltage = adcCounts*(vref*0.5/512)
-        resistivity = voltage/(IDAC*1E-6)
-        tempVal = (resistivity - 1000)/3.79
+        vref = vREF[lpgbt][int(adc)]
+        voltage = adcCounts*(vref/1024)
+        resistivity = IDACCalibration*voltage/(IDAC*1E-6)
+        tempVal = computeTemp(resistivity)
+        print("ADC Counts: ", adcCounts)
+        print("voltage: ", voltage)
+        print("resistivity: ", resistivity)
+        print("temp: ", tempVal)
+        #continue
+        #tempVal = (resistivity - 1000)/3.79
+        ## Update GUI
         boxName = 'temperature'+temp+'Box'
         try:
             box = getattr(GUI, boxName)
@@ -104,17 +154,32 @@ def checkAllTemps(GUI):
             print("Bad boxname powerMod/ checkAllTemps")
             continue
         #box.document().setPlainText(f'{tempVal:.1f}')
-        box.document().setPlainText(f'{tempVal:.1f} {voltage:.3f} {adcCounts}')
-    
+        if displayADCBox.isChecked():
+            box.document().setPlainText(f'{tempVal:.2f} ({adcCounts})')
+        else:
+            box.document().setPlainText(f'{tempVal:.2f}')
     #return
     # write 14 to ADCInPSelect[3:0] - internal lpgbt temp
     lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
     for lpgbt in lpgbts:
+        ## Check if voltage is selected
+        selectBoxName = lpgbt+"TempSelectBox"
+        try:
+            selectBox = getattr(GUI, selectBoxName)
+        except AttributeError:
+            print('Bad select box name powerMod/checkAllTemps')
+            continue
+        if not selectBox.isChecked():
+            continue
+        ## Read temps
+        print(lpgbt)
         if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
             GUI.lpgbtReset("lpgbt12")
         elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
             GUI.lpgbtReset("lpgbt13")
-        adcH, adcL = checkVoltages(GUI, 14, lpgbt, False)
+        adc = '14'
+        ADC_INP_INN = (int(adc)<<4)+int('1111',2)
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, ADC_INP_INN, False)
         adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
         tempVal = (adcCounts - 486.2)/2.105
         #tempVal = lpgbt
@@ -124,26 +189,30 @@ def checkAllTemps(GUI):
         except AttributeError:
             print("Bad boxname powerMod/ checkAllTemps")
             continue
-        box.document().setPlainText(f'{tempVal:.1f}')
+        if displayADCBox.isChecked():
+            box.document().setPlainText(f'{tempVal:.2f} ({adcCounts})')
+        else:
+            box.document().setPlainText(f'{tempVal:.2f}')
 
 
-def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
+def checkVoltages(GUI, adc, lpgbt, ADC_INP_INN, tempEnable=False, vrefTune = 0, IDACCur = 106):
     """ Checks voltage on given ADC """
     chip = GUI.chips[lpgbt] 
     ICEC_CHANNEL = 1
     adcselect = 0x111
+    adcMON = 0x112
     adcconfig = 0x113 
     vrefcntr = 0x01c
     adcstatusH = 0x1b8
     adcstatusL = 0x1b9
-    vref = 0.9
+    #vref = 0.9
     CURDACChn = 0x6b
     CURDACSelect = 0x6a
     DACConfigH = 0x68
     #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
     if tempEnable == True:
         # set current value - 200 or less, in microamps 
-        GUI.writeToLPGBT(lpgbt, CURDACSelect, [53])
+        GUI.writeToLPGBT(lpgbt, CURDACSelect, [IDACCur])
 
         # enable DAC current
         GUI.writeToLPGBT(lpgbt, DACConfigH, [int('01000000',2)])
@@ -154,13 +223,21 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     # configure input multiplexers to measure ADC0 in signle ended modePins
     # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
     # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
-    GUI.writeToLPGBT(lpgbt, adcselect, [(adc<<4)+int('1111', 2)])
+    ## Normal Input
+    GUI.writeToLPGBT(lpgbt, adcselect, [ADC_INP_INN])
+    ## vrefScan (method #1)
+    #GUI.writeToLPGBT(lpgbt, adcselect, [int('11001111', 2)])
+    ## vrefCalibrate (method #2)
+    #GUI.writeToLPGBT(lpgbt, adcselect, [int('11111111', 2)])
 
     # enable ADC core and set gain of the differential amplifier
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000100', 2)])
 
     # enable internal voltage reference
-    GUI.writeToLPGBT(lpgbt, vrefcntr, [int('10000000', 2)])
+    GUI.writeToLPGBT(lpgbt, vrefcntr, [(int('10',2)<<6)+vrefTune])
+
+    # enable resistive divider for VDD probing.
+    GUI.writeToLPGBT(lpgbt, adcMON, [int('00010000', 2)])
 
     # wait until voltage reference is stable
     time.sleep(0.01)
@@ -178,7 +255,7 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
 
     adcValueH = readback[0]
     adcValueL = GUI.readFromLPGBT(lpgbt, adcstatusL, 1)[0]
-    print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
+    #print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
 
     # clear the convert bit to finish the conversion cycle
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000100', 2)])
@@ -192,49 +269,108 @@ def checkVoltages(GUI, adc, lpgbt, tempEnable=False):
     GUI.writeToLPGBT(lpgbt, adcconfig, [int('00000000', 2)])
     return adcValueH, adcValueL
 
-def checkVoltagesTest(GUI):
-    chip = GUI.chips["lpgbt13"] 
-    ICEC_CHANNEL = 1
-    adcselect = 0x111
-    adcconfig = 0x113 
-    vrefcntr = 0x01c
-    adcstatusH = 0x1b8
-    adcstatusL = 0x1b9
-    vref = 0.9
-    #FOR TEMP - CURDACChn, CURDACEnable, CURDACSelect[7:0]
-    # configure input multiplexers to measure ADC0 in signle ended modePins
-    # ADCInPSelect = ADCCHN_EXT0 ; (4'd0)
-    # ADCInNSelect = ADCCHN_VREF2 ; (4'd15)
-    writeToLpGBT(int(chip.i2cAddress, 2), adcselect, [int('00111111', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
+def selectAllVoltages(GUI, value):
+    for volt in GUI.voltageSettings.keys():
+        boxName = volt+"SelectBox"
+        GUI.updateBox(boxName,value)
 
-    # enable ADC core and set gain of the differential amplifier
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
+def selectAllTemps(GUI, value):
+    for temp in GUI.temperatureSettings.keys():
+        boxName = temp+"TempSelectBox"
+        GUI.updateBox(boxName,value)
+    lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
+    for lpgbt in lpgbts:
+        boxName = lpgbt+"TempSelectBox"
+        GUI.updateBox(boxName,value)    
 
-    # enable internal voltage reference
-    writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('10000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
+def vrefTest(GUI):
+    lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
+    adcs = [str(x) for x in range(0,8)]
+    tables = {}
+    headers = ["Channel", "Counts", "VREF"]
+    try:
+        from tabulate import tabulate
+    except ModuleNotFoundError:
+        print('You need the tabulate package...')
 
-    # wait until voltage reference is stable
-    time.sleep(0.01)
+    for lpgbt in lpgbts:
+        vref = [[] for i in range(0,8)]
+        for adc in adcs:
+            adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, int('11001111',2), False)
+            adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+            voltage = (1.2*0.42)/(adcCounts/1024)
+            print(lpgbt,adc,adcCounts,voltage)
+            vref[int(adc)].append(adc)
+            vref[int(adc)].append(adcCounts)
+            vref[int(adc)].append(voltage)
+        table = tabulate(vref, headers, showindex = "always", tablefmt="psql") 
+        print(lpgbt)
+        print(table)
+        tables[lpgbt] = table
 
-    # start ADC convertion
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('10000100', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
-    status = False
-    attempt = 0
-    while not status and attempt < 10:
-        readback = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusH, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-        status = readback[0] & 0x40
-        attempt += 1
-        if attempt == 10:
-            print("Failed to read voltage after 10 attemps - giving up")
+    with open("vrefScan.txt", "w") as f:
+        for lpgbt in lpgbts:
+            table = tables[lpgbt]
+            f.write(lpgbt+"\n")
+            f.write(table)
+            f.write("\n \n")
+    #with open("vref.py", "w") as p:
+    #    for lpgbt in lpgbts:
+    #        string = 
+            
+def vrefCalibrate(GUI):
+    lpgbts = ['lpgbt'+str(x) for x in range(14,17)]
+    adcs = [str(x) for x in range(0,8)]
+    tables = {}
+    headers = ["Channel", "vrefTune", "Counts", "VREF"]
+    try:
+        from tabulate import tabulate
+    except ModuleNotFoundError:
+        print('You need the tabulate package...')
 
-    adcValueH = readback[0]
-    adcValueL = readFromLpGBT(int(chip.i2cAddress, 2), adcstatusL, 1, ICEC_CHANNEL=ICEC_CHANNEL)[0]
-    print("ADC Value H", adcValueH, "ADC Value L", adcValueL)
+    vrefTune_log = open("vrefTune_log.txt", "w")
+    for lpgbt in lpgbts:
+        vref = [[] for i in range(0,8)]
+        vrefTune_log.write("lpGBT, Channel, vrefTune, adcCounts, voltage \n")
+        for adc in adcs:
+            vrefTune = 0
+            while vrefTune < 64:
+                adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, int('11111111',2), False, vrefTune)
+                adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+                voltage = (1.2*0.42)/(adcCounts/1024)
+                print(lpgbt,adc,vrefTune,adcCounts,voltage)
+                vrefTune_log.write(lpgbt+"  "+adc+"  "+str(vrefTune)+"  "+str(adcCounts)+"  "+str(voltage)+"\n")
+                if adcCounts == 511 or adcCounts == 512 or adcCounts == 513:
+                    break
+                vrefTune += 1
+            vref[int(adc)].append(adc)
+            vref[int(adc)].append(vrefTune)
+            vref[int(adc)].append(adcCounts)
+            vref[int(adc)].append(voltage)
+        table = tabulate(vref, headers, showindex = "always", tablefmt="psql") 
+        print(lpgbt)
+        print(table)
+        tables[lpgbt] = table
+        vrefTune_log.write("\n \n")
 
-    # clear the convert bit to finish the conversion cycle
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000100', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
+    vrefTune_log.close()
+    with open("vrefCalibrate14-15-16.txt", "w") as f:
+        for lpgbt in lpgbts:
+            table = tables[lpgbt]
+            f.write(lpgbt+"\n")
+            f.write(table)
+            f.write("\n \n")
 
-    # if the ADC is not longer needed you may power-down the ADC core and the reference voltage generator
-    writeToLpGBT(int(chip.i2cAddress, 2), vrefcntr, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
-    writeToLpGBT(int(chip.i2cAddress, 2), adcconfig, [int('00000000', 2)], ICEC_CHANNEL=ICEC_CHANNEL)
-
+def computeTemp(R):
+    # R = R0(1+At+Bt^2) solve for t
+    # Find A/B/R0 values and equation in de_datasheet_pt1000 (ask Jaro)
+    R0 = 1000
+    A = 3.9083E-3
+    B = -5.775E-7
+    a = R0*B
+    b = R0*A
+    c = R0-R
+    dis = b**2-4*a*c
+    ans1 = (-b - np.sqrt(dis))/(2*a)
+    ans2 = (-b + np.sqrt(dis))/(2*a)
+    return ans2

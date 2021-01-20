@@ -88,9 +88,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
 
-        self.test2Button.clicked.connect(self.testFunc)
-        #self.test3Button.clicked.connect(lambda: powerMod.checkAllTemps(self))
-        self.test2Button.clicked.connect(clockMod.scanClocks)
+        self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
+        self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
+        #self.test2Button.clicked.connect(clockMod.scanClocks)
         self.takeTriggerDataButton.clicked.connect(self.takeTriggerData)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
@@ -118,6 +118,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #Configuration Buttons
         self.readTemperatureButton.clicked.connect(lambda: powerMod.checkAllTemps(self))
         self.readVoltageButton.clicked.connect(lambda: powerMod.checkAllVoltages(self))
+        self.selectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self, '1'))
+        self.selectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '1'))
+        self.unselectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self, '0'))
+        self.unselectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '0'))
+        self.calculateVREFButton.clicked.connect(lambda: powerMod.vrefTest(self))
+        self.scanVREFTUNEButton.clicked.connect(lambda: powerMod.vrefCalibrate(self))
         #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
@@ -1169,7 +1175,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def takeTriggerData(self):
         """Run script"""
-        subprocess.call("pythontakeTriggerData.py", shell=True)
+        subprocess.call("python takeTriggerData.py", shell=True)
+        # subprocess.call("python ")        
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
