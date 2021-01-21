@@ -8,6 +8,16 @@ import argparse
 from datetime import datetime
 
 #-------------------------------------------------------------------------
+def convert_to_bin(num):
+    binNum=str(int(bin(num)[2:]))
+    while(len(str(binNum)) < 16):
+      binNum = '0'+binNum
+    returnArr = []
+    for i in binNum:
+      returnArr.append(int(i))
+    return returnArr
+
+#-------------------------------------------------------------------------
 def makeHistograms(chanData):
   print('Making histograms... ')
   saveDir = "plots/"
@@ -35,6 +45,18 @@ def makeHistograms(chanData):
       print('Saved fig '+saveDir+"channel"+str(chan)+"_adc"+str(adc)+"_gain"+str(gain)+".pdf")
       plt.clf()
       plt.close()
+
+#-------------------------------------------------------------------------
+def makePlots(chanData):
+  plt.plot(chanData[28][0][0:1000])
+  plt.title("Sine, ADC 8 / Chan 28 Lo") 
+  plt.savefig("0120_testsine_adc8_lo.pdf")
+  plt.clf()
+  plt.plot(chanData[28][1][0:1000])
+  plt.title("Sine, ADC 8 / Chan 28 Hi") 
+  plt.savefig("0120_testsine_adc8_hi.pdf")
+  plt.clf()
+  plt.close()
 
 
 #-------------------------------------------------------------------------
@@ -104,13 +126,13 @@ def make_chanData_trigger(allPackets):
       chanData[chanNum-3][1].append(cu_ch3_hi)
       chanNum -= 4
 
-
   return chanData
 
 
 #-------------------------------------------------------------------------
-#TODO 
-def make_chanData_adc(allPackets):
+def make_chanData_singleADC(allPackets,chanNum = 31):
+  chanData = [] # 0, 128
+  for z in range(128): chanData.append([[],[]])
   reqPacketLength = 16
   prevCounter = 0
   prevNum = 0
@@ -128,18 +150,56 @@ def make_chanData_adc(allPackets):
       print("WEIRD ERROR")
       return chanData
 
+    #something else...
+    #chData = [ packet[4][1], packet[4][0], packet[3][1], packet[3][0], packet[2][1], packet[2][0], packet[1][1], packet[1][0] ]
+    #chanData.append( chData )
+    #chData = [ packet[9][1], packet[9][0], packet[8][1], packet[8][0], packet[7][1], packet[7][0], packet[6][1], packet[6][0] ]
+    #chanData.append( chData )
+    #chData = [ packet[15][0], packet[14][1], packet[14][0], packet[13][1], packet[13][0], packet[12][1], packet[12][0], packet[11][1] ]
+    #chanData.append( chData )
+    
+    #samples only 
+    #chanData.append( (packet[1][1] , packet[1][0]) )
+    #chanData.append( (packet[6][1] , packet[6][0]) )
+    #chanData.append( (packet[12][0], packet[11][1]) )
+    #chanData.append( packet[1][0] )
+    #chanData.append( packet[6][0] )
+    #chanData.append( packet[11][1] ) 
+
     counter = int(packet[0][1]) & 0xFF
-    chData = [ packet[4][1], packet[4][0], packet[3][1], packet[3][0], packet[2][1], packet[2][0], packet[1][1], packet[1][0] ]
-    chanData.append( chData )
-    chData = [ packet[9][1], packet[9][0], packet[8][1], packet[8][0], packet[7][1], packet[7][0], packet[6][1], packet[6][0] ]
-    chanData.append( chData )
-    chData = [ packet[15][0], packet[14][1], packet[14][0], packet[13][1], packet[13][0], packet[12][1], packet[12][0], packet[11][1] ]
-    chanData.append( chData )
+    # 3 samples for this ADC in each packet
+    cu_ch0_lo = [convert_to_bin(packet[4][1]), convert_to_bin(packet[9][1]), convert_to_bin(packet[15][0])] # bits 31:16 = ADC ch1
+    cu_ch0_hi = [convert_to_bin(packet[4][0]), convert_to_bin(packet[9][0]), convert_to_bin(packet[14][1])] # ADC ch2  
+    cu_ch1_hi = [convert_to_bin(packet[3][1]), convert_to_bin(packet[8][1]), convert_to_bin(packet[14][0])] # ADC ch3
+    cu_ch1_lo = [convert_to_bin(packet[3][0]), convert_to_bin(packet[8][0]), convert_to_bin(packet[13][1])] 
+    cu_ch2_lo = [convert_to_bin(packet[2][1]), convert_to_bin(packet[7][1]), convert_to_bin(packet[13][0])] 
+    cu_ch2_hi = [convert_to_bin(packet[2][0]), convert_to_bin(packet[7][0]), convert_to_bin(packet[12][1])] 
+    cu_ch3_hi = [convert_to_bin(packet[1][1]), convert_to_bin(packet[6][1]), convert_to_bin(packet[12][0])] 
+    cu_ch3_lo = [convert_to_bin(packet[1][0]), convert_to_bin(packet[6][0]), convert_to_bin(packet[11][1])] #ADC ch8
+
+    # add to master channel dataset 
+    chanData[chanNum][0].append(  cu_ch0_lo) #index 0 is low gain, index 1 is high gain
+    chanData[chanNum][1].append(  cu_ch0_hi) 
+    chanData[chanNum-1][0].append(cu_ch1_lo)
+    chanData[chanNum-1][1].append(cu_ch1_hi)
+    chanData[chanNum-2][0].append(cu_ch2_lo)
+    chanData[chanNum-2][1].append(cu_ch2_hi)
+    chanData[chanNum-3][0].append(cu_ch3_lo)
+    chanData[chanNum-3][1].append(cu_ch3_hi)
+
+  for i in range(len(chanData)):
+    for j in range(2):
+      if len(chanData[i][j]) > 0: 
+        #print(chanData[i][j])
+        #print(np.concatenate(chanData[i][j],axis=0))
+        chanData[i][j] = (np.concatenate(chanData[i][j],axis=0))
+
+  print(np.shape(chanData))
   #end for loop
   return chanData
 
 #-------------------------------------------------------------------------
-def make_packets(allData):
+def make_packets(allData,dataType):
   
   print('Making packets.....')
   #each element in the list is 4 bytes ie 32 bits
@@ -147,21 +207,36 @@ def make_packets(allData):
   allPackets = []
   tempPacket = []
   for num,line in enumerate(allData) :
-    print('Num: ', num, ', line: ', line)
+    #print('Num: ', num, ', line: ', line)
     #print('Num: ', num, ', 32 bit line: ', line)
 
     if len(line) != 2 :
       print("WEIRD ERROR")
       return None
 
-    #when we find dead beef, add current packet to stack and start fresh
-    if (line[0] == 0xdead ) and (line[1] == 0xbeef) : 
-      print('found dead beef')
-      #print('this is dead beef: '+str(hex(line[0]))+' '+str(hex(line[1])))
-      allPackets.append( tempPacket.copy()  )
-      tempPacket.clear()
-    tempPacket.append(line)
-    #print(num, "0x "+"".join('%02x ' % c for c in line) ,"\t",len(tempPacket))
+    #trigger 
+    if dataType == 'trigger':
+      #when we find dead beef, add current packet to stack and start fresh
+      if (line[0] == 0xdead ) and (line[1] == 0xbeef) :
+        #print('this is dead beef: '+str(hex(line[0]))+' '+str(hex(line[1])))
+        allPackets.append( tempPacket.copy()  )
+        tempPacket.clear()
+      tempPacket.append(line)
+      #print(num, "0x "+"".join('%02x ' % c for c in line) ,"\t",len(tempPacket))
+
+    #single ADC
+    elif dataType == 'singleADC':
+      if ( (int(line[0]) & 0xFF00) == 0x5900 ) :
+        if num < len(allData) -8 :
+          if ( (int(allData[num+8][0]) & 0xFF00) == 0x6a00 ) :
+            allPackets.append( tempPacket.copy()  )
+            tempPacket.clear()
+      tempPacket.append(line)
+  #end for loop
+
+  
+  if dataType == 'singleADC':
+    if len(allPackets) < 2: return []
 
   #first packet is always wrong
   allPackets.pop(0)
@@ -170,19 +245,24 @@ def make_packets(allData):
   return allPackets 
 
 #-------------------------------------------------------------------------
-def writeToHDF5(chanData,fileName):
+def writeToHDF5(chanData,fileName,dataType,chan=28):
 
-  out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','a')
+  out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','w')
   print("Creating hdf5 file: "+ fileName.replace('.dat','')+'.hdf5')
 
   #for m in range(np.shape(chanData)[1]):
   #  out_file.create_group("Measurement_" + str(m))
+  out_file.create_group("Measurement_0")
   for c in range(len(chanData)): 
-    out_file.create_group("channel"+str(c))
-    out_file.create_group("channel"+str(c)+"/hi")
-    out_file.create_group("channel"+str(c)+"/lo")
-    out_file.create_dataset("channel"+str(c)+"/lo/samples",data=chanData[c][0])
-    out_file.create_dataset("channel"+str(c)+"/hi/samples",data=chanData[c][1])
+    if c < 10: cc = '00'+str(c)
+    elif c >=10 and c< 100: cc = '0'+str(c)
+    elif c >= 100: cc =str(c)
+
+    out_file.create_group("Measurement_0/channel"+cc)
+    out_file.create_group("Measurement_0/channel"+cc+"/hi")
+    out_file.create_group("Measurement_0/channel"+cc+"/lo")
+    out_file.create_dataset("Measurement_0/channel"+cc+"/lo/samples",data=chanData[c][0])
+    out_file.create_dataset("Measurement_0/channel"+cc+"/hi/samples",data=chanData[c][1])
   #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
 
 
@@ -211,12 +291,12 @@ def parseData(fileName,dataType,maxNumReads):
       if readCount > maxNumReads: break
   
   #--- parse data, make packets
-  allPackets = make_packets(allData)
+  allPackets = make_packets(allData,dataType)
 
   # -- turn packets in chanData
   if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
   elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets)
-    
+  else: print("Unknown data type") 
   return chanData
 
     
@@ -227,23 +307,25 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("-f", "--file", default = '', type=str,
                      help="file to parse")
-  parser.add_argument("-t", "--type", default = 0, type=str,
+  parser.add_argument("-t", "--type", default = 'trigger', type=str,
                      help="data taking type (trigger, singleADC, allADC)")
-  parser.add_argument("-x", "--max", default = 10000000, type=int,
+  parser.add_argument("-x", "--max", default = 1000000, type=int,
                      help="maxNumReads")
   args = parser.parse_args()
   
   fileName = args.file 
   dataType = args.type
   maxNumReads = args.max
+  makeHists = args.hist
   #fileName = sys.argv[1]
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
   chanData = parseData(fileName,dataType,maxNumReads)
   print("Number of samples",len(chanData))
+  #makePlots(chanData)
   #makeHistograms(chanData)
-  writeToHDF5(chanData,fileName)
+  writeToHDF5(chanData,fileName,dataType)
   print('runtime: ',datetime.now() - startTime)
   return None
   

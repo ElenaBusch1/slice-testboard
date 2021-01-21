@@ -58,6 +58,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
 
+        # Readback configs as they are writen
+        self.READBACK = False
+
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
@@ -124,6 +127,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.unselectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '0'))
         self.calculateVREFButton.clicked.connect(lambda: powerMod.vrefTest(self))
         self.scanVREFTUNEButton.clicked.connect(lambda: powerMod.vrefCalibrate(self))
+        self.readbackConfigCheckBox.stateChanged.connect(self.updateReadback)
         #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
@@ -192,21 +196,26 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     ########################## Basic read/write control for all chips ##########################
 
-    def writeToLPGBT(self, lpgbt, register, dataBits):
+    def writeToLPGBT(self, lpgbt, register, dataBits, disp = False):
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.writeToControlLPGBT(lpgbt,register,dataBits)
         elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
             self.writeToDataLPGBT(lpgbt,register,dataBits)
         else:
             print("Bad LPGBT value in writeToLPGBT")
+        if disp:
+            print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
 
-    def readFromLPGBT(self, lpgbt, register, nBytes):
+
+    def readFromLPGBT(self, lpgbt, register, nBytes, disp = False):
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             readback = self.readFromControlLPGBT(lpgbt, register, nBytes)
         elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
             readback = self.readFromDataLPGBT(lpgbt, register, nBytes)
         else:
             print("Bad LPGBT value in readFromLPGBT")
+        if disp:
+            print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
         return readback
 
     def writeToControlLPGBT(self, lpgbt, register, dataBits):
@@ -242,12 +251,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             sys.exit(1)
         # print(lpgbt, ICEC_CHANNEL)
         if nBytes > 16:
-            print("Error: trying to send more than 16 dataBits in writeToControlLPGBT")
+            print("Error: trying to send more than 16 dataBits in readFromControlLPGBT")
 
         if lpgbt in ['lpgbt11', 'lpgbt14']:
             readback = ecReadFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
         elif lpgbt in ['lpgbt12', 'lpgbt13']:
+            #print(register, nBytes)
             readback = readFromLpGBT(int(chip.i2cAddress, 2), register, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+            #print(readback)
         else:
             print("Invalid lpGBT specified (readFromControlLpgbt)")
         return readback
@@ -268,7 +279,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Error: length of data in writeToDataLpgbt too long")
             return
 
-        print("Writing", [hex(byte) for byte in data], "to register ", hex(register))
+        #print("Writing", [hex(byte) for byte in data], "to register ", hex(register))
         regH, regL = u16_to_bytes(register)
 
         # We will write 16 bytes to i2cM1Data at a time
@@ -316,7 +327,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Invalid lpgbtMaster specified (writeToDataLpgbt)")
             return
 
-        print("Reading register ", hex(register))
+        #print("Reading register ", hex(register))
         regH, regL = u16_to_bytes(register)
         # We will write 2 bytes to the data lpGBT
         writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -333,7 +344,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
         # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
         ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
-        print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
+        #print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
         return ReverseReadback[::-1]
 
     def writeToLAUROC(self, lauroc, register, data):
@@ -375,9 +386,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
-        readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
+        readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
+        return readback
 
-    def writeToCOLUTAChannel(self, coluta, channel, readback = False):
+    def writeToCOLUTAChannel(self, coluta, channel, READBACK):
         """ Write full configuration for given COLUTA channel """
         if self.chips[coluta].lpgbtMaster == '12': 
             ICEC_CHANNEL = 0
@@ -409,8 +421,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
-            if readback:
-                self.readFromCOLUTAChannel(coluta, word)
+            if READBACK:
+                print("Writing", [hex(x) for x in dataBits8[:6]])
+                readback = self.readFromCOLUTAChannel(coluta, word)
+                print("Reading", [hex(x) for x in readback])
+                if readback[:6] == dataBits8[:6]:
+                    print("Successfully readback what was written!")
+                else:
+                    print("Readback does not agree with what was written")     
 
     def readFromCOLUTAChannel(self, coluta, word):
         """ Readback from region defined by word (refer to colutaI2CWriteControl for definition of word) """
@@ -443,7 +461,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
-        readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL) 
+        readback = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189-8, 6, ICEC_CHANNEL=ICEC_CHANNEL) 
+        return readback
 
     def writeToCOLUTAGlobal(self, coluta):
         """ Write all COLUTA Global bits """
@@ -468,7 +487,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             addrModification = counter*8
             dataBits8 = [i for i in range(1,9)]
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -478,6 +496,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
             counter += 1
+            if self.READBACK:
+                print("Writing Global: ", [hex(x) for x in dataBits8])
 
     def readFromCOLUTAGlobal(self, coluta):
         """ Read all COLUTA global bits """
@@ -500,7 +520,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             addrModification = counter*8
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
-            readFromLpGBT(int(lpgbtI2CAddr, 2), 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+            readback = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189-8, 8, ICEC_CHANNEL=ICEC_CHANNEL)
+            print("Reading Global: ", [hex(x) for x in readback])
             counter += 1   
 
     def lpgbtReset(self, lpgbt):
@@ -548,27 +569,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             repeat = 1
 
         lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-        print("lpgbt Master addr is ", lpgbtI2CAddr )
         dataI2CAddr = int(chip.i2cAddress,2)
 
-        if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:   
-            i = 0
-            while i < repeat:
-                if (repeat - i) < 4:
-                    data =  [value for _ in range(repeat - i)]
-                else:
-                    data = [value, value, value, value]
-                self.writeToControlLPGBT(lpgbt, reg_addr + i, data)
-                i += len(data)
-        else:
-            i = 0
-            while i < repeat:
-                if (repeat - i) < 14:
-                    data = [value for _ in range(repeat - i)]
-                else:
-                    data = [value for _ in range(0,14)]
-                self.writeToDataLPGBT(lpgbt, reg_addr+i, data)
-                i += len(data)
+        i = 0
+        while i < repeat:
+            if (repeat - i) < 4:
+                data =  [value for _ in range(repeat - i)]
+            else:
+                data = [value, value, value, value]
+            self.writeToLPGBT(lpgbt, reg_addr + i, data, disp=True)
+            i += len(data)
 
     def readLPBGTRegisters(self):
         """ Reads value from user specified register in user specified lpgbt
@@ -577,7 +587,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         chip = self.chips[lpgbt]
 
         registerBox = getattr(self, 'lpgbtregisterBox')
-        valueBox = getattr(self, 'lpgbtReadLengthBox')
+        repeatBox = getattr(self, 'lpgbtReadLengthBox')
 
         try:
             reg_addr = int(registerBox.toPlainText(),16)
@@ -585,34 +595,21 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Invalid register address")
             return
         try:
-            value = int(valueBox.toPlainText(),10)
+            repeat = int(repeatBox.toPlainText(),10)
         except:
             print("Invalid value - must be decimal")
             return
 
-        if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
-            lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-            dataI2CAddr = int(chip.i2cAddress,2)
-            i=0
-            while i < value:
-                if value - i < 4:
-                    count = value - i
-                else:
-                    count = 4
-                print("Reading ", count, " registers from ", hex(reg_addr + i), " in lpgbt ", lpgbt)
-                self.readFromDataLPGBT(lpgbt, reg_addr + i, count)
-                i += count          
-
-        elif lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
-            i=0
-            while i < value:
-                if value - i < 4:
-                    count = value -i
-                else:
-                    count = 4
-                print("Reading ", count," registers from ", hex(reg_addr + i), " in lpgbt ", lpgbt)
-                self.readFromControlLPGBT(lpgbt, reg_addr + i, count)
-                i += count
+        lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
+        dataI2CAddr = int(chip.i2cAddress,2)
+        i=0
+        while i < repeat:
+            if repeat - i < 4:
+                count = repeat - i
+            else:
+                count = 4
+            readback = self.readFromLPGBT(lpgbt, reg_addr + i, count, disp=True)
+            i += count          
 
 
     ########################## Functions to Send Full Configurations ##########################
@@ -687,15 +684,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         for (register, dataBits) in sectionChunks.items():
             self.writeToControlLPGBT(lpgbt, register, dataBits)
-            # readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
-            # if readback == dataBits:
-            #     print("Successfully readback what was written!")
-            # else:
-            #     print("Readback does not agree with what was written")     
+            if self.READBACK:
+                print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
+                readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+                print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
+                if readback[:len(dataBits)] == dataBits:
+                    print("Successfully readback what was written!")
+                else:
+                    print("Readback does not agree with what was written")     
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
-        print("Resetting lpgbt master control")
+        #print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[lpgbt].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
@@ -714,11 +714,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
        
         for (register, dataBits) in dataBits14.items():
             self.writeToDataLPGBT(lpgbt, register, dataBits)
-            #readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
-            #if readback == dataBits:
-            #    print("Successfully readback what was written!")
-            #else:
-            #    print("Readback does not agree with what was written")
+            if self.READBACK:
+                print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
+                readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
+                print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
+                if readback[:len(dataBits)] == dataBits:
+                    print("Successfully readback what was written!")
+                else:
+                    print("Readback does not agree with what was written")
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -726,7 +729,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             lauroc = getattr(self, 'laurocConfigureBox').currentText()
         else:
             lauroc = laurocName
-        print("Resetting lpgbt master control")
+        #print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
@@ -744,10 +747,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         for iSection in range(0, len(chip)):
             startReg = int(chipList[iSection].address, 0)
             data = sectionChunks[startReg]
-            print("writing", hex(data), "to", hex(startReg))
             self.writeToLAUROC(lauroc, startReg, data)
-            print("reading back")
-            self.readFromLAUROC(lauroc, startReg)
+            if self.READBACK:
+                print("Writing", lauroc, hex(startReg), ":", hex(data))
+                readback = self.readFromLAUROC(lauroc, startReg)
+                print("Reading", lauroc, hex(startReg), ":", hex(readback[0]))
+                if readback[0] == data:
+                    print("Successfully readback what was written!")
+                else:
+                    print("Readback does not agree with what was written")
+
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -756,16 +765,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             coluta = getattr(self, 'colutaConfigureBox').currentText()
         else:
             coluta = colutaName
-        print("Resetting lpgbt master control")
+        #print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[coluta].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
         channels = ["ch"+str(i) for i in range(1,9)]
         for ch in channels:
-            self.writeToCOLUTAChannel(coluta, ch, readback = False)
+            print("Configuring ", ch, coluta)
+            self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
 
         self.writeToCOLUTAGlobal(coluta)
-        self.readFromCOLUTAGlobal(coluta)
+        if self.READBACK:
+            self.readFromCOLUTAGlobal(coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -1164,7 +1175,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Disabling parity")
         chip = self.chips["lpgbt12"]
         writeToLpGBT(int(chip.i2cAddress, 2), 0x03c, [0x01], ICEC_CHANNEL=0)
-        readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1, ICEC_CHANNEL=0)
+        #readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1, ICEC_CHANNEL=0)
 
 
     def showError(self, message):
@@ -1175,7 +1186,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def takeTriggerData(self):
         """Run script"""
-        subprocess.call("pythontakeTriggerData.py", shell=True)
+        ## TODO: one run per GUI opening (max), measurement numbers for repeat data taking
+        if not os.path.exists("Runs"):
+            os.makedirs("Runs")
+        runNumber = 1
+        outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
+        while os.path.exists(outputDirectory):
+            runNumber += 1
+            outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
+        os.makedirs(outputDirectory)
+        outputFile = "/output.dat"
+        subprocess.call("python takeTriggerData.py -o "+outputDirectory+outputFile, shell=True)
+        
+        # subprocess.call("python ")        
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
@@ -1238,6 +1261,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #         self.nSamples = 2047.5
         # except Exception:
         #     self.nSamples = 0
+
+    def updateReadback(self):
+        self.READBACK = self.readbackConfigCheckBox.isChecked()
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
