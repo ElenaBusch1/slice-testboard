@@ -58,6 +58,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
 
+        # Readback configs as they are writen
+        self.READBACK = False
+
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
@@ -73,7 +76,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataParserConfig = "./config/dataConfig.cfg"
         self.ODP = dataParser.dataParser(self, dataParserConfig)
 
-        self.READBACK = False
         # dict that will be filled with settings, like self.chips[chip][section][setting]
         self.chips = {}
         self.powerSettings = {}
@@ -125,6 +127,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.unselectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '0'))
         self.calculateVREFButton.clicked.connect(lambda: powerMod.vrefTest(self))
         self.scanVREFTUNEButton.clicked.connect(lambda: powerMod.vrefCalibrate(self))
+        self.readbackConfigCheckBox.stateChanged.connect(self.updateReadback)
         #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
@@ -1258,6 +1261,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #         self.nSamples = 2047.5
         # except Exception:
         #     self.nSamples = 0
+
+    def updateReadback(self):
+        self.READBACK = self.readbackConfigCheckBox.isChecked()
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
