@@ -147,7 +147,7 @@ def make_packets(allData):
   allPackets = []
   tempPacket = []
   for num,line in enumerate(allData) :
-    print('Num: ', num, ', line: ', line)
+    #print('Num: ', num, ', line: ', line)
     #print('Num: ', num, ', 32 bit line: ', line)
 
     if len(line) != 2 :
@@ -156,7 +156,7 @@ def make_packets(allData):
 
     #when we find dead beef, add current packet to stack and start fresh
     if (line[0] == 0xdead ) and (line[1] == 0xbeef) : 
-      print('found dead beef')
+      #print('found dead beef')
       #print('this is dead beef: '+str(hex(line[0]))+' '+str(hex(line[1])))
       allPackets.append( tempPacket.copy()  )
       tempPacket.clear()
@@ -172,7 +172,7 @@ def make_packets(allData):
 #-------------------------------------------------------------------------
 def writeToHDF5(chanData,fileName):
 
-  out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','a')
+  out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','w')
   print("Creating hdf5 file: "+ fileName.replace('.dat','')+'.hdf5')
 
   #for m in range(np.shape(chanData)[1]):
@@ -216,7 +216,7 @@ def parseData(fileName,dataType,maxNumReads):
   # -- turn packets in chanData
   if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
   elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets)
-    
+  else: print("Unknown data type") 
   return chanData
 
     
@@ -227,22 +227,25 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument("-f", "--file", default = '', type=str,
                      help="file to parse")
-  parser.add_argument("-t", "--type", default = 0, type=str,
+  parser.add_argument("-t", "--type", default = 'trigger', type=str,
                      help="data taking type (trigger, singleADC, allADC)")
-  parser.add_argument("-x", "--max", default = 10000000, type=int,
-                     help="maxNumReads")
+  parser.add_argument("-x", "--max", default = 1000000, type=int,
+                     help="number of samples")
+  parser.add_argument("-h", "--hist", default = False, type=bool, 
+                     help="save histograms")
   args = parser.parse_args()
   
   fileName = args.file 
   dataType = args.type
   maxNumReads = args.max
+  makeHists = args.hist
   #fileName = sys.argv[1]
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
   chanData = parseData(fileName,dataType,maxNumReads)
   print("Number of samples",len(chanData))
-  #makeHistograms(chanData)
+  if makeHists: makeHistograms(chanData)
   writeToHDF5(chanData,fileName)
   print('runtime: ',datetime.now() - startTime)
   return None
