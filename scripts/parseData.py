@@ -316,7 +316,7 @@ def main():
   fileName = args.file 
   dataType = args.type
   maxNumReads = args.max
-  makeHists = args.hist
+  #makeHists = args.hist
   #fileName = sys.argv[1]
 
   print('Parsing '+fileName+' of type '+dataType) 
