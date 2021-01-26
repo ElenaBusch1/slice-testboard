@@ -311,18 +311,22 @@ def main():
                      help="data taking type (trigger, singleADC, allADC)")
   parser.add_argument("-x", "--max", default = 1000000, type=int,
                      help="maxNumReads")
+  parser.add_argument("-h", "--histograms", default = 0, type=int,
+                     help="save histograms (1 for true)")
   args = parser.parse_args()
   
   fileName = args.file 
   dataType = args.type
   maxNumReads = args.max
+  hist = args.histograms
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
   chanData = parseData(fileName,dataType,maxNumReads)
   print("Number of samples",len(chanData))
   #makePlots(chanData)
-  makeHistograms(chanData)
+  if hist == 1:
+      makeHistograms(chanData)
   writeToHDF5(chanData,fileName,dataType)
   print('runtime: ',datetime.now() - startTime)
   return None

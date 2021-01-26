@@ -61,6 +61,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Readback configs as they are writen
         self.READBACK = False
 
+	# Data taking parameters
+        self.opened = True
+        self.outputNumber = 1
+        self.daqMode = 'trigger'
+        self.daqADCSelect = '7'
+
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
@@ -176,9 +182,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
-        self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
-                                                ylim=[0,65536],ylabel='ADC Counts')
-        self.dataGridLayout.addWidget(self.dataDisplay,0,0)
+        #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
+        #                                        ylim=[0,65536],ylabel='ADC Counts')
+        #self.dataGridLayout.addWidget(self.dataDisplay,0,0)
         #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
 
         self.isConnected = True
@@ -1187,6 +1193,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def takeTriggerData(self):
         """Run script"""
         ## TODO: one run per GUI opening (max), measurement numbers for repeat data taking
+        flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4'}
         if not os.path.exists("Runs"):
             os.makedirs("Runs")
         runNumber = 1
@@ -1194,10 +1201,32 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         while os.path.exists(outputDirectory):
             runNumber += 1
             outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
-        os.makedirs(outputDirectory)
-        outputFile = "/output.dat"
-        subprocess.call("python takeTriggerData.py -o "+outputDirectory+outputFile, shell=True)
-        
+        if self.opened:
+            #If this is the first run of a new session make a new Run folder
+            os.makedirs(outputDirectory)
+            self.opened = False
+        else:
+            #Otherwise use current run folder
+            outputDirectory = 'Runs/Run_'+str(runNumber-1).zfill(4)
+        outputFile = "output"+str(self.outputNumber).zfill(3)+".dat"
+        outputPath = outputDirectory+"/"+outputFile
+        self.outputNumber += 1
+        self.daqMode = getattr(self,'daqModeBox').currentText()
+        ADCSelect = getattr(self,'daqADCSelectBox').currentText()
+        try:
+            self.daqADCSelect = flxADCMapping[ADCSelect]
+        except:
+            print("Unknown FLX mapping for this COLUTA. \n Exiting ...")
+            return
+
+        #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
+        time.sleep(1)
+        saveHists = self.saveHistogramsCheckBox.isChecked()
+        print("saveHits: ", saveHists) 
+        #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
+        saveBin = self.saveBinaryCheckBox.isChecked() 
+        #if not saveBin:
+            #subprocess.call("rm "+outputPath)
         # subprocess.call("python ")        
 
     def fifoAReadData(self, port):
