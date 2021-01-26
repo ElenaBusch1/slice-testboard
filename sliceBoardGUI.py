@@ -389,7 +389,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
         return readback
 
-    def writeToCOLUTAChannel(self, coluta, channel, READBACK):
+    def writeToCOLUTAChannel(self, coluta, channel, READBACK = False):
         """ Write full configuration for given COLUTA channel """
         if self.chips[coluta].lpgbtMaster == '12': 
             ICEC_CHANNEL = 0
