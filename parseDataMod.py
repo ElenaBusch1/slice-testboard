@@ -5,6 +5,7 @@ import sys
 import struct
 import h5py
 import argparse
+import os
 from datetime import datetime
 
 #-------------------------------------------------------------------------
@@ -18,15 +19,29 @@ def convert_to_bin(num):
     return returnArr
 
 #-------------------------------------------------------------------------
-def makeHistograms(chanData):
+def convert_to_dec(binArray):
+    decArray = []
+    for num in binArray:
+       dec = int(''.join([str(x) for x in num]),2)
+       decArray.append(dec)
+    return decArray
+
+#-------------------------------------------------------------------------
+def makeHistograms(chanData, runNumber, outputNumber):
   print('Making histograms... ')
-  saveDir = "Runs/Run_"
+  plotDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots"
+  if not os.path.exists(plotDir):
+    os.makedirs(plotDir)
+  saveDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots/output_"+str(outputNumber).zfill(3)+"/"
+  os.makedirs(saveDir)
 
   adc = 0
   for chan in range(len(chanData)): 
     if (chan) % 4 == 0: adc += 1
     for gain in range(len(chanData[chan])): #lo, hi 
-      data = chanData[chan][gain]
+      bin_data = chanData[chan][gain]
+      if np.all(np.asarray(bin_data)==[]): continue #ignore fake data
+      data = convert_to_dec(bin_data)
       if np.all(np.asarray(data)==0): continue #dont bother plotting
       fig, ax = plt.subplots()
       avg = np.mean(data)
@@ -95,24 +110,24 @@ def make_chanData_trigger(allPackets):
     for adc in d_ADCs: # loop over all 32 adcs 
       cu1frame1 = packet[d_ADCs[adc][0]+4][1] # bits 15:0
       if int(cu1frame1) == int(0xfa1): # fake data 
-        cu_ch0_lo =  0
-        cu_ch0_hi =  0
-        cu_ch1_hi =  0
-        cu_ch1_lo =  0
-        cu_ch2_lo =  0
-        cu_ch2_hi =  0
-        cu_ch3_hi =  0
-        cu_ch3_lo =  0  
+        cu_ch3_lo = []
+        cu_ch3_hi = []
+        cu_ch2_hi = []
+        cu_ch2_lo = []
+        cu_ch1_lo = []
+        cu_ch1_hi = []
+        cu_ch0_hi = []
+        cu_ch0_lo = []
       else: 
-        cu_ch3_lo = packet[d_ADCs[adc][0]+4][0] # bits 31:16 = ADC ch1
-        cu_ch3_hi = packet[d_ADCs[adc][0]+3][1] # ADC ch2  
-        cu_ch2_hi = packet[d_ADCs[adc][0]+3][0] # ADC ch3
-        cu_ch2_lo = packet[d_ADCs[adc][0]+2][1] 
-        cu_ch1_lo = packet[d_ADCs[adc][0]+2][0] 
-        cu_ch1_hi = packet[d_ADCs[adc][0]+1][1] 
-        cu_ch0_hi = packet[d_ADCs[adc][0]+1][0] 
-        cu_ch0_lo = packet[d_ADCs[adc][0]][1] # ADC ch8
-      cu1frame8 = packet[d_ADCs[adc][0]][0] # frame
+        cu_ch3_lo = convert_to_bin(packet[d_ADCs[adc][0]+4][0]) # bits 31:16 = ADC ch1
+        cu_ch3_hi = convert_to_bin(packet[d_ADCs[adc][0]+3][1]) # ADC ch2  
+        cu_ch2_hi = convert_to_bin(packet[d_ADCs[adc][0]+3][0]) # ADC ch3
+        cu_ch2_lo = convert_to_bin(packet[d_ADCs[adc][0]+2][1]) 
+        cu_ch1_lo = convert_to_bin(packet[d_ADCs[adc][0]+2][0]) 
+        cu_ch1_hi = convert_to_bin(packet[d_ADCs[adc][0]+1][1]) 
+        cu_ch0_hi = convert_to_bin(packet[d_ADCs[adc][0]+1][0]) 
+        cu_ch0_lo = convert_to_bin(packet[d_ADCs[adc][0]][1]) # ADC ch8
+      cu1frame8 = convert_to_bin(packet[d_ADCs[adc][0]][0]) # frame
       #if int(cu1frame8) == int(0xfa8): continue # will never get to here
     
       # add to master channel dataset 
@@ -302,35 +317,22 @@ def parseData(fileName,dataType,maxNumReads):
     
 
 #-------------------------------------------------------------------------
-def main():
-
-  parser = argparse.ArgumentParser()
-  parser.add_argument("-f", "--file", default = '', type=str,
-                     help="file to parse")
-  parser.add_argument("-t", "--type", default = 'trigger', type=str,
-                     help="data taking type (trigger, singleADC, allADC)")
-  parser.add_argument("-x", "--max", default = 1000000, type=int,
-                     help="maxNumReads")
-  parser.add_argument("-h", "--histograms", default = False, type=bool,
-                     help="save histograms")
-  args = parser.parse_args()
-  
-  fileName = args.file 
-  dataType = args.type
-  maxNumReads = args.max
-  hist = args.histograms
+def main(GUI, fileName):
+ 
+  dataType = GUI.daqMode
+  maxNumReads = GUI.nSamples
+  saveHists = GUI.saveHistogramsCheckBox.isChecked()
+  runNumber = GUI.runNumber
+  outputNumber = GUI.outputNumber
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
   chanData = parseData(fileName,dataType,maxNumReads)
   print("Number of samples",len(chanData))
   #makePlots(chanData)
-  if hist:
-      makeHistograms(chanData)
+  if saveHists:
+      makeHistograms(chanData, runNumber, outputNumber)
   writeToHDF5(chanData,fileName,dataType)
   print('runtime: ',datetime.now() - startTime)
   return None
-  
-if __name__ == "__main__":
-  main()
 

@@ -21,12 +21,12 @@ adc = args.adc[0]
 if mode == 'trigger':
     os.system("fpepo 0x66d0 0x100") #trigger mode
 # Single ADC mode
-elif mode == 'singleADC'
+elif mode == 'singleADC':
     os.system("fpepo 0x66f0 0x07") #select ADC, see flx-adc-mapping.txt 
     os.system("fpepo 0x66d0 "+f"{adc:#0{5}x}") #single adc mode
 else:
     print("DAQ Mode not recognized. \n Exiting...")
-    return
+    exit()
 
 #Take data
 os.system("fpepo 0x66e0 0x7f0000")

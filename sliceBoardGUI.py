@@ -10,6 +10,8 @@ import dataParser
 import clockMod
 import serialMod
 import powerMod
+import takeDataMod
+import parseDataMod
 import status
 import subprocess
 from functools import partial
@@ -53,7 +55,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Some version-dependent parameters/values
-        self.nSamples = 200  # default number of samples to parse from standard readout
+        self.nSamples = 100000  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
@@ -63,7 +65,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 	# Data taking parameters
         self.opened = True
-        self.outputNumber = 1
+        self.outputNumber = 0
+        self.runNumber = self.getRunNumber()
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
 
@@ -181,6 +184,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
+        self.nSamplesBox.document().setPlainText(str(self.nSamples))
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
         #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
         #                                        ylim=[0,65536],ylabel='ADC Counts')
@@ -656,12 +660,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sendFullCOLUTAConfig("coluta20")
         time.sleep(0.5) 
 
-        print("Configuring LAUROC16")
-        self.sendFullLAUROCConfigs("lauroc16")
-        time.sleep(0.5)
-        print("Configuring LAUROC20")
-        self.sendFullLAUROCConfigs("lauroc20")
-        time.sleep(0.5)
+        #print("Configuring LAUROC16")
+        #self.sendFullLAUROCConfigs("lauroc16")
+        #time.sleep(0.5)
+        #print("Configuring LAUROC20")
+        #self.sendFullLAUROCConfigs("lauroc20")
+        #time.sleep(0.5)
         
 
     def sendFullLPGBTConfigs(self):
@@ -1196,21 +1200,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4'}
         if not os.path.exists("Runs"):
             os.makedirs("Runs")
-        runNumber = 1
-        outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
-        while os.path.exists(outputDirectory):
-            runNumber += 1
-            outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
+        outputDirectory = 'Runs/Run_'+str(self.runNumber).zfill(4)
         if self.opened:
             #If this is the first run of a new session make a new Run folder
             os.makedirs(outputDirectory)
             self.opened = False
-        else:
-            #Otherwise use current run folder
-            outputDirectory = 'Runs/Run_'+str(runNumber-1).zfill(4)
-        outputFile = "output"+str(self.outputNumber).zfill(3)+".dat"
-        outputPath = outputDirectory+"/"+outputFile
         self.outputNumber += 1
+        outputFile = "output"+str(self.outputNumber).zfill(3)+".dat"
+        stampedOutputFile = "output"+str(self.outputNumber).zfill(3)+"-1.dat"
+        outputPath = outputDirectory+"/"+outputFile
+        outputPathStamped = outputDirectory+"/"+stampedOutputFile
         self.daqMode = getattr(self,'daqModeBox').currentText()
         ADCSelect = getattr(self,'daqADCSelectBox').currentText()
         try:
@@ -1219,15 +1218,25 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Unknown FLX mapping for this COLUTA. \n Exiting ...")
             return
 
-        #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
-        time.sleep(1)
-        saveHists = self.saveHistogramsCheckBox.isChecked()
-        print("saveHits: ", saveHists) 
+        subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
+        #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
+        time.sleep(5)
+        parseDataMod.main(self,outputDirectory+"/"+stampedOutputFile)
         #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
         saveBin = self.saveBinaryCheckBox.isChecked() 
-        #if not saveBin:
-            #subprocess.call("rm "+outputPath)
+        if not saveBin:
+            print("Removing "+outputPathStamped)
+            subprocess.call("rm "+outputPathStamped, shell=True)
+            #subprocess.call("rm test.txt")
         # subprocess.call("python ")        
+
+    def getRunNumber(self):
+        runNumber = 1
+        outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
+        while os.path.exists(outputDirectory):
+            runNumber += 1
+            outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
+        return runNumber
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
