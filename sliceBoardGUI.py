@@ -660,12 +660,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sendFullCOLUTAConfig("coluta20")
         time.sleep(0.5) 
 
-        #print("Configuring LAUROC16")
-        #self.sendFullLAUROCConfigs("lauroc16")
-        #time.sleep(0.5)
-        #print("Configuring LAUROC20")
-        #self.sendFullLAUROCConfigs("lauroc20")
-        #time.sleep(0.5)
+        print("Configuring LAUROC16")
+        self.sendFullLAUROCConfigs("lauroc16")
+        time.sleep(0.5)
+        print("Configuring LAUROC20")
+        self.sendFullLAUROCConfigs("lauroc20")
+        time.sleep(0.5)
         
 
     def sendFullLPGBTConfigs(self):
