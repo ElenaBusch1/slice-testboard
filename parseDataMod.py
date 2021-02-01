@@ -5,7 +5,6 @@ import sys
 import struct
 import h5py
 import argparse
-import datetime
 import os
 from datetime import datetime
 
@@ -263,13 +262,14 @@ def make_packets(allData,dataType):
 #-------------------------------------------------------------------------
 def writeToHDF5(chanData,fileName,attributes,chan=28):
 
-  out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','w')
-  print("Creating hdf5 file: "+ fileName.replace('.dat','')+'.hdf5')
+  out_file = h5py.File(fileName.replace('-1.dat','')+'.hdf5','w')
+  print("Creating hdf5 file: "+ fileName.replace('-1.dat','')+'.hdf5')
 
   #for m in range(np.shape(chanData)[1]):
   #  out_file.create_group("Measurement_" + str(m))
   grp = out_file.create_group("Measurement_0")
   for attr in attributes:
+    print(attr, attributes[attr])
     grp.attrs[attr] = attributes[attr]
   for c in range(len(chanData)): 
     if c < 10: cc = '00'+str(c)
@@ -337,7 +337,7 @@ def main(GUI, fileName):
   attributes['measType'] = GUI.measType
   attributes['runNum'] = GUI.runNumber
   attributes['adc'] = GUI.singleADCMode_ADC
-  attributes['timestamp'] = datetime.datetime.now()
+  attributes['timestamp'] = str(datetime.now())
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()

@@ -1202,8 +1202,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.setWindowTitle("Error")
 
     def takeTriggerData(self, measType):
-        """Run script"""
-        ## TODO: one run per GUI opening (max), measurement numbers for repeat data taking
+        """Runs takeTriggerData script"""
         self.measType = measType
         flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4'}
         if not os.path.exists("Runs"):
@@ -1239,10 +1238,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # subprocess.call("python ")        
 
     def getRunNumber(self):
-        outputFile = 'Runs/run_'+str(self.runNumber).zfill(4)+".hdf5"
+        outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
         while os.path.exists(outputFile):
             self.runNumber += 1
-            outputFile = 'Runs/run_'+str(self.runNumber).zfill(4)+".hdf5"
+            print(self.runNumber)
+            outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
