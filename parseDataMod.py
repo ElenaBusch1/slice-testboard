@@ -5,6 +5,7 @@ import sys
 import struct
 import h5py
 import argparse
+import datetime
 import os
 from datetime import datetime
 
@@ -27,12 +28,12 @@ def convert_to_dec(binArray):
     return decArray
 
 #-------------------------------------------------------------------------
-def makeHistograms(chanData, runNumber, outputNumber):
+def makeHistograms(chanData, runNumber):
   print('Making histograms... ')
   plotDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots"
   if not os.path.exists(plotDir):
     os.makedirs(plotDir)
-  saveDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots/output_"+str(outputNumber).zfill(3)+"/"
+  saveDir = "Runs/plots/Run_"+str(runNumber).zfill(4)+"/"
   os.makedirs(saveDir)
 
   adc = 0
@@ -260,14 +261,16 @@ def make_packets(allData,dataType):
   return allPackets 
 
 #-------------------------------------------------------------------------
-def writeToHDF5(chanData,fileName,dataType,chan=28):
+def writeToHDF5(chanData,fileName,attributes,chan=28):
 
   out_file = h5py.File(fileName.replace('.dat','')+'.hdf5','w')
   print("Creating hdf5 file: "+ fileName.replace('.dat','')+'.hdf5')
 
   #for m in range(np.shape(chanData)[1]):
   #  out_file.create_group("Measurement_" + str(m))
-  out_file.create_group("Measurement_0")
+  grp = out_file.create_group("Measurement_0")
+  for attr in attributes:
+    grp.attrs[attr] = attributes[attr]
   for c in range(len(chanData)): 
     if c < 10: cc = '00'+str(c)
     elif c >=10 and c< 100: cc = '0'+str(c)
@@ -323,7 +326,18 @@ def main(GUI, fileName):
   maxNumReads = GUI.nSamples
   saveHists = GUI.saveHistogramsCheckBox.isChecked()
   runNumber = GUI.runNumber
-  outputNumber = GUI.outputNumber
+
+  attributes = {}
+  attributes['boardID'] = GUI.boardID
+  attributes['att_val'] = GUI.att_val
+  attributes['awg_amp'] = GUI.awg_amp
+  attributes['awg_freq'] = GUI.awg_freq
+  #attributes['measChan'] = GUI.measChan
+  attributes['measStep'] = GUI.measStep
+  attributes['measType'] = GUI.measType
+  attributes['runNum'] = GUI.runNumber
+  attributes['adc'] = GUI.singleADCMode_ADC
+  attributes['timestamp'] = datetime.datetime.now()
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
@@ -331,8 +345,8 @@ def main(GUI, fileName):
   print("Number of samples",len(chanData))
   #makePlots(chanData)
   if saveHists:
-      makeHistograms(chanData, runNumber, outputNumber)
-  writeToHDF5(chanData,fileName,dataType)
+      makeHistograms(chanData, runNumber)
+  writeToHDF5(chanData,fileName,attributes)
   print('runtime: ',datetime.now() - startTime)
   return None
 

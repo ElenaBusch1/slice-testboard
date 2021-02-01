@@ -10,7 +10,6 @@ import dataParser
 import clockMod
 import serialMod
 import powerMod
-import takeDataMod
 import parseDataMod
 import status
 import subprocess
@@ -55,6 +54,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Some version-dependent parameters/values
+
         self.nSamples = 100000  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
@@ -64,11 +64,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.READBACK = False
 
 	# Data taking parameters
-        self.opened = True
-        self.outputNumber = 0
-        self.runNumber = self.getRunNumber()
+        self.boardID = '-99'
+        self.att_val = '-99'
+        self.awg_amp = '-99'
+        self.awg_freq = '-99'
+        self.measStep = '-99'
+        self.measType = ''
+        self.runNumber = 1
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
+        self.singleADCMode_ADC = 'trigger'
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
@@ -103,7 +108,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
         #self.test2Button.clicked.connect(clockMod.scanClocks)
-        self.takeTriggerDataButton.clicked.connect(self.takeTriggerData)
+        self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
+        self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
+        self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
@@ -1194,20 +1201,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
-    def takeTriggerData(self):
+    def takeTriggerData(self, measType):
         """Run script"""
         ## TODO: one run per GUI opening (max), measurement numbers for repeat data taking
+        self.measType = measType
         flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4'}
         if not os.path.exists("Runs"):
             os.makedirs("Runs")
-        outputDirectory = 'Runs/Run_'+str(self.runNumber).zfill(4)
-        if self.opened:
-            #If this is the first run of a new session make a new Run folder
-            os.makedirs(outputDirectory)
-            self.opened = False
-        self.outputNumber += 1
-        outputFile = "output"+str(self.outputNumber).zfill(3)+".dat"
-        stampedOutputFile = "output"+str(self.outputNumber).zfill(3)+"-1.dat"
+        outputDirectory = 'Runs'
+        self.getRunNumber()
+        outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
+        stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
         outputPathStamped = outputDirectory+"/"+stampedOutputFile
         self.daqMode = getattr(self,'daqModeBox').currentText()
@@ -1217,11 +1221,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         except:
             print("Unknown FLX mapping for this COLUTA. \n Exiting ...")
             return
+        if self.daqMode == "singleADC":
+            self.singleADCMode_ADC = ADCSelect
+        else:
+            self.singleADCMode_ADC = 'trigger'
 
         subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
         time.sleep(5)
-        parseDataMod.main(self,outputDirectory+"/"+stampedOutputFile)
+        parseDataMod.main(self, outputPathStamped)
         #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
         saveBin = self.saveBinaryCheckBox.isChecked() 
         if not saveBin:
@@ -1231,12 +1239,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # subprocess.call("python ")        
 
     def getRunNumber(self):
-        runNumber = 1
-        outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
-        while os.path.exists(outputDirectory):
-            runNumber += 1
-            outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
-        return runNumber
+        outputFile = 'Runs/run_'+str(self.runNumber).zfill(4)+".hdf5"
+        while os.path.exists(outputFile):
+            self.runNumber += 1
+            outputFile = 'Runs/run_'+str(self.runNumber).zfill(4)+".hdf5"
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
