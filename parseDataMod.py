@@ -262,12 +262,11 @@ def make_packets(allData,dataType):
 #-------------------------------------------------------------------------
 def writeToHDF5(chanData,fileName,attributes,chan=28):
 
-  out_file = h5py.File(fileName.replace('-1.dat','')+'.hdf5','w')
-  print("Creating hdf5 file: "+ fileName.replace('-1.dat','')+'.hdf5')
+  out_file = h5py.File(fileName.replace('-1.dat','')+'.hdf5','a')
+  print("Opening hdf5 file: "+ fileName.replace('-1.dat','')+'.hdf5')
 
-  #for m in range(np.shape(chanData)[1]):
-  #  out_file.create_group("Measurement_" + str(m))
-  grp = out_file.create_group("Measurement_0")
+  m = str(len(out_file.keys()))
+  grp = out_file.create_group("Measurement_"+m)
   for attr in attributes:
     print(attr, attributes[attr])
     grp.attrs[attr] = attributes[attr]
@@ -276,11 +275,11 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
     elif c >=10 and c< 100: cc = '0'+str(c)
     elif c >= 100: cc =str(c)
 
-    out_file.create_group("Measurement_0/channel"+cc)
-    out_file.create_group("Measurement_0/channel"+cc+"/hi")
-    out_file.create_group("Measurement_0/channel"+cc+"/lo")
-    out_file.create_dataset("Measurement_0/channel"+cc+"/lo/samples",data=chanData[c][0])
-    out_file.create_dataset("Measurement_0/channel"+cc+"/hi/samples",data=chanData[c][1])
+    out_file.create_group("Measurement_"+m+"/channel"+cc)
+    out_file.create_group("Measurement_"+m+"/channel"+cc+"/hi")
+    out_file.create_group("Measurement_"+m+"/channel"+cc+"/lo")
+    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/lo/samples",data=chanData[c][0])
+    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/hi/samples",data=chanData[c][1])
   #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
 
 

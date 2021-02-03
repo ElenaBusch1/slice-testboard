@@ -11,6 +11,7 @@ import clockMod
 import serialMod
 import powerMod
 import parseDataMod
+import instrumentControlMod
 import status
 import subprocess
 from functools import partial
@@ -79,12 +80,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
-        # USB-ISS port setup
-        #i2cPortFound = None
-        #self.i2cPort = None
-        #if not self.pArgs.no_connect:
-        #    i2cPortFound = configureLpGBT1213.findPort()
-        #    self.i2cPort = configureLpGBT1213.setupSerial(i2cPortFound)
+        # Instrument control
+        self.IPaddress = self.ipAddressBox.toPlainText()
+        self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
+        self.function_generator = getattr(self.IC,'function_generator')
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
@@ -108,6 +107,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
         #self.test2Button.clicked.connect(clockMod.scanClocks)
+   
+        # instrument buttons
+        self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
+
+        # Data buttons
         self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
         self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
@@ -673,7 +677,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring LAUROC20")
         self.sendFullLAUROCConfigs("lauroc20")
         time.sleep(0.5)
-        
+
+        print("Done Configuring") 
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
@@ -983,6 +988,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         self.writeToCOLUTAChannel(chipName, data[0])
             else:
                 print('ChipName Not recognized: ', chipName)
+        print("Done Updating")
 
 
     def sortUpdates(self, updates, maxConsecutive):
@@ -1039,6 +1045,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #self.status45.send()
             #self.status45.sendSoftwareReset()
 
+    def updateStatusBar(self,message='Ready'):
+        """Updates the status bar on the GUI frontpage"""
+        self.statusBar.showMessage('Run '+str(self.runNumber).zfill(4)+' - '+messaage)
 
     def handshake(self):
         """Checks the serial connections. Gives green status to valid ones"""
