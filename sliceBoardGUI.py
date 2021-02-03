@@ -10,6 +10,7 @@ import dataParser
 import clockMod
 import serialMod
 import powerMod
+import parseDataMod
 import status
 import subprocess
 from functools import partial
@@ -53,13 +54,26 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.timeout = 2
 
         # Some version-dependent parameters/values
-        self.nSamples = 200  # default number of samples to parse from standard readout
+
+        self.nSamples = 100000  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
 
         # Readback configs as they are writen
         self.READBACK = False
+
+	# Data taking parameters
+        self.boardID = '-99'
+        self.att_val = '-99'
+        self.awg_amp = '-99'
+        self.awg_freq = '-99'
+        self.measStep = '-99'
+        self.measType = ''
+        self.runNumber = 1
+        self.daqMode = 'trigger'
+        self.daqADCSelect = '7'
+        self.singleADCMode_ADC = 'trigger'
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
@@ -94,7 +108,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
         #self.test2Button.clicked.connect(clockMod.scanClocks)
-        self.takeTriggerDataButton.clicked.connect(self.takeTriggerData)
+        self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
+        self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
+        self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
@@ -175,10 +191,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
+        self.nSamplesBox.document().setPlainText(str(self.nSamples))
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
-        self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
-                                                ylim=[0,65536],ylabel='ADC Counts')
-        self.dataGridLayout.addWidget(self.dataDisplay,0,0)
+        #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
+        #                                        ylim=[0,65536],ylabel='ADC Counts')
+        #self.dataGridLayout.addWidget(self.dataDisplay,0,0)
         #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
 
         self.isConnected = True
@@ -389,7 +406,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
         return readback
 
-    def writeToCOLUTAChannel(self, coluta, channel, READBACK):
+    def writeToCOLUTAChannel(self, coluta, channel, READBACK = False):
         """ Write full configuration for given COLUTA channel """
         if self.chips[coluta].lpgbtMaster == '12': 
             ICEC_CHANNEL = 0
@@ -618,14 +635,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring lpgbt12")
         self.sendFullControlLPGBTConfigs("lpgbt12")
         time.sleep(0.5)
-        print("Configuring lpgbt11")
-        self.sendFullControlLPGBTConfigs("lpgbt11")
-        time.sleep(0.5)
         print("Configuring lpgbt13")
         self.sendFullControlLPGBTConfigs("lpgbt13")
         time.sleep(0.5)
         print("Configuring lpgbt14")
         self.sendFullControlLPGBTConfigs("lpgbt14")
+        time.sleep(0.5)
+        print("Configuring lpgbt11")
+        self.sendFullControlLPGBTConfigs("lpgbt11")
         time.sleep(0.5)
         print("Configuring lpgbt10")
         self.sendFullDataLPGBTConfigs("lpgbt10")
@@ -1184,21 +1201,48 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
-    def takeTriggerData(self):
-        """Run script"""
-        ## TODO: one run per GUI opening (max), measurement numbers for repeat data taking
+    def takeTriggerData(self, measType):
+        """Runs takeTriggerData script"""
+        self.measType = measType
+        flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4'}
         if not os.path.exists("Runs"):
             os.makedirs("Runs")
-        runNumber = 1
-        outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
-        while os.path.exists(outputDirectory):
-            runNumber += 1
-            outputDirectory = 'Runs/Run_'+str(runNumber).zfill(4)
-        os.makedirs(outputDirectory)
-        outputFile = "/output.dat"
-        subprocess.call("python takeTriggerData.py -o "+outputDirectory+outputFile, shell=True)
-        
+        outputDirectory = 'Runs'
+        self.getRunNumber()
+        outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
+        stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
+        outputPath = outputDirectory+"/"+outputFile
+        outputPathStamped = outputDirectory+"/"+stampedOutputFile
+        self.daqMode = getattr(self,'daqModeBox').currentText()
+        ADCSelect = getattr(self,'daqADCSelectBox').currentText()
+        try:
+            self.daqADCSelect = flxADCMapping[ADCSelect]
+        except:
+            print("Unknown FLX mapping for this COLUTA. \n Exiting ...")
+            return
+        if self.daqMode == "singleADC":
+            self.singleADCMode_ADC = ADCSelect
+        else:
+            self.singleADCMode_ADC = 'trigger'
+
+        subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
+        #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
+        time.sleep(5)
+        parseDataMod.main(self, outputPathStamped)
+        #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
+        saveBin = self.saveBinaryCheckBox.isChecked() 
+        if not saveBin:
+            print("Removing "+outputPathStamped)
+            subprocess.call("rm "+outputPathStamped, shell=True)
+            #subprocess.call("rm test.txt")
         # subprocess.call("python ")        
+
+    def getRunNumber(self):
+        outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
+        while os.path.exists(outputFile):
+            self.runNumber += 1
+            print(self.runNumber)
+            outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""

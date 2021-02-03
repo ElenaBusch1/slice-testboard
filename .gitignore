@@ -1,1 +1,6 @@
 *.hdf5
+*.dat
+data/
+analysis/convert.py.dep
+Runs/
+scripts/plots/
