@@ -8,10 +8,10 @@ date: October 18, 2018
 """
 
 # pyVISA library to set up connection with the instruments
-try:
-    import visa
-except:
-    pass
+#try:
+import visa
+#except:
+#    pass
 import numpy
 from PyQt5 import QtWidgets
 import configparser
