@@ -1,7 +1,10 @@
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib import pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 import csv
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from pylab import MaxNLocator     
 from matplotlib.font_manager import FontProperties
 from scipy import linalg
