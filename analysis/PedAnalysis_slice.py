@@ -165,15 +165,15 @@ class AnalyzePed(object):
             plt.close()
             plt.clf()
 
-    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = [],plot = True):
+    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
 
             do_fit = True
             fig,ax = plt.subplots()
 
             print("here!",max(data))
-            if max(data) > 2**15: return
-            if len(data) <1: return 
-	    if min(data) == max(data): return
+            #if max(data) > 2**15: return
+            #if len(data) <1: return 
+	    #if min(data) == max(data): return
             # data = data[data > 0]
             # data = data[data < 2**15]
 	    fit_points = np.linspace(min(data),max(data),1000)
@@ -204,10 +204,10 @@ class AnalyzePed(object):
               ax.grid(zorder = 0)
               #ax.set_xlim(42900,43100)
               if coherent: 
-                  ax.text(.6,.8,"$E[\sigma] = "  + str(round(np.sqrt(coherent[0]**2 + coherent[1]**2),3)) + "$",transform = ax.transAxes)
+                  ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
 
               plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-              #plt.show()
+              plt.show()
               print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
 
             plt.cla()
@@ -234,25 +234,39 @@ class AnalyzePed(object):
 
                 self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
   
-    def PlotCoherentNoise(self,plot_dir, ch1 = None,ch2 = None):
+    def PlotCoherentNoise(self,plot_dir,chs):# ch1 = None,ch2 = None):
 
-        if not (ch1 and ch2): 
+        if not (chs): 
             print("Please specify 2 channels to see a coherent noise plot")
             return
 
+        sig_2_tot = 0
+
+        ped_tot = np.zeros(np.shape(self.Samples)[-1])
+
         meas_to_plot = range(self.nMeas)
         for meas in meas_to_plot:
-            for i,gain in enumerate(self.Gains):
+            #for i,gain in enumerate(self.Gains):
+            for i,gain in enumerate(["hi"]):
 
-                ped_1 = self.Samples[meas,i,self.ChanDict[ch1],:]                
-                ped_2 = self.Samples[meas,i,self.ChanDict[ch2],:]
+                for channel in chs:
 
-                sig1 = self.makeFittedHist(ped_1,plot_dir,"",ch1, gain, plot = False)
-                sig2 = self.makeFittedHist(ped_2,plot_dir,"",ch2, gain, plot = False)
-                print("s1**2 + s2**2 = ",np.sqrt(sig1**2 + sig2**2))
+                    ped_i = self.Samples[meas,i,self.ChanDict[channel],:]
 
-                joint_pedestal = ped_1 + ped_2               
-                self.makeFittedHist(joint_pedestal,plot_dir,"Coherent Noise",ch1 + "_" + ch2,gain, coherent = [sig1,sig2])
+                    sig_i = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, plot = False)
+
+                    sig_2_tot += sig_i**2
+                    ped_tot += ped_i
+
+                #ped_1 = self.Samples[meas,i,self.ChanDict[ch1],:]                
+                #ped_2 = self.Samples[meas,i,self.ChanDict[ch2],:]
+
+                #sig1 = self.makeFittedHist(ped_1,plot_dir,"",ch1, gain, plot = False)
+                #sig2 = self.makeFittedHist(ped_2,plot_dir,"",ch2, gain, plot = False)
+                #print("s1**2 + s2**2 = ",np.sqrt(sig1**2 + sig2**2))
+
+                #joint_pedestal = ped_1 + ped_2               
+                self.makeFittedHist(ped_tot,plot_dir,"Coherent Noise","COLUTA_16_20",gain, coherent = np.sqrt(sig_2_tot))
 
 
 
@@ -283,9 +297,10 @@ def main():
     #PedData.Channels = ["channel030","channel031"]
     #PedData.Gains = ["lo"]
     print(PedData.ChanDict)
-    PedData.PlotRaw(plot_dir)
-    PedData.AnalyzeBaseline(plot_dir)
-    #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel031",ch2 = "channel031")
+    #PedData.PlotRaw(plot_dir)
+    #PedData.AnalyzeBaseline(plot_dir)
+    #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
+    PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     '''
     PedData.Channels = ["channel031"]
     peddata.gains = ["hi"]
