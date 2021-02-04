@@ -35,7 +35,7 @@ class Process(object):
                                                                   channel = str(channel),\
                                                                   gain = gain)])
 
-                    if len(raw_data) == 0: continue  
+                    if np.shape(raw_data)[-1] == 0: continue  
 
                     print(np.shape(raw_data))
 
@@ -70,6 +70,7 @@ class Process(object):
           except KeyError:
               measType = "normal"
 
+          measType = "normal"
           if not measType in meas_dict.keys():
 
                  meas_dict[measType] = []
@@ -91,7 +92,7 @@ def main():
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
-    sliceAnalyzeFile = Process(input_dir + runName + "_testpulse.hdf5")
+    sliceAnalyzeFile = Process(input_dir + runName + "_testped.hdf5")
     #sliceAnalyzeFile = Process(input_dir + "Run_" + runName + "_Output.hdf5")
     print(sliceAnalyzeFile.fileName)
     sliceAnalyzeFile.getMeasTypeDict()
@@ -99,7 +100,7 @@ def main():
 
     print(sliceAnalyzeFile.measTypeDict)
     print(sliceAnalyzeFile.Channels)
-    mType = "Pulse"
+    mType = "Pedestal"
 
     sliceAnalyzeFile.getNormalWF(output_dir,mType)
 
