@@ -9,7 +9,7 @@ date: October 18, 2018
 
 # pyVISA library to set up connection with the instruments
 try:
-    import visa
+    import pyvisa as visa
 except:
     pass
 import numpy
@@ -135,6 +135,7 @@ class Device(Setting):
         ipAddress = self.getSetting('ipAddress')
         print(ipAddress)
         try:
+            print(ipAddress)
             device = self.resourceManager.open_resource("TCPIP::"+ipAddress)
             print(device.query("*IDN?"))
         except visa.VisaIOError:
@@ -270,11 +271,11 @@ class t3awg3252(Device):
         self.coluta.runType = 'pulse'
         CH1_Frequency = 0.6253257
         CH1_Amplitude = self.getSetting('pulse_amplitude')
-        try:
-            from physics_pulse import byteSamples
-        except:
-            self.coluta.showError('Unable to find physics_pulse.py')
-            return
+        #try:
+        from physics_pulse import byteSamples
+        #except:
+        #    self.coluta.showError('Unable to find physics_pulse.py')
+        #    return
         self.device.write_binary_values('TRACE1:DATA ', byteSamples, datatype='B', is_big_endian=False)
         self.device.write("SOURce1:FUNCtion:SHAPe ARBB")
         self.device.write("SOURce1:VOLTage:AMPLitude " + str(CH1_Amplitude))
@@ -290,11 +291,11 @@ class t3awg3252(Device):
         #N_Pulses = self.getSetting('n_pulses')
         N_Pulses = str(self.coluta.n_pulsesBox.toPlainText())
         N_Samples = self.getSetting('n_samples_per_pulse').split(',')
-        try:
-            from physics_pulse import byteSamples
-        except:
-            self.coluta.showError('Unable to find physics_pulse.py')
-            return
+        #try:
+        from physics_pulse import byteSamples
+        #except:
+        #    self.coluta.showError('Unable to find physics_pulse.py')
+        #    return
         bursts = "AFGControl:BURST " + N_Pulses
         self.device.write(bursts)
         self.device.write("AFGControl:RMODe BURSt")
@@ -315,11 +316,11 @@ class t3awg3252(Device):
         #CH1_Amplitude = self.getSetting('pulse_amplitude')
         CH1_Amplitude = str(self.coluta.pulse_amplitudeBox.toPlainText())
         N_Pulses = str(self.coluta.n_pulsesBox.toPlainText())
-        try:
-            from physics_pulse import byteSamples2
-        except:
-            self.coluta.showError('Unable to find physics_pulse.py')
-            return
+        #try:
+        from physics_pulse import byteSamples2
+        #except:
+        #    self.coluta.showError('Unable to find physics_pulse.py')
+        #    return
         # bursts = "AFGControl:BURST " + N_Pulses
         # self.device.write("*RST")
         # self.device.write(bursts)
@@ -387,7 +388,7 @@ def initializeInstrumentation(coluta):
     '''Import libraries and define relevant attributes for testBoardGUI.'''
     # Try to import VISA. If it fails, show warning and exit.
     try:
-        import visa
+        import pyvisa as visa
     except:
         coluta.showError('INSTRUMENT: VISA not available. Unable to initialize.')
         return
@@ -395,7 +396,7 @@ def initializeInstrumentation(coluta):
     # Setup instance of InstrumentControl class
     coluta.IC = InstrumentControl(coluta,'./config/instrumentConfig.cfg')
     coluta.function_generator = coluta.IC.function_generator
-    coluta.pOptions.instruments = True
+    #coluta.pOptions.instruments = True
 
     # define the buttons on the Instrumentation tab
     coluta.ipAddressBox.textChanged.connect(lambda:updateIpAddress(coluta,'function_generator'))

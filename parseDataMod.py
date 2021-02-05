@@ -329,11 +329,11 @@ def main(GUI, fileName):
   attributes = {}
   attributes['boardID'] = GUI.boardID
   attributes['att_val'] = GUI.att_val
-  attributes['awg_amp'] = GUI.awg_amp
-  attributes['awg_freq'] = GUI.awg_freq
+  attributes['awg_amp'] = GUI.sineAmplitude
+  attributes['awg_freq'] = GUI.awgFreq
   #attributes['measChan'] = GUI.measChan
   attributes['measStep'] = GUI.measStep
-  attributes['measType'] = GUI.measType
+  attributes['measType'] = GUI.runType
   attributes['runNum'] = GUI.runNumber
   attributes['adc'] = GUI.singleADCMode_ADC
   attributes['timestamp'] = str(datetime.now())

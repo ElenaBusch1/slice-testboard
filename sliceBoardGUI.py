@@ -70,20 +70,26 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.awg_amp = '-99'
         self.awg_freq = '-99'
         self.measStep = '-99'
-        self.measType = ''
         self.runNumber = 1
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
+
+        # Default attributes for hdf5 output, overwritten by instrument control
+        self.runType = 'sine'
+        self.sineFrequency = '1.00'
+        self.sineAmplitude = '0.50'
+        self.awgFreq = 1200 # Sampling freq of external AWG
+        self.pulseLength = 64 # Pulse length in bunch crossings
 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
         # Instrument control
-        self.IPaddress = self.ipAddressBox.toPlainText()
-        self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
-        self.function_generator = getattr(self.IC,'function_generator')
+        #self.IPaddress = self.ipAddressBox.toPlainText()
+        #self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
+        #self.function_generator = getattr(self.IC,'function_generator')
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
@@ -1212,7 +1218,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def takeTriggerData(self, measType):
         """Runs takeTriggerData script"""
-        self.measType = measType
+        self.runType = measType
         flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4', "COLUTA16":'3'}
         if not os.path.exists("Runs"):
             os.makedirs("Runs")
