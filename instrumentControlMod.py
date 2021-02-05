@@ -9,7 +9,7 @@ date: October 18, 2018
 
 # pyVISA library to set up connection with the instruments
 #try:
-import visa
+import pyvisa as visa
 #except:
 #    pass
 import numpy
