@@ -11,7 +11,7 @@ import clockMod
 import serialMod
 import powerMod
 import parseDataMod
-#import instrumentControlMod
+import instrumentControlMod
 import status
 import subprocess
 from functools import partial
@@ -82,8 +82,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Instrument control
         self.IPaddress = self.ipAddressBox.toPlainText()
-        #self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
-        #self.function_generator = getattr(self.IC,'function_generator')
+        self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
+        self.function_generator = getattr(self.IC,'function_generator')
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
