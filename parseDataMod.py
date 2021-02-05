@@ -129,23 +129,26 @@ def make_chanData_trigger(allPackets):
         cu_ch0_lo = convert_to_bin(packet[d_ADCs[adc][0]][1]) # ADC ch8
       cu1frame8 = convert_to_bin(packet[d_ADCs[adc][0]][0]) # frame
       #if int(cu1frame8) == int(0xfa8): continue # will never get to here
-    
+      corr_chanNum = (chanNum+48)%128
       # add to master channel dataset 
-      chanData[chanNum][0].append(cu_ch0_lo) #index 0 is low gain, index 1 is high gain
-      chanData[chanNum][1].append(cu_ch0_hi) 
-      chanData[chanNum-1][0].append(cu_ch1_lo)
-      chanData[chanNum-1][1].append(cu_ch1_hi)
-      chanData[chanNum-2][0].append(cu_ch2_lo)
-      chanData[chanNum-2][1].append(cu_ch2_hi)
-      chanData[chanNum-3][0].append(cu_ch3_lo)
-      chanData[chanNum-3][1].append(cu_ch3_hi)
+      chanData[corr_chanNum][0].append(cu_ch0_lo) #index 0 is low gain, index 1 is high gain
+      chanData[corr_chanNum][1].append(cu_ch0_hi) 
+      chanData[corr_chanNum-1][0].append(cu_ch1_lo)
+      chanData[corr_chanNum-1][1].append(cu_ch1_hi)
+      chanData[corr_chanNum-2][0].append(cu_ch2_lo)
+      chanData[corr_chanNum-2][1].append(cu_ch2_hi)
+      chanData[corr_chanNum-3][0].append(cu_ch3_lo)
+      chanData[corr_chanNum-3][1].append(cu_ch3_hi)
       chanNum -= 4
 
   return chanData
 
 
 #-------------------------------------------------------------------------
-def make_chanData_singleADC(allPackets,chanNum = 31):
+def make_chanData_singleADC(allPackets,adc):
+
+  adcNum = int(adc[-2:])
+  chanNum = adcNum*4-1
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])
   reqPacketLength = 16
@@ -286,12 +289,14 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
   out_file.close()  
 
 #-------------------------------------------------------------------------
-def parseData(fileName,dataType,maxNumReads):
+def parseData(fileName,dataType,maxNumReads, attributes):
 
   struct_fmt = ">2H"
   struct_len = struct.calcsize(struct_fmt)
   struct_unpack = struct.Struct(struct_fmt).unpack_from
   
+  adc = attributes['adc']
+
   #get binary data using struct
   allData = []
   readCount = 0
@@ -312,7 +317,7 @@ def parseData(fileName,dataType,maxNumReads):
 
   # -- turn packets in chanData
   if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
-  elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets)
+  elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets,adc)
   else: print("Unknown data type") 
   return chanData
 
@@ -340,7 +345,7 @@ def main(GUI, fileName):
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
-  chanData = parseData(fileName,dataType,maxNumReads)
+  chanData = parseData(fileName,dataType,maxNumReads, attributes)
   print("Number of samples",len(chanData))
   #makePlots(chanData)
   if saveHists:
