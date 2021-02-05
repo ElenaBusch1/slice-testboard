@@ -8,14 +8,15 @@ date: October 18, 2018
 """
 
 # pyVISA library to set up connection with the instruments
-#try:
-import pyvisa as visa
-#except:
-#    pass
+try:
+    import visa
+except:
+    pass
 import numpy
 from PyQt5 import QtWidgets
 import configparser
 import time,os
+from itertools import product
 
 class InstrumentControl():
 
@@ -25,7 +26,8 @@ class InstrumentControl():
         """
         self.coluta = coluta
 
-        self.resourceManager = visa.ResourceManager('@py')
+        # self.resourceManager = visa.ResourceManager('@py')
+        self.resourceManager = visa.ResourceManager()
         self.devices = {}
         self.configFile = configFile
         self.setupDeviceConfiguration()
@@ -44,9 +46,11 @@ class InstrumentControl():
         config.read(self.configFile)
         devices = dict(config.items('Devices'))
 
+        self.frequencies = dict(config.items('Frequencies'))
+
         for deviceType,deviceName in devices.items():
             if not config.has_section(deviceType):
-                self.coluta.showError('INTRUMENT CONTROL: No settings found for the device: {0}'.format(deviceType))
+                self.coluta.showError('INSTRUMENT CONTROL: No settings found for the device: {0}'.format(deviceType))
                 continue
 
             configItems = config.items(deviceType)
@@ -66,8 +70,10 @@ class InstrumentControl():
                 configuration = str(value)
                 getattr(coluta,boxName).document().setPlainText(configuration)
             elif boxType == QtWidgets.QComboBox:
-                setIndex = colutaMod.binaryStringToDecimal(value)
-                getattr(coluta,boxName).SetCurrentIndex(setIndex)
+                # setIndex = colutaMod.binaryStringToDecimal(value)
+                # getattr(coluta,boxName).SetCurrentIndex(setIndex)
+                value = int(value)
+                getattr(coluta,boxName).setCurrentIndex(value)
             elif boxType == QtWidgets.QCheckBox:
                 if value == '1': 
                     getattr(coluta,boxName).SetChecked(True)
@@ -131,14 +137,14 @@ class Device(Setting):
         try:
             device = self.resourceManager.open_resource("TCPIP::"+ipAddress)
             print(device.query("*IDN?"))
-        except VisaIOError:
+        except visa.VisaIOError:
             self.coluta.showError('INSTRUMENT CONTROL: Cannot connect to IP address: {0}'.format(ipAddress))
         return device
     def disconnect(self):
         try:
             self.device.query("*IDN?")
             self.device.close()
-        except VisaIOError:
+        except visa.VisaIOError:
             self.coluta.showError('INSTRUMENT CONTROL: Device is already closed')
 
     def clearStatus(self,device):
@@ -153,13 +159,34 @@ class Device(Setting):
         except KeyError:
             self.coluta.showError('INSTRUMENT CONTROL: Invalid setting to update')
 
+    def updateDataSetting(self,runType,settingName):
+        '''Updates the IC setting as well as the data parser setting'''
+        try:
+            boxName = settingName+'Box'
+            boxType = type(getattr(self.coluta,boxName))
+            if boxType == QtWidgets.QPlainTextEdit:
+                value = getattr(self.coluta,boxName).document().toPlainText()
+                self.setSetting(settingName,value)
+                getattr(self.coluta.ODP,runType+'Run').settings[settingName] = value
+            elif boxType == QtWidgets.QComboBox:
+                valueIndex = str(getattr(self.coluta,boxName).currentIndex())
+                self.setSetting(settingName,valueIndex)
+                value = self.coluta.IC.frequencies[valueIndex]
+                if value == 'Other':
+                    value = getattr(self.coluta,boxName+'_2').document().toPlainText()
+                getattr(self.coluta.ODP,runType+'Run').settings[settingName] = value
+        except KeyError:
+            self.coluta.showError('INSTRUMENT CONTROL: Invalid setting to update')
+
+    def trigger(self):
+        raise NotImplementedError
+
 class keithley3321A(Device):
     def __init__(self,coluta,resourceManager,configItems):
         self.coluta = coluta
         Device.__init__(self,coluta,resourceManager,configItems)
         self.device = self.connect()
         self.voltageUnit = self.getSetting('voltageUnit')
-
 
     def applySin(self,address,channel):
 
@@ -196,8 +223,168 @@ class keithley3321A(Device):
         self.setSetting('voltageUnit',unit)
         self.device.write("VOLT:UNIT "+unit)
 
+class t3awg3252(Device):
+    def __init__(self,coluta,resourceManager,configItems):
+        self.coluta = coluta
+        Device.__init__(self,coluta,resourceManager,configItems)
+        self.device = self.connect()
+        self.voltageUnit = self.getSetting('voltageUnit')
+        self.setReferenceClock()
+
+    def setReferenceClock(self):
+        self.device.write("SOURce:ROSCillator:SOURce EXTernal")
+        self.device.write("SOURce:ROSCillator:FREQuency 10MHZ")
+
+    def applySin(self):
+        self.coluta.runType = 'sine'
+        freq = self.coluta.IC.frequencies[self.getSetting('sine_frequency')]
+        amplitude = self.getSetting('sine_amplitude').split(',')
+
+        self.device.write("*RST")
+        for amp in amplitude:
+            self.device.write("SOURce1:FUNCtion:SHAPe SINusoid")
+            self.device.write("SOURce1:FREQuency "+str(freq)+"MHZ")
+            self.device.write("SOURce1:VOLTage "+str(amp))
+            self.device.write("OUTPut1:STATe ON")
+            self.device.write("AFGControl:START")
+
+    def applyRamp(self):
+        self.coluta.runType = 'ramp'
+        frequency = self.getSetting('ramp_frequency').split(',')
+        amplitude = self.getSetting('ramp_amplitude').split(',')
+
+        self.device.write("*RST")
+        for freq,amp in product(frequency,amplitude):
+            self.device.write("SOURce1:FUNCtion:SHAPe RAMP")
+            self.device.write("SOURce1:FREQuency "+str(freq)+"MHZ")
+            self.device.write("SOURce1:VOLTage "+str(amp))
+            self.device.write("OUTPut1:STATe ON")
+            self.device.write("AFGControl:START")
+
+    def applyPedestal(self):
+        self.coluta.runType = 'pedestal'
+        self.device.write("*RST")
+        self.device.write("AFGControl:STOP")
+
+    def applyPulse(self):
+        self.coluta.runType = 'pulse'
+        CH1_Frequency = 0.6253257
+        CH1_Amplitude = self.getSetting('pulse_amplitude')
+        try:
+            from physics_pulse import byteSamples
+        except:
+            self.coluta.showError('Unable to find physics_pulse.py')
+            return
+        self.device.write_binary_values('TRACE1:DATA ', byteSamples, datatype='B', is_big_endian=False)
+        self.device.write("SOURce1:FUNCtion:SHAPe ARBB")
+        self.device.write("SOURce1:VOLTage:AMPLitude " + str(CH1_Amplitude))
+        self.device.write("SOURce1:FREQuency " + str(CH1_Frequency) + "MHZ")
+        self.device.write("OUTPut1:STATe ON")
+        self.device.write("AFGControl:START")
+
+    def applyBurstPulse(self):
+        """Send multiple pulses"""
+        self.coluta.runType = 'pulse'
+        CH1_Frequency = 0.1
+        CH1_Amplitude = self.getSetting('pulse_amplitude').split(',')
+        #N_Pulses = self.getSetting('n_pulses')
+        N_Pulses = str(self.coluta.n_pulsesBox.toPlainText())
+        N_Samples = self.getSetting('n_samples_per_pulse').split(',')
+        try:
+            from physics_pulse import byteSamples
+        except:
+            self.coluta.showError('Unable to find physics_pulse.py')
+            return
+        bursts = "AFGControl:BURST " + N_Pulses
+        self.device.write(bursts)
+        self.device.write("AFGControl:RMODe BURSt")
+        self.device.write_binary_values('TRACE1:DATA ', byteSamples, datatype='B', is_big_endian=False)
+        self.device.write("SOURce1:FUNCtion:SHAPe ARBB")
+        self.device.write("SOURce1:VOLTage:AMPLitude " + str(CH1_Amplitude))
+        self.device.write("SOURce1:FREQuency " + str(CH1_Frequency) + "MHZ")
+        self.device.write("OUTPut1:STATe ON")
+        self.device.write("AFGControl:START")
+
+    def applyPhysicsPulse(self):
+        self.coluta.runType = 'pulse'
+        # CH1_Frequency = 0.078288
+        # CH1_Frequency = 0.083507
+        # CH1_Frequency = 1.251303
+        CH1_Frequency = 0.6253257
+        # CH1_Frequency = self.getSetting('ramp_frequency')
+        #CH1_Amplitude = self.getSetting('pulse_amplitude')
+        CH1_Amplitude = str(self.coluta.pulse_amplitudeBox.toPlainText())
+        N_Pulses = str(self.coluta.n_pulsesBox.toPlainText())
+        try:
+            from physics_pulse import byteSamples2
+        except:
+            self.coluta.showError('Unable to find physics_pulse.py')
+            return
+        # bursts = "AFGControl:BURST " + N_Pulses
+        # self.device.write("*RST")
+        # self.device.write(bursts)
+        # self.device.write("AFGControl:RMODe BURSt")
+
+        self.device.write_binary_values('TRACE1:DATA ', byteSamples2, datatype='B', is_big_endian=False)
+        self.device.write("SOURce1:BURSt:STATe ON")
+        self.device.write("SOURce1:BURSt:MODE TRIGgered")
+        self.device.write("SOURCE1:BURSt:NCYCles " + N_Pulses)
+        # self.device.write("SOURCE1:BURSt:NCYCles 1")
+        self.device.write("SOURce1:FUNCtion:SHAPe ARBB")
+        # self.device.write("SOURce1:VOLTage:AMPLitude " + str(CH1_Amplitude))
+        self.device.write("SOURce1:VOLTage:HIGH 0")
+        self.device.write("SOURce1:VOLTage:LOW " + str(-1*float(CH1_Amplitude)))
+        self.device.write("SOURce1:FREQuency " + str(CH1_Frequency) + "MHZ")
+        self.device.write("OUTPut1:STATe ON")
+        # self.device.write("AFGControl:COPY 1")
+        self.device.write("AFGControl:START")
+
+
+    def trigger(self):
+        """Selects the external trigger for the AWG"""
+       # triggerSource = self.coluta.triggerSourceBox.getCurrentText()
+        #triggerSource = triggerSource.upper()[:3]
+
+        triggerThresholdUnit = self.coluta.triggerVoltageBox.currentIndex()
+        if triggerThresholdUnit == 0:
+            triggerThresholdUnit = 'mV'
+        elif triggerThresholdUnit == 1:
+            triggerThresholdUnit = 'V'
+        
+        triggerSlope = self.coluta.triggerSlopeBox.currentIndex()
+        if triggerSlope == 0:
+            triggerSlope = 'FALLING'
+        elif triggerSlope == 1:
+            triggerSlope = 'RISING'
+
+        triggerThreshold = str(self.coluta.triggerThresholdBox.toPlainText())
+
+        # Reset the trigger
+        self.device.write("TRIGger:ABORt")
+        # Select the source, slope
+        self.device.write("TRIGger:SOURce EXTernal")
+        self.device.write("TRIGger:SLOPe {}".format(triggerSlope))
+        # Set the threshold voltage level and the impedance
+        self.device.write("TRIGger:THREshold {} {}".format(triggerThreshold,triggerThresholdUnit))
+        self.device.write("TRIGger:IMPedance 50Ohm")
+        self.device.write("TRIGger1:OUTPut:STATe ON")
+        #print(self.device.write("TRIGger:IMPedance?"))
+
+    def sendTriggeredPulse(self):
+        if self.coluta.runType == 'pulse':
+            # It's still possible the user messed with the AWG parameters
+            print('Waveform already loaded')
+        else:
+            print('Loading waveform')
+            #self.applyBurstPulse()
+            #self.device.write("ABORt")
+            self.applyPhysicsPulse()
+        print('Sending trigger')
+        #self.device.write("*TRG")
+        self.coluta.sendExternalTrigger()
+
 def initializeInstrumentation(coluta):
-    '''Import libraries and define relevant attributes for ColutaGUI.'''
+    '''Import libraries and define relevant attributes for testBoardGUI.'''
     # Try to import VISA. If it fails, show warning and exit.
     try:
         import visa
@@ -208,22 +395,42 @@ def initializeInstrumentation(coluta):
     # Setup instance of InstrumentControl class
     coluta.IC = InstrumentControl(coluta,'./config/instrumentConfig.cfg')
     coluta.function_generator = coluta.IC.function_generator
+    coluta.pOptions.instruments = True
 
     # define the buttons on the Instrumentation tab
-    coluta.ipAddressBox.textChanged.connect(lambda:coluta.updateIpAddress('function_generator'))
+    coluta.ipAddressBox.textChanged.connect(lambda:updateIpAddress(coluta,'function_generator'))
     coluta.connectInstrumentButton.clicked.connect(lambda:coluta.function_generator.connect())
-    coluta.takeSamplesColutaButton_2.clicked.connect(lambda:coluta.function_generator.applySin(6,'coluta'))
-    coluta.takeSamplesAD9650Button_2.clicked.connect(lambda:coluta.function_generator.applySin(1,'ad9650'))
-    coluta.signalFrequencyBox.textChanged.connect(lambda:coluta.function_generator.updateSetting('signalFrequency'))
-    coluta.rampFrequencyBox.textChanged.connect(lambda:coluta.function_generator.updateSetting('rampFrequency'))
-    coluta.amplitudeBox.textChanged.connect(lambda:coluta.function_generator.updateSetting('amplitude'))
+    coluta.applySineButton.clicked.connect(lambda:coluta.function_generator.applySin())
+    coluta.applyRampButton.clicked.connect(lambda:coluta.function_generator.applyRamp())
+    coluta.applyPedestalButton.clicked.connect(lambda:coluta.function_generator.applyPedestal())
+    coluta.applyPulseButton.clicked.connect(lambda:coluta.function_generator.applyPulse())
+    coluta.applyPhysicsPulseButton.clicked.connect(lambda:coluta.function_generator.applyPhysicsPulse())
+    # coluta.takeSamplesColutaButton_2.clicked.connect(lambda:coluta.function_generator.applySin(6,'coluta'))
+    # coluta.takeSamplesAD9650Button_2.clicked.connect(lambda:coluta.function_generator.applySin(1,'ad9650'))
+    updDataSetting = lambda x,y : lambda : coluta.function_generator.updateDataSetting(x,y)
+    # coluta.sine_frequencyBox.textChanged.connect(updDataSetting('sine','sine_frequency'))
+    coluta.sine_frequencyBox.currentIndexChanged.connect(updDataSetting('sine','sine_frequency'))
+    coluta.sine_amplitudeBox.textChanged.connect(updDataSetting('sine','sine_amplitude'))
+    coluta.ramp_frequencyBox.textChanged.connect(updDataSetting('ramp','ramp_frequency'))
+    coluta.ramp_amplitudeBox.textChanged.connect(updDataSetting('ramp','ramp_amplitude'))
+    coluta.pulse_amplitudeBox.textChanged.connect(updDataSetting('pulse','pulse_amplitude'))
+    coluta.n_samples_per_pulseBox.textChanged.connect(updDataSetting('pulse','n_samples_per_pulse'))
+    coluta.n_pulsesBox.textChanged.connect(updDataSetting('pulse','n_pulses'))
+    coluta.n_pulse_timestepBox.textChanged.connect(updDataSetting('pulse','n_pulse_timestep'))
     coluta.offsetBox.textChanged.connect(lambda:coluta.function_generator.updateSetting('offset'))
-    coluta.getCurrentConfigButton.clicked.connect(lambda:coluta.IC.getCurrentConfig('function_generator'))
-    coluta.setVoltageUnitButton.clicked.connect(lambda:coluta.function_generator.setVoltageUnit())
+    
+    coluta.instrumentConfigureTriggerButton.clicked.connect(coluta.function_generator.trigger)
+    coluta.sendPulseAndTriggerButton.clicked.connect(coluta.function_generator.sendTriggeredPulse)
 
-def updateIpAddress(colutaGUI,device):
+    # coluta.getCurrentConfigButton.clicked.connect(lambda:coluta.IC.getCurrentConfig('function_generator'))
+    # coluta.setVoltageUnitButton.clicked.connect(lambda:coluta.function_generator.setVoltageUnit())
+
+def updateIpAddress(coluta,device):
+    oldIPaddress = getattr(coluta.IC,device).getSetting('ipAddress')
     try:
-        colutaGUI.IC.IPaddress = colutaGUI.ipAddressBox.toPlainText()
+        newIPaddress = coluta.ipAddressBox.toPlainText()
     except Exception:
-        colutaGUI.IC.IPaddress = '192.168.1.212'
-    colutaGUI.IC.updateSetting(device,'ipAddress')
+        # coluta.IC.ipAddress = '10.44.45.58'
+        newIPaddress = oldIPaddress
+    print('New IP address: ' + newIPaddress)
+    getattr(coluta.IC,device).setSetting('ipAddress',newIPaddress)
