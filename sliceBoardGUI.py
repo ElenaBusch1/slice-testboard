@@ -109,6 +109,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Establish link between GUI buttons and internal configuration dictionaries
         self.connectButtons()
         self.connectPowerButtons()
+        self.connectCopyButtons()
 
         self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
@@ -166,38 +167,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
         allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, allLAUROCs, None))
-
-        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", allCOLUTAs, ["global"]))
-
-        self.COLUTA13CopyDRETo13Button.clicked.connect(copyConfig("coluta13", "ch1", ["coluta13"], allDREChannels))
-        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, ["ch1"]))
-        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, allDREChannels))
-
-        self.COLUTA13CopyMDACTo13Button.clicked.connect(copyConfig("coluta13", "ch5", ["coluta13"], allMDACChannels))
-        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, ["ch5"]))
-        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, allMDACChannels))
-
-        self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
-        self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
-
-        self.coluta13SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "1"))
-        self.coluta14SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "1"))
-        self.coluta15SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "1"))
-        self.coluta16SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "1"))
-        self.coluta17SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "1"))
-        self.coluta18SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "1"))
-        self.coluta19SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "1"))
-        self.coluta20SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "1"))
-
-        self.coluta13SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "0"))
-        self.coluta14SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "0"))
-        self.coluta15SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "0"))
-        self.coluta16SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "0"))
-        self.coluta17SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "0"))
-        self.coluta18SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "0"))
-        self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
-        self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
 
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
@@ -1120,6 +1089,53 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             isReady = False
         return isReady
+
+    def connectCopyButtons(self):
+        copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
+        allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
+        allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
+        allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
+        allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
+        allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
+        allControlLpGBTs = ["lpgbt12", "lpgbt13"]
+
+        for i in range(13,21):
+            boxName = 'COLUTA'+str(i)+'CopyMDACTo'+str(i)+'Button'
+            box = getattr(self, boxName)
+            box.clicked.connect(copyConfig("coluta"+str(i), "ch5", ["coluta"+str(i)], allMDACChannels))
+
+        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, allLAUROCs, None))
+
+        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", allCOLUTAs, ["global"]))
+
+        self.COLUTA13CopyDRETo13Button.clicked.connect(copyConfig("coluta13", "ch1", ["coluta13"], allDREChannels))
+        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, ["ch1"]))
+        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, allDREChannels))
+
+        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, ["ch5"]))
+        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, allMDACChannels))
+
+        self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
+        self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
+
+        self.coluta13SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "1"))
+        self.coluta14SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "1"))
+        self.coluta15SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "1"))
+        self.coluta16SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "1"))
+        self.coluta17SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "1"))
+        self.coluta18SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "1"))
+        self.coluta19SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "1"))
+        self.coluta20SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "1"))
+
+        self.coluta13SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "0"))
+        self.coluta14SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "0"))
+        self.coluta15SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "0"))
+        self.coluta16SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "0"))
+        self.coluta17SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "0"))
+        self.coluta18SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "0"))
+        self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
+        self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
+
 
     def connectButtons(self):
         """Create a signal response for each configuration box"""
