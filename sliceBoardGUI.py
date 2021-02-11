@@ -4,6 +4,7 @@ import sys
 import time
 import configparser
 import numpy as np
+import json
 import chipConfiguration as CC
 import sliceMod
 import dataParser
@@ -64,13 +65,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Readback configs as they are writen
         self.READBACK = False
 
+        self.getMetadataFromJSON()
+        self.opened = True
+
 	# Data taking parameters
-        self.boardID = '-99'
         self.att_val = '-99'
         self.awg_amp = '-99'
         self.awg_freq = '-99'
         self.measStep = '-99'
-        self.runNumber = 1
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
@@ -1234,16 +1236,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def takeTriggerData(self, measType):
         """Runs takeTriggerData script"""
+        # Collect metadata
         self.runType = measType
-        flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4', "COLUTA16":'3'}
-        if not os.path.exists("Runs"):
-            os.makedirs("Runs")
-        outputDirectory = 'Runs'
-        self.getRunNumber()
-        outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
-        stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
-        outputPath = outputDirectory+"/"+outputFile
-        outputPathStamped = outputDirectory+"/"+stampedOutputFile
+        flxADCMapping = self.flxMapping
         self.daqMode = getattr(self,'daqModeBox').currentText()
         ADCSelect = getattr(self,'daqADCSelectBox').currentText()
         try:
@@ -1255,6 +1250,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.singleADCMode_ADC = ADCSelect
         else:
             self.singleADCMode_ADC = 'trigger'
+
+        # Establish output file
+        if not os.path.exists("Runs"):
+            os.makedirs("Runs")
+        if self.opened:
+            self.incrementRunNumber()
+            self.opened = False  
+        outputDirectory = 'Runs'
+        outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
+        stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
+        outputPath = outputDirectory+"/"+outputFile
+        outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
         subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
@@ -1268,12 +1275,39 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #subprocess.call("rm test.txt")
         # subprocess.call("python ")        
 
-    def getRunNumber(self):
-        outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
-        while os.path.exists(outputFile):
-            self.runNumber += 1
-            print(self.runNumber)
-            outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
+    def incrementRunNumber(self):
+        self.runNumber += 1
+        print("Run Number", self.runNumber)
+        with open('config/metadata.txt','r') as f:
+            temp = json.load(f)
+            temp['runNumber'] = self.runNumber
+
+        with open('config/metadata.txt','w') as f:
+            json.dump(temp,f)
+
+    def makeMetadataJSON(self):
+        print("Hello! We need to collect some system information to get started.")
+        runNumber = input("Enter run number: ")
+        boardID = input("Enter boardID: ")
+        awgType = input("Enter AWGtype: ")
+        print("Thanks! Please add any FLX mapping information by hand.")
+        metadata = {}
+        metadata['runNumber'] = int(runNumber)
+        metadata['boardID'] = boardID
+        metadata['awgType'] = awgType
+        metadata['flxMapping'] = {"COLUTA20":"7", "COLUTA17":"4", "COLUTA16":"3"}
+        with open('config/metadata.txt', 'w') as outfile:
+            json.dump(metadata, outfile)
+
+    def getMetadataFromJSON(self):
+        if not os.path.exists('config/metadata.txt'):
+            self.makeMetadataJSON()
+        with open('config/metadata.txt') as json_file:
+            metadata = json.load(json_file)
+            self.runNumber = metadata["runNumber"]   
+            self.boardID = metadata["boardID"]
+            self.awgType = metadata["awgType"]
+            self.flxMapping = metadata["flxMapping"]
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""

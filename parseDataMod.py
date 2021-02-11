@@ -268,7 +268,7 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
   out_file = h5py.File(fileName.replace('-1.dat','')+'.hdf5','a')
   print("Opening hdf5 file: "+ fileName.replace('-1.dat','')+'.hdf5')
 
-  m = str(len(out_file.keys()))
+  m = str(len(out_file.keys())).zfill(3)
   grp = out_file.create_group("Measurement_"+m)
   for attr in attributes:
     print(attr, attributes[attr])
