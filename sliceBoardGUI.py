@@ -124,6 +124,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
         self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
+        self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
         self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
         self.disableParityButton.clicked.connect(self.disableParity)
