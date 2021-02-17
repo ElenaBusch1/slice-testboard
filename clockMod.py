@@ -1,46 +1,39 @@
-from flxMod import icWriteToLpGBT as writeToLpGBT
 
-def sendInversionBits(clock640, colutaName):
-    lpgbtI2CAddr = self.chips["lpgbt"+self.chips[colutaName].lpgbtMaster].i2cAddress
-    colutaI2CAddr = self.chips[colutaName].i2cAddress
-    colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
-    colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
-    colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
 
+def sendInversionBits(GUI, clock640, colutaName):
     binary = f'{clock640:04b}'
     inv640 = binary[0]
     delay640 = binary[1:] 
-    self.chips[colutaName].setConfiguration("global", "INV640", inv640)
+    GUI.chips[colutaName].setConfiguration("global", "INV640", inv640)
     print(f"Updated {colutaName} global, INV640: {inv640}")
-    self.chips[colutaName].setConfiguration("global", "DELAY640", delay640)
+    GUI.chips[colutaName].setConfiguration("global", "DELAY640", delay640)
     print(f"Updated {colutaName} global, DELAY640: {delay640}")
 
-    dataBitsGlobal = self.colutaI2CWriteControl(colutaName, "global")
-    dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
+    GUI.writeToCOLUTAGlobal(colutaName)
+ 
+def scanClocks(GUI,coluta): 
+    """ Scan all clock parameters """
+    colutaLpGBT = {'coluta17':'lpgbt14', 'coluta20':'lpgbt16'}
+    ## !!!! TO DO - understand how mapping works for all
 
-    counter = 1
-    for word in dataBitsGlobal64[::-1]:
-        print(word)
-        addrModification = counter*8
-        dataBits8 = [i for i in range(1,9)]
-        dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
-        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00, 0x0])
-        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1], 0x8])
-        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1], 0x9])
-        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00, 0x00, 0x00, 0xe])
-        counter += 1
+    colutaChip = GUI.chips[coluta]
+    i2cLabel = colutaChip.i2cAddress[6:10]
+    print(i2cLabel)
 
-def scanClocks(): 
+    lpgbt = colutaLpGBT[coluta]
+    chip = GUI.chips[lpgbt]
+    lpgbtI2CAddr = int(GUI.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
+    dataI2CAddr = int(GUI.chips[lpgbt].i2cAddress,2)
+
     upper = 16
-
-    ch1_sertest_true = '1010010000001001'
-    ch2_sertest_true = '1010010000101001'
-    ch3_sertest_true = '1010010001001001'
-    ch4_sertest_true = '1010010001101001'
-    ch5_sertest_true = '1010010010001001'
-    ch6_sertest_true = '1010010010101001'
-    ch7_sertest_true = '1010010011001001'
-    ch8_sertest_true = '1010010011101001'
+    ch1_sertest_true = '1010'+i2cLabel+'010000001001'
+    ch2_sertest_true = '1010'+i2cLabel+'010000101001'
+    ch3_sertest_true = '1010'+i2cLabel+'010001001001'
+    ch4_sertest_true = '1010'+i2cLabel+'010001101001'
+    ch5_sertest_true = '1010'+i2cLabel+'010010001001'
+    ch6_sertest_true = '1010'+i2cLabel+'010010101001'
+    ch7_sertest_true = '1010'+i2cLabel+'010011001001'
+    ch8_sertest_true = '1010'+i2cLabel+'010011101001'
 
     ch1_sertest_repl = ch1_sertest_true*2
     ch2_sertest_repl = ch2_sertest_true*2
@@ -76,17 +69,9 @@ def scanClocks():
         ch7_sertest_valid.append(ch7_sertest_repl[idx:(16+idx)])
         ch8_sertest_valid.append(ch8_sertest_repl[idx:(16+idx)])
 
-    lpgbt = "lpgbt16"
-    coluta = "coluta20"
-    chip = self.chips[lpgbt]
-    lpgbtI2CAddr = int(self.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-    dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
-
-    # [EPRX30 - 0xd8 (ch1), EPRX32 - 0xda (ch2), EPRX40 - 0xdc (ch3), EPRX42 - 0xde (ch4), EPRX50 - 0xe0]
+    ## !!!! TO DO - CHECK HOW REGISTERS VARY BETWEEN LPGBTS, MAKE CONFIG FILE FOR THIS
     registers = [0xd8, 0xda, 0xdc, 0xde, 0xe0, 0xe2, 0xe4, 0xe6]
-    #registers = [0xe6]
-    #channels = [xx,xx,0xe6]
-    for delay_idx in range(0,16):
+    for delay_idx in range(0,3):
         isStableCh1_list = []      # Is serializer test signal same across all samples?
         isStableCh2_list = []
         isStableCh3_list = []
@@ -104,13 +89,13 @@ def scanClocks():
         isValidCh7_list = []
         isValidCh8_list = []
 
-        sendInversionBits(delay_idx, coluta)
+        sendInversionBits(GUI, delay_idx, coluta)
 
-        for lpgbt_idx in range(0,16):
+        for lpgbt_idx in range(0,3):
             value = (lpgbt_idx<<4)+2
             for reg in registers:
-                self.i2cDataLpgbtWrite(lpgbtI2CAddr, dataI2CAddr, reg, [value])
-                time.sleep(0.1)
+                GUI.writeToLPGBT(lpgbt, reg, [value], True)
+            continue
             dataString = self.takeSamplesSimple()
             sectionLen = len(dataString)//self.nSamples
             repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]

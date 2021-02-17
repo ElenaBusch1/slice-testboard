@@ -113,9 +113,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
         self.connectCopyButtons()
 
-        self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
-        self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
-        #self.test2Button.clicked.connect(clockMod.scanClocks)
+        #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
+        #self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
+        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, 'coluta17'))
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -613,7 +613,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     ########################## Functions to Send Full Configurations ##########################
     def configureAll(self):
-        """ Configures LPGBT9-16, COLUTA16/17/20 and LAUROC16/20 """
+        """ Configures LPGBT9-16, COLUTA13-20 and LAUROC13-20 """
+        colutas = ["coluta"+str(i) for i in range(13,21)]
+        laurocs = ["lauroc"+str(i) for i in range(13,21)]
+
         print("Configuring lpgbt12")
         self.sendFullControlLPGBTConfigs("lpgbt12")
         time.sleep(0.5)
@@ -638,23 +641,22 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring lpgbt16")
         self.sendFullDataLPGBTConfigs("lpgbt16")
         time.sleep(0.5)
-       
-        print("Configuring COLUTA16")
-        self.sendFullCOLUTAConfig("coluta16")
-        time.sleep(0.5) 
-        print("Configuring COLUTA17")
-        self.sendFullCOLUTAConfig("coluta17")
-        time.sleep(0.5) 
-        print("Configuring COLUTA20")
-        self.sendFullCOLUTAConfig("coluta20")
-        time.sleep(0.5) 
+ 
+        if input("Configure all colutas?(y/n)\n") != 'y':
+            print("Exiting config all")
+            return
+        for coluta in colutas:
+            print("Configuring", coluta)
+            self.sendFullCOLUTAConfig(coluta)
+            time.sleep(0.5) 
 
-        print("Configuring LAUROC16")
-        self.sendFullLAUROCConfigs("lauroc16")
-        time.sleep(0.5)
-        print("Configuring LAUROC20")
-        self.sendFullLAUROCConfigs("lauroc20")
-        time.sleep(0.5)
+        if input("Configure all laurocs?(y/n)\n") != 'y':
+            print("Exiting config all")
+            return 
+        for lauroc in laurocs:
+            print("Configuring", lauroc)
+            self.sendFullLAUROCConfigs(lauroc)
+            time.sleep(0.5)
 
         print("Done Configuring") 
 
@@ -926,9 +928,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def sendUpdatedConfigurations(self):
         """ Write all updated configuations for all chips """
-        badLAUROCS = ['lauroc13', 'lauroc14', 'lauroc15', 'lauroc17', 'lauroc18', 'lauroc19']
-        badCOLUTAs = ['coluta13', 'coluta14', 'coluta15', 'coluta18', 'coluta19']
-        badChips = badCOLUTAs+badLAUROCS
+        #badLAUROCS = ['lauroc13', 'lauroc14', 'lauroc15', 'lauroc17', 'lauroc18', 'lauroc19']
+        #badCOLUTAs = ['coluta13', 'coluta14', 'coluta15', 'coluta18', 'coluta19']
+        #badChips = badCOLUTAs+badLAUROCS
+        badChips = []
         for (chipName, chipConfig) in self.chips.items():
             if chipName in badChips:
                 continue
