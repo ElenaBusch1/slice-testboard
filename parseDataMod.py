@@ -147,7 +147,7 @@ def make_chanData_trigger(allPackets):
 #-------------------------------------------------------------------------
 def make_chanData_singleADC(allPackets,adc):
 
-  adcNum = int(adc[-2:])
+  adcNum = int(adc[6:])
   chanNum = adcNum*4-1
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])

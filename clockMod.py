@@ -1,4 +1,6 @@
-
+import h5py
+import numpy as np
+import pyjson5
 
 def sendInversionBits(GUI, clock640, colutaName):
     binary = f'{clock640:04b}'
@@ -13,27 +15,28 @@ def sendInversionBits(GUI, clock640, colutaName):
  
 def scanClocks(GUI,coluta): 
     """ Scan all clock parameters """
-    colutaLpGBT = {'coluta17':'lpgbt14', 'coluta20':'lpgbt16'}
-    ## !!!! TO DO - understand how mapping works for all
+    with open('config/colutaLpGBTMapping.txt','r') as f:
+        mapping = pyjson5.load(f)
+        lpgbtRegDict = mapping[coluta]
 
     colutaChip = GUI.chips[coluta]
     i2cLabel = colutaChip.i2cAddress[6:10]
     print(i2cLabel)
-
-    lpgbt = colutaLpGBT[coluta]
-    chip = GUI.chips[lpgbt]
-    lpgbtI2CAddr = int(GUI.chips["lpgbt"+chip.lpgbtMaster].i2cAddress,2)
-    dataI2CAddr = int(GUI.chips[lpgbt].i2cAddress,2)
+    colutaNum = int(coluta[6:])
+    chanNum = colutaNum*4-1
+    chanNames = ['channel'+str(chanNum-i).zfill(3) for i in range (0,4)]
+    print(chanNames)
+    #return
 
     upper = 16
-    ch1_sertest_true = '1010'+i2cLabel+'010000001001'
-    ch2_sertest_true = '1010'+i2cLabel+'010000101001'
-    ch3_sertest_true = '1010'+i2cLabel+'010001001001'
-    ch4_sertest_true = '1010'+i2cLabel+'010001101001'
-    ch5_sertest_true = '1010'+i2cLabel+'010010001001'
-    ch6_sertest_true = '1010'+i2cLabel+'010010101001'
-    ch7_sertest_true = '1010'+i2cLabel+'010011001001'
-    ch8_sertest_true = '1010'+i2cLabel+'010011101001'
+    ch1_sertest_true = '1010'+i2cLabel+'00001001'
+    ch2_sertest_true = '1010'+i2cLabel+'00101001'
+    ch3_sertest_true = '1010'+i2cLabel+'01001001'
+    ch4_sertest_true = '1010'+i2cLabel+'01101001'
+    ch5_sertest_true = '1010'+i2cLabel+'10001001'
+    ch6_sertest_true = '1010'+i2cLabel+'10101001'
+    ch7_sertest_true = '1010'+i2cLabel+'11001001'
+    ch8_sertest_true = '1010'+i2cLabel+'11101001'
 
     ch1_sertest_repl = ch1_sertest_true*2
     ch2_sertest_repl = ch2_sertest_true*2
@@ -69,9 +72,7 @@ def scanClocks(GUI,coluta):
         ch7_sertest_valid.append(ch7_sertest_repl[idx:(16+idx)])
         ch8_sertest_valid.append(ch8_sertest_repl[idx:(16+idx)])
 
-    ## !!!! TO DO - CHECK HOW REGISTERS VARY BETWEEN LPGBTS, MAKE CONFIG FILE FOR THIS
-    registers = [0xd8, 0xda, 0xdc, 0xde, 0xe0, 0xe2, 0xe4, 0xe6]
-    for delay_idx in range(0,3):
+    for delay_idx in range(0,16):
         isStableCh1_list = []      # Is serializer test signal same across all samples?
         isStableCh2_list = []
         isStableCh3_list = []
@@ -91,23 +92,37 @@ def scanClocks(GUI,coluta):
 
         sendInversionBits(GUI, delay_idx, coluta)
 
-        for lpgbt_idx in range(0,3):
+        for lpgbt_idx in range(0,16):
             value = (lpgbt_idx<<4)+2
-            for reg in registers:
-                GUI.writeToLPGBT(lpgbt, reg, [value], True)
-            continue
-            dataString = self.takeSamplesSimple()
-            sectionLen = len(dataString)//self.nSamples
-            repeats = [dataString[i:i+sectionLen] for i in range (0, len(dataString), sectionLen)]
-            frame_list = [chunk[64:80] for chunk in repeats]
-            ch1_binary_list = [chunk[112:128] for chunk in repeats]
-            ch2_binary_list = [chunk[96:112] for chunk in repeats]
-            ch4_binary_list = [chunk[128:144] for chunk in repeats]
-            ch3_binary_list = [chunk[144:160] for chunk in repeats]
-            ch6_binary_list = [chunk[160:176] for chunk in repeats]
-            ch5_binary_list = [chunk[176:192] for chunk in repeats]
-            ch8_binary_list = [chunk[192:208] for chunk in repeats]
-            ch7_binary_list = [chunk[208:224] for chunk in repeats]
+            for lpgbt in lpgbtRegDict.keys():
+                registers = lpgbtRegDict[lpgbt]
+                print(lpgbt, registers)
+                for reg in registers:
+                    GUI.writeToLPGBT(lpgbt, reg, [value], True)
+            GUI.takeTriggerData('clockScan')
+            print("Opening run", str(GUI.runNumber).zfill(4))
+            datafile = h5py.File('Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')
+            m = str(len(datafile.keys())-1).zfill(3)
+            print(m)
+            d = datafile.get('Measurement_'+m)
+            ch8 = np.array(d[chanNames[0]]['lo']['samples'])
+            ch7 = np.array(d[chanNames[0]]['hi']['samples'])
+            ch6 = np.array(d[chanNames[1]]['hi']['samples'])
+            ch5 = np.array(d[chanNames[1]]['lo']['samples'])
+            ch4 = np.array(d[chanNames[2]]['lo']['samples'])
+            ch3 = np.array(d[chanNames[2]]['hi']['samples'])
+            ch2 = np.array(d[chanNames[3]]['hi']['samples'])
+            ch1 = np.array(d[chanNames[3]]['lo']['samples'])
+            datafile.close()
+            #frame_list = [chunk[64:80] for chunk in repeats]
+            ch1_binary_list = [''.join([str(x) for x in ch1.tolist()[i]]) for i in range(0,ch1.shape[0])]
+            ch2_binary_list = [''.join([str(x) for x in ch2.tolist()[i]]) for i in range(0,ch2.shape[0])]   
+            ch3_binary_list = [''.join([str(x) for x in ch3.tolist()[i]]) for i in range(0,ch3.shape[0])]
+            ch4_binary_list = [''.join([str(x) for x in ch4.tolist()[i]]) for i in range(0,ch4.shape[0])]
+            ch5_binary_list = [''.join([str(x) for x in ch5.tolist()[i]]) for i in range(0,ch5.shape[0])]
+            ch6_binary_list = [''.join([str(x) for x in ch6.tolist()[i]]) for i in range(0,ch6.shape[0])]
+            ch7_binary_list = [''.join([str(x) for x in ch7.tolist()[i]]) for i in range(0,ch7.shape[0])]
+            ch8_binary_list = [''.join([str(x) for x in ch8.tolist()[i]]) for i in range(0,ch8.shape[0])]
 
             ## Test if metastable out of consecutive samples
             isStableCh1 = (len(set(ch1_binary_list)) == 1)
@@ -149,19 +164,21 @@ def scanClocks(GUI,coluta):
                 if isStableCh1 and isValidCh1:
                     LPGBTPhaseCh1 = ch1_sertest_valid.index(ch1_binary_list[0])
                 else:
-                    LPGBTPhaseCh1 = -99
-                    if isStableCh1:
-                        LPGBTPhaseCh1 += 11
-                    if isValidCh1:
-                        LPGBTPhaseCh1 += 22
+                    LPGBTPhaseCh1 = hex(int(ch1_binary_list[0],2))
+                    #LPGBTPhaseCh1 = -99
+                    #if isStableCh1:
+                    #    LPGBTPhaseCh1 += 11
+                    #if isValidCh1:
+                    #    LPGBTPhaseCh1 += 22
                 if isStableCh2 and isValidCh2:
                     LPGBTPhaseCh2 = ch2_sertest_valid.index(ch2_binary_list[0])
                 else:
-                    LPGBTPhaseCh2 = -99
-                    if isStableCh2:
-                        LPGBTPhaseCh2 += 11
-                    if isValidCh2:
-                        LPGBTPhaseCh2 += 22
+                    LPGBTPhaseCh2 = hex(int(ch2_binary_list[0],2))
+                    #LPGBTPhaseCh2 = -99
+                    #if isStableCh2:
+                    #    LPGBTPhaseCh2 += '11'
+                    #if isValidCh2:
+                    #    LPGBTPhaseCh2 += '22'
                 if isStableCh3 and isValidCh3:
                     LPGBTPhaseCh3 = ch3_sertest_valid.index(ch3_binary_list[0])
                 else:
@@ -205,11 +222,12 @@ def scanClocks(GUI,coluta):
                 if isStableCh8 and isValidCh8:
                     LPGBTPhaseCh8 = ch8_sertest_valid.index(ch8_binary_list[0])
                 else:
-                    LPGBTPhaseCh8 = -99
-                    if isStableCh8:
-                        LPGBTPhaseCh8 += 11
-                    if isValidCh8:
-                        LPGBTPhaseCh8 += 22
+                    LPGBTPhaseCh8 = hex(int(ch8_binary_list[0],2))
+                    #LPGBTPhaseCh8 = -99
+                    #if isStableCh8:
+                    #    LPGBTPhaseCh8 += '11'
+                    #if isValidCh8:
+                    #    LPGBTPhaseCh8 += '22'
             except:
                 print('I could not synchronize with the COLUTA.  Please power cycle and restart GUI.')
 
@@ -239,7 +257,7 @@ def scanClocks(GUI,coluta):
     table6 = tabulate(LPGBTPhaseCh6_list, headers, showindex = "always", tablefmt="psql")
     table7 = tabulate(LPGBTPhaseCh7_list, headers, showindex = "always", tablefmt="psql")
 
-    with open("clockScan.txt", "w") as f:
+    with open("clockScanColuta17.txt", "w") as f:
         f.write("Channel 1 \n")
         f.write(table1)
         f.write("\n \n")
