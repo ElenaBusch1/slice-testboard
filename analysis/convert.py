@@ -27,11 +27,13 @@ class Process(object):
         out_file = h5py.File(output_dir + mType + "_Data_Normal.hdf5","w")
 
         for meas_ind,meas in enumerate(self.measTypeDict["normal"]):
-            out_file.create_group("Measurement_" + str(meas_ind))
+            #out_file.create_group("Measurement_" + str(meas_ind).zfill(3))
+            #print(meas_ind,meas)
             for gain in self.Gains:        
+                  print(gain)
                   for channel in self.Channels:
 
-                    raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
+                    raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3),\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
 
@@ -53,8 +55,8 @@ class Process(object):
     def getChannelsAndGains(self):
 
         f = h5py.File(self.fileName,"r")
-        self.Channels = f["Measurement_0/"].keys()        
-        self.Gains = f["Measurement_0/{channel}".format(channel = self.Channels[0])].keys()        
+        self.Channels = f["Measurement_000/"].keys()        
+        self.Gains = f["Measurement_000/{channel}".format(channel = self.Channels[0])].keys()        
         f.close()
 
     def getMeasTypeDict(self):
@@ -64,9 +66,10 @@ class Process(object):
       f = h5py.File(self.fileName,"r")
 
       for meas_num in range(len(f)):
-
+          
+          meas_str = str(meas_num).zfill(3)
           try:
-              measType = f["Measurement_{meas_num}".format(meas_num = meas_num)].attrs["measType"]
+              measType = f["Measurement_"+meas_str].attrs["measType"]
           except KeyError:
               measType = "normal"
 
@@ -92,7 +95,7 @@ def main():
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
-    sliceAnalyzeFile = Process(input_dir + runName + "_testped.hdf5")
+    sliceAnalyzeFile = Process(input_dir + "run"+ runName + ".hdf5")
     #sliceAnalyzeFile = Process(input_dir + "Run_" + runName + "_Output.hdf5")
     print(sliceAnalyzeFile.fileName)
     sliceAnalyzeFile.getMeasTypeDict()
