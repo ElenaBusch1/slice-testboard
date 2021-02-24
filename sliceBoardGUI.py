@@ -114,8 +114,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectCopyButtons()
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
-        #self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
-        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, 'coluta17'))
+        self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
+        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,20)]))
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -1299,7 +1299,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         metadata['runNumber'] = int(runNumber)
         metadata['boardID'] = boardID
         metadata['awgType'] = awgType
-        metadata['flxMapping'] = {"COLUTA20":"7", "COLUTA17":"4", "COLUTA16":"3"}
+        metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
         with open('config/metadata.txt', 'w') as outfile:
             json.dump(metadata, outfile)
 

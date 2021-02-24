@@ -421,7 +421,7 @@ def initializeInstrumentation(coluta):
     coluta.offsetBox.textChanged.connect(lambda:coluta.function_generator.updateSetting('offset'))
     
     coluta.instrumentConfigureTriggerButton.clicked.connect(coluta.function_generator.trigger)
-    coluta.sendPulseAndTriggerButton.clicked.connect(coluta.function_generator.sendTriggeredPulse)
+    #coluta.sendPulseAndTriggerButton.clicked.connect(coluta.function_generator.sendTriggeredPulse)
 
     # coluta.getCurrentConfigButton.clicked.connect(lambda:coluta.IC.getCurrentConfig('function_generator'))
     # coluta.setVoltageUnitButton.clicked.connect(lambda:coluta.function_generator.setVoltageUnit())

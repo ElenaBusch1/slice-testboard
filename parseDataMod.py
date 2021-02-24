@@ -29,11 +29,12 @@ def convert_to_dec(binArray):
 #-------------------------------------------------------------------------
 def makeHistograms(chanData, runNumber):
   print('Making histograms... ')
-  plotDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots"
-  if not os.path.exists(plotDir):
-    os.makedirs(plotDir)
+  #plotDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots"
+  #if not os.path.exists(plotDir):
+  #  os.makedirs(plotDir)
   saveDir = "Runs/plots/Run_"+str(runNumber).zfill(4)+"/"
-  os.makedirs(saveDir)
+  if not os.path.exists(saveDir):
+    os.makedirs(saveDir)
 
   adc = 0
   for chan in range(len(chanData)): 
@@ -186,10 +187,10 @@ def make_chanData_singleADC(allPackets,adc):
 
     counter = int(packet[0][1]) & 0xFF
     # 3 samples for this ADC in each packet
-    cu_ch3_lo = [convert_to_bin(packet[4][1]), convert_to_bin(packet[9][1]), convert_to_bin(packet[15][0])] # bits 31:16 = ADC ch1
-    cu_ch3_hi = [convert_to_bin(packet[4][0]), convert_to_bin(packet[9][0]), convert_to_bin(packet[14][1])] # ADC ch2  
-    cu_ch2_hi = [convert_to_bin(packet[3][1]), convert_to_bin(packet[8][1]), convert_to_bin(packet[14][0])] # ADC ch3
-    cu_ch2_lo = [convert_to_bin(packet[3][0]), convert_to_bin(packet[8][0]), convert_to_bin(packet[13][1])] 
+    cu_ch3_lo = [convert_to_bin(packet[4][1]), convert_to_bin(packet[10][0]), convert_to_bin(packet[15][0])] # bits 31:16 = ADC ch1
+    cu_ch3_hi = [convert_to_bin(packet[4][0]), convert_to_bin(packet[9][1]), convert_to_bin(packet[14][1])] # ADC ch2  
+    cu_ch2_hi = [convert_to_bin(packet[3][1]), convert_to_bin(packet[9][0]), convert_to_bin(packet[14][0])] # ADC ch3
+    cu_ch2_lo = [convert_to_bin(packet[3][0]), convert_to_bin(packet[8][1]), convert_to_bin(packet[13][1])] 
     cu_ch1_lo = [convert_to_bin(packet[2][1]), convert_to_bin(packet[7][1]), convert_to_bin(packet[13][0])] 
     cu_ch1_hi = [convert_to_bin(packet[2][0]), convert_to_bin(packet[7][0]), convert_to_bin(packet[12][1])] 
     cu_ch0_hi = [convert_to_bin(packet[1][1]), convert_to_bin(packet[6][1]), convert_to_bin(packet[12][0])] 
@@ -248,6 +249,7 @@ def make_packets(allData,dataType):
         if num < len(allData) -8 :
           if ( (int(allData[num+8][0]) & 0xFF00) == 0x6a00 ) :
             allPackets.append( tempPacket.copy()  )
+            #print([[hex(x) for x in tp] for tp in tempPacket])
             tempPacket.clear()
       tempPacket.append(line)
   #end for loop
@@ -328,7 +330,10 @@ def main(GUI, fileName):
  
   dataType = GUI.daqMode
   maxNumReads = GUI.nSamples
-  saveHists = GUI.saveHistogramsCheckBox.isChecked()
+  try:
+      saveHists = GUI.saveHistogramsCheckBox.isChecked()
+  except:
+      saveHists = True
   runNumber = GUI.runNumber
 
   attributes = {}
