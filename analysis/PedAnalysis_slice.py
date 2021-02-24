@@ -88,6 +88,7 @@ class AnalyzePed(object):
         for meas in range(len(f)):
             for i,gain in enumerate(self.Gains):
                 for j,channel in enumerate(self.Channels):
+                    print(meas, gain, channel)
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
@@ -212,7 +213,7 @@ class AnalyzePed(object):
                   ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
 
               plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-              plt.show()
+              #plt.show()
               print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
 
             plt.cla()
@@ -255,7 +256,7 @@ class AnalyzePed(object):
             for i,gain in enumerate(["hi"]):
 
                 for channel in chs:
-
+                    print(meas, gain, channel)
                     ped_i = self.Samples[meas,i,self.ChanDict[channel],:]
 
                     sig_i = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, plot = False)
@@ -302,10 +303,10 @@ def main():
     #PedData.Channels = ["channel030","channel031"]
     #PedData.Gains = ["lo"]
     print(PedData.ChanDict)
-    #PedData.PlotRaw(plot_dir)
+    PedData.PlotRaw(plot_dir)
     #PedData.AnalyzeBaseline(plot_dir)
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
-    PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
+    #PedData.PlotCoherentNoise(plot_dir, chs = ["channel"+str(i).zfill(3) for i in range(76,80)])
     '''
     PedData.Channels = ["channel031"]
     peddata.gains = ["hi"]
