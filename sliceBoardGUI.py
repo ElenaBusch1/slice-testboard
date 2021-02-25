@@ -731,6 +731,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             lauroc = getattr(self, 'laurocConfigureBox').currentText()
         else:
             lauroc = laurocName
+        print("Configuring", lauroc)
         #print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
@@ -758,7 +759,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
-
+        print("Done configuring", lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """

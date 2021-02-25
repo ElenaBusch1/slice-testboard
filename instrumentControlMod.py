@@ -109,6 +109,7 @@ class Setting:
         self.settings = dict(zip(self.names,self.values))
 
     def getSetting(self,settingName):
+        value = None
         try:
             value = self.settings[settingName]
         except KeyError:
@@ -189,22 +190,39 @@ class keithley3321A(Device):
         self.device = self.connect()
         self.voltageUnit = self.getSetting('voltageUnit')
 
-    def applySin(self,address,channel):
+    def applySin(self):
 
-        frequency = self.getSetting('signalFrequency').split(',')
-        amplitude = self.getSetting('amplitude').split(',')
-        #print(amplitude)
+        #frequency = self.getSetting('sine_frequency').split(',')
+        frequency = self.coluta.IC.frequencies[self.getSetting('sine_frequency')]
+        amplitude = self.getSetting('sine_amplitude').split(',')
+        if frequency == "Other":
+            frequency = [str(self.coluta.sine_frequencyBox_2.toPlainText())]
+       
+        print("SINE AMPLITUDE",amplitude)
+        print("SINE FREQUENCY",frequency)
+
+        #self.device.write("APPL:SIN "+str(frequency)+"MHZ, "+str(amplitude)+"V")
+        #time.sleep(1)
+        #if self.coluta.pOptions.debug:
+        #    print('INSTRUMENT -> Frequency: {0}, Amplitude: {1}'.format(freq,amp))
+        # print(amp,freq)
+        # self.coluta.taEkeSamples(address,channel,voltage=amp,frequency=freq)
+        #self.coluta.takeDual(voltage=amp+' '+self.voltageUnit,frequency=freq+' MHz')
+        #time.sleep(1)
+
         #for amp,freq in zip(amplitude,frequency):
         for freq in frequency:
             for amp in amplitude:
                 self.device.write("APPL:SIN "+str(freq)+"MHZ, "+str(amp)+"V")
                 time.sleep(1)
-                if self.coluta.pOptions.debug:
-                    print('INSTRUMENT -> Frequency: {0}, Amplitude: {1}'.format(freq,amp))
+                #if self.coluta.pOptions.debug:
+                #    print('INSTRUMENT -> Frequency: {0}, Amplitude: {1}'.format(freq,amp))
                 # print(amp,freq)
                 # self.coluta.taEkeSamples(address,channel,voltage=amp,frequency=freq)
-                self.coluta.takeDual(voltage=amp+' '+self.voltageUnit,frequency=freq+' MHz')
-                time.sleep(1)
+                #self.coluta.takeDual(voltage=amp+' '+self.voltageUnit,frequency=freq+' MHz')
+                #time.sleep(1)
+        
+        return
 
     def setVoltageUnitRMS(self):
         self.device.write("VOLT:UNIT Vrms")
@@ -223,6 +241,9 @@ class keithley3321A(Device):
         self.voltageUnit = unit
         self.setSetting('voltageUnit',unit)
         self.device.write("VOLT:UNIT "+unit)
+
+    def sendTriggeredPulse(self):
+        pass
 
 class t3awg3252(Device):
     def __init__(self,coluta,resourceManager,configItems):
@@ -411,6 +432,7 @@ def initializeInstrumentation(coluta):
     updDataSetting = lambda x,y : lambda : coluta.function_generator.updateDataSetting(x,y)
     # coluta.sine_frequencyBox.textChanged.connect(updDataSetting('sine','sine_frequency'))
     coluta.sine_frequencyBox.currentIndexChanged.connect(updDataSetting('sine','sine_frequency'))
+    #coluta.sine_frequencyBox_2.textChanged.connect(updDataSetting('sine','sine_frequency'))
     coluta.sine_amplitudeBox.textChanged.connect(updDataSetting('sine','sine_amplitude'))
     coluta.ramp_frequencyBox.textChanged.connect(updDataSetting('ramp','ramp_frequency'))
     coluta.ramp_amplitudeBox.textChanged.connect(updDataSetting('ramp','ramp_amplitude'))
@@ -421,7 +443,7 @@ def initializeInstrumentation(coluta):
     coluta.offsetBox.textChanged.connect(lambda:coluta.function_generator.updateSetting('offset'))
     
     coluta.instrumentConfigureTriggerButton.clicked.connect(coluta.function_generator.trigger)
-    #coluta.sendPulseAndTriggerButton.clicked.connect(coluta.function_generator.sendTriggeredPulse)
+    coluta.sendPulseAndTriggerButton.clicked.connect(coluta.function_generator.sendTriggeredPulse)
 
     # coluta.getCurrentConfigButton.clicked.connect(lambda:coluta.IC.getCurrentConfig('function_generator'))
     # coluta.setVoltageUnitButton.clicked.connect(lambda:coluta.function_generator.setVoltageUnit())
