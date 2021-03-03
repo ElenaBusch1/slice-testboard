@@ -259,8 +259,16 @@ class t3awg3252(Device):
 
     def applySin(self):
         self.coluta.runType = 'sine'
+        #freq = self.coluta.IC.frequencies[self.getSetting('sine_frequency')]
+        #amplitude = self.getSetting('sine_amplitude').split(',')
+
         freq = self.coluta.IC.frequencies[self.getSetting('sine_frequency')]
         amplitude = self.getSetting('sine_amplitude').split(',')
+        if freq == "Other":
+            freq = str(self.coluta.sine_frequencyBox_2.toPlainText())
+
+        print("SINE AMPLITUDE",amplitude)
+        print("SINE FREQUENCY",freq)
 
         self.device.write("*RST")
         for amp in amplitude:

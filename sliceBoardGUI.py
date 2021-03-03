@@ -694,6 +694,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
+        print("Done configuring", lpgbt)
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -724,6 +725,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
+        print("Done configuring", lpgbt)
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -780,6 +782,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.writeToCOLUTAGlobal(coluta)
         if self.READBACK:
             self.readFromCOLUTAGlobal(coluta)
+        print("Done configuring", coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
