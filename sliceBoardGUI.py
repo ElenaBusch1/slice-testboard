@@ -126,8 +126,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
-        self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
-        self.disableParityButton.clicked.connect(self.disableParity)
+        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,20)]))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
