@@ -309,6 +309,7 @@ class AnalyzePed(object):
         chs_r = [66,67,70,71,74,75,78,79]
 
         chs = [("channel0" + str(no)) for no in chs_l + chs_r]
+        #chs = [("channel0" + str(no)) for no in chs_r]
         #chs = self.Channels
         print("self channels: ",self.Channels)        
 
@@ -376,7 +377,8 @@ class AnalyzePed(object):
         chs_l = [50,51,54,55,58,59,62,63]
         chs_r = [66,67,70,71,74,75,78,79]
 
-        chs = [("channel0" + str(no)) for no in chs_l + chs_r]
+        #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
+        chs = [("channel0" + str(no)) for no in chs_r]
 
         #chs = chs[:16]
 
@@ -452,8 +454,8 @@ def main():
     #PedData.Channels = ["channel030","channel031"]
     #PedData.Gains = ["lo"]
     print(PedData.ChanDict)
-    PedData.PlotRaw(plot_dir)
-    PedData.AnalyzeBaseline(plot_dir, runName)
+    #PedData.PlotRaw(plot_dir)
+    #PedData.AnalyzeBaseline(plot_dir, runName)
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
     PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])

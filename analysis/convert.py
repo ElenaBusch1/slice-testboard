@@ -34,8 +34,10 @@ class Process(object):
                   for channel in self.Channels:
 
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3),\
+                                                                  channel = str(channel),\
+                                                                  gain = gain)])
 
-
+                    #raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3)))
                     if np.shape(raw_data)[-1] == 0: continue  
 
                     print(np.shape(raw_data))
