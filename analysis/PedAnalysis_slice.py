@@ -220,9 +220,9 @@ class AnalyzePed(object):
             plt.clf()
             plt.close()
             if do_fit:
-                return sigma
+                return mu, sigma
 
-    def AnalyzeBaseline(self,plot_dir,meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
+    def AnalyzeBaseline(self,plot_dir, runName, meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
 
         print("Analyzing baseline....\n")
 
@@ -230,16 +230,53 @@ class AnalyzePed(object):
         if not gains_to_plot: gains_to_plot = self.Gains
         if not chans_to_plot: chans_to_plot = self.Channels
 
+	mdacChannels = ['channel'+str(i).zfill(3) for i in range(0,128) if i%4 ==2 or i%4  == 3]
+	print(mdacChannels)
+
+	mdac_hi = []
+	mdac_lo = []
+ 	dre_hi = []
+	dre_lo = []
+	
         for meas in meas_to_plot:
           for i,gain in enumerate(gains_to_plot):
             for j,channel in enumerate(chans_to_plot):
 
-                print(meas,gain,channel)
+                print(meas,str(gain),str(channel))
                 pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
-                print(meas,gain,channel)
 
-                self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
-  
+                mu, sigma = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
+                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
+		elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
+ 
+	tit = ['Hi', 'Lo']
+	
+	for title,vals in zip(tit,[mdac_hi, mdac_lo]):
+	  dataUnpack = [list(t) for t in zip(*vals)]
+	  if title == "Lo":
+	    dataUnpack[0].pop(-1)
+	    dataUnpack[1].pop(-1)
+	    dataUnpack[2].pop(-1)
+	  muData = [dataUnpack[0], dataUnpack[1]]
+	  sigData = [dataUnpack[0], dataUnpack[2]]
+
+          self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_run"+runName+".png")
+          self.PlotSigmaMuSummary(sigData, "Sigma MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
+	
+    def PlotSigmaMuSummary(self,data,title,saveStr):
+        fig,ax = plt.subplots(1)
+	
+        ax.bar(data[0],data[1])
+	#for i, v in enumerate(data[1]):
+	#    ax.text(i+0.25, v+0.5, str(v), color='blue')
+	ax.set_title(title)
+	plt.xlabel('Channel')
+	plt.savefig(saveStr)
+
+        plt.cla()
+        plt.clf()
+        plt.close()	
+
     def PlotCoherentNoise(self,plot_dir,chs):# ch1 = None,ch2 = None):
 
         if not (chs): 
@@ -304,7 +341,7 @@ def main():
     #PedData.Gains = ["lo"]
     print(PedData.ChanDict)
     PedData.PlotRaw(plot_dir)
-    #PedData.AnalyzeBaseline(plot_dir)
+    PedData.AnalyzeBaseline(plot_dir, runName)
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
     #PedData.PlotCoherentNoise(plot_dir, chs = ["channel"+str(i).zfill(3) for i in range(76,80)])
     '''
