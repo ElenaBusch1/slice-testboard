@@ -1,7 +1,8 @@
 import numpy as np
+import matplotlib
+matplotlib.use("TkAgg")
 import csv
-import matplotlib.pyplot as plt
-from matplotlib.font_manager import FontProperties
+from matplotlib import pyplot as plt
 from scipy import linalg
 import os
 import glob
@@ -43,21 +44,36 @@ class AnalyzeSin(object):
 
                 for channel in self.Channels:
 
-                    raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
+
+                    
+                    try:
+                        raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
               
+                    except KeyError:
+                        continue
+
+                    if (max(raw_data) - min(raw_data) < 2000): continue
                     fig,ax = plt.subplots()
 
+
+                    even_raw_data = raw_data[raw_data%2 == 0]
+                    even_raw_data_index = np.arange(len(raw_data))[raw_data%2 == 0]
+
+                    percent_even = 100*round(len(even_raw_data)*1.0/len(raw_data),2)
+
                     ax.plot(raw_data,'b.')
+                    ax.plot(even_raw_data_index,even_raw_data,'k.',label = "Even code, " + str(percent_even) + "%")
                     ax.grid(True)
-                    ax.set_xlim(0,100)
-                    ax.set_ylim(7075,7275)
-                    ax.set_title(channel + " " + gain + "gain raw data" )
+                    #ax.set_xlim(0,100)
+                    #ax.set_ylim(7075,7275)
+                    ax.set_title("Run " + self.runNo +" " +  channel + " " + gain + "gain raw data" )
                     ax.set_xlabel("sample number")
                     ax.set_ylabel("ADC Code")
-                    plt.savefig(plot_dir + "/" + self.runNo + "_rawSin_" +str(meas) + channel + gain + "ped.png") 
-                    
+                    ax.legend(loc = "upper right")
+                    plt.savefig(plot_dir + "/rawSin_" +str(meas) + channel + gain + ".png") 
+                    #plt.show() 
                     plt.cla()
                     plt.clf()
                     plt.close()
@@ -154,7 +170,10 @@ def main():
 
     SineData = AnalyzeSin(input_dir + "Sine_Data_Normal.hdf5",runName)
 
-    SineData.getChannelsAndGains()
+    #SineData.getChannelsAndGains()
+
+    SineData.Channels = ["channel5","channel6","channel7","channel8"]
+    SineData.Gains = ["lo"]#,"channel6","channel7","channel8"]
 
     SineData.makePlots(plot_dir)
 
