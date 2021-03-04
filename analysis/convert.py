@@ -26,16 +26,15 @@ class Process(object):
 
         out_file = h5py.File(output_dir + mType + "_Data_Normal.hdf5","w")
 
-        for meas_ind,meas in enumerate(self.measTypeDict["normal"]):
-            #out_file.create_group("Measurement_" + str(meas_ind).zfill(3))
-            #print(meas_ind,meas)
+
+        for meas_ind,meas in enumerate(self.measTypeDict[mType]):
+            out_file.create_group("Measurement_" + str(meas_ind))
             for gain in self.Gains:        
                   print(gain)
                   for channel in self.Channels:
 
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3),\
-                                                                  channel = str(channel),\
-                                                                  gain = gain)])
+
 
                     if np.shape(raw_data)[-1] == 0: continue  
 
@@ -73,7 +72,7 @@ class Process(object):
           except KeyError:
               measType = "normal"
 
-          measType = "normal"
+          measType = "Pedestal"
           if not measType in meas_dict.keys():
 
                  meas_dict[measType] = []
@@ -101,8 +100,11 @@ def main():
     sliceAnalyzeFile.getMeasTypeDict()
     sliceAnalyzeFile.getChannelsAndGains()
 
+    #sliceAnalyzeFile.Gains = [""]
+    #sliceAnalyzeFile.Channels = ["channel5","channel6","channel7","channel8"]
     print(sliceAnalyzeFile.measTypeDict)
     print(sliceAnalyzeFile.Channels)
+    #mType = "sine_normal"
     mType = "Pedestal"
 
     sliceAnalyzeFile.getNormalWF(output_dir,mType)
