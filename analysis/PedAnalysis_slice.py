@@ -191,43 +191,50 @@ class AnalyzePed(object):
 	    fit_points = np.linspace(min(data),max(data),1000)
             bins = np.linspace(min(data) - .5, max(data) - .5, max(data) - min(data) + 1)
 
-             
-
-	    n, bins, _ = ax.hist(data,bins = bins,density = False,edgecolor ='black',zorder = 1,label= "std:" +str(round(np.std(data),2)) )
+            if coherent: n, bins, _ = ax.hist(data,bins = bins,density = False,edgecolor ='black',zorder = 1,label= "std:" +str(round(np.std(data),2)) )
+            else: n, bins, _ = ax.hist(data,bins = bins,density = 1,edgecolor ='black',zorder = 1,label= "Mean:"+str(round(np.mean(data),3))+", std:"+str(round(np.std(data),3)) )
 
             y_max = max(n)
   	    
 	    centers = (0.5*(bins[1:]+bins[:-1]))
             if do_fit:
-	        #pars, cov = curve_fit(lambda x, mu, sig : stats.norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[np.mean(data),np.std(data)])  
-	        pars, cov = curve_fit(gauss, centers, n, p0=[0,np.std(data),y_max])  
+                if coherent: pars, cov = curve_fit(gauss, centers, n, p0=[0,np.std(data),y_max])  
+                else: pars, cov = curve_fit(lambda x, mu, sig : stats.norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[np.mean(data),np.std(data)])  
 
 	        mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
 	        sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
+                print(sigma, dsigma)
 
             if plot:
               if do_fit:
-	          #ax.plot(fit_points, stats.norm.pdf(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
-	          ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
-	          #ax.plot(centers, stats.norm.pdf(centers,*pars), 'r.',linewidth = 2)        
-	          ax.plot(centers, gauss(centers,*pars), 'r.',linewidth = 2)        
+                  if coherent:
+	              ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
+	              ax.plot(centers, gauss(centers,*pars), 'r.',linewidth = 2)        
+                  else:
+	              ax.plot(fit_points, stats.norm.pdf(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
+	              ax.plot(centers, stats.norm.pdf(centers,*pars), 'r.',linewidth = 2)        
 
               ax.legend()
-              ax.set_xlabel("$\Sigma_{Ch} (S_{i} - \\bar{S})$ [ADC Counts]",horizontalalignment='right', x=1.0)
-              ax.set_ylabel("Events")
-              ax.set_title(title + " HG  (N = {N})".format(N = len(data))) 
+              ax.set_xlabel("Sample Value [ADC Counts]")
+              ax.set_ylabel("Normalized Frequency")
+              ax.set_title(title + "(N = {N})".format(N = len(data)))
+              if coherent: ax.set_xlabel("$\Sigma_{Ch} (S_{i} - \\bar{S})$ [ADC Counts]",horizontalalignment='right', x=1.0)
+              if coherent: ax.set_ylabel("Events")
+              if coherent: ax.set_title(title + " HG  (N = {N})".format(N = len(data))) 
               ax.xaxis.set_major_locator(MaxNLocator(integer=True))
               #ax.xaxis.set_tick_params(rotation=45)
               ax.set_ylim(0,y_max*(1 + .3))
               ax.grid(zorder = 0)
               #ax.set_xlim(42900,43100)
               if coherent: 
+                  #ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
                   ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
 
+                  #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
 
-              #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-              plt.show()
               print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
+              #plt.show()
+              plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
 
             plt.cla()
             plt.clf()
@@ -259,6 +266,7 @@ class AnalyzePed(object):
                 pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
 
                 mu, sigma, dsig = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
+		print(mu)
                 if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
 		elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
  
@@ -377,9 +385,9 @@ class AnalyzePed(object):
         #chs = chs[1:3] 
 
         meas_to_plot = range(self.nMeas)
-        for meas in meas_to_plot:
+        for i,gain in enumerate(["lo", "hi"]):
+            for meas in meas_to_plot:
             #for i,gain in enumerate(self.Gains):
-            for i,gain in enumerate(["hi"]):
 
                 if gain == "lo": chs.remove("channel079")
                 ped_tot = np.zeros(np.shape(self.Samples)[-1])
@@ -394,8 +402,8 @@ class AnalyzePed(object):
                     ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
                     ped_i -= np.mean(ped_i)
 
-                    mu_i,sig_i,dsig_i = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, plot = False)
-
+                    mu_i,sig_i,dsig_i = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
+                    print(mu_i, sig_i, dsig_i)
                      
                     sig_2_tot += sig_i**2
                     dsig_2_tot += (sig_i**2)*(dsig_i**2)
@@ -408,9 +416,12 @@ class AnalyzePed(object):
                 #print("s1**2 + s2**2 = ",np.sqrt(sig1**2 + sig2**2))
 
                 #joint_pedestal = ped_1 + ped_2               
+                print(dsig_2_tot)
+                print(sig_2_tot)
                 dsig_2_tot/=sig_2_tot
+                print(dsig_2_tot)
 
-                self.makeFittedHist(ped_tot,plot_dir,"Coherent Noise ","COLUTA_16_20",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
+                self.makeFittedHist(ped_tot,plot_dir,"Coherent Noise ","coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
 
 
 
@@ -445,7 +456,7 @@ def main():
     PedData.AnalyzeBaseline(plot_dir, runName)
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
     PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
-    #PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
+    PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     ##PedData.PlotPairwiseCorr(plot_dir)
 
     '''
