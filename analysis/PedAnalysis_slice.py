@@ -141,29 +141,29 @@ class AnalyzePed(object):
 
             data = data[1:] #DROP FIRST SAMPLE TO GET 6251 SAMPLES!!!! critical
             fft_wf = np.fft.fft(data)
-	    fftWf_x = []
-	    fftWf_y = []
-	    psd = []
-	    psd_x = []
-	    for sampNum,samp in enumerate(fft_wf) :
-	      if sampNum > float( len(fft_wf) ) / 2. :
-		continue
-	      freqVal = 40.8 * sampNum/float(len(fft_wf))
-	      sampVal = np.abs(samp)
-	      if sampNum == 0 :
-		sampVal = 0
-	      fftWf_x.append(freqVal)
-	      fftWf_y.append(sampVal)
-	    if np.max(fftWf_y) <= 0 :
-	      return psd_x,psd
+            fftWf_x = []
+            fftWf_y = []
+            psd = []
+            psd_x = []
+            for sampNum,samp in enumerate(fft_wf) :
+              if sampNum > float( len(fft_wf) ) / 2. :
+                continue
+              freqVal = 40.8 * sampNum/float(len(fft_wf))
+              sampVal = np.abs(samp)
+              if sampNum == 0 :
+                sampVal = 0
+              fftWf_x.append(freqVal)
+              fftWf_y.append(sampVal)
+              if np.max(fftWf_y) <= 0 :
+                return psd_x,psd
 
-	    fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
-	    for sampNum,samp in enumerate(fourier_fftWf_y) :
-	      if sampNum == 0 :
-		continue
-	      else:
-		psd_x.append( fftWf_x[sampNum] )
-		psd.append( 20*np.log10(samp) )
+            fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
+            for sampNum,samp in enumerate(fourier_fftWf_y) :
+              if sampNum == 0 :
+                 continue
+            else:
+                psd_x.append( fftWf_x[sampNum] )
+                psd.append( 20*np.log10(samp) )
 
             plt.plot(psd_x,psd,'b-')
             plt.grid()
@@ -179,27 +179,27 @@ class AnalyzePed(object):
 
     def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
 
+
+
             do_fit = True
             fig,ax = plt.subplots()
 
             print("here!",max(data))
-            #if max(data) > 2**15: return
-            #if len(data) <1: return 
-	    #if min(data) == max(data): return
-            # data = data[data > 0]
-            # data = data[data < 2**15]
-	    fit_points = np.linspace(min(data),max(data),1000)
+            fit_points = np.linspace(min(data),max(data),1000)
             bins = np.linspace(min(data) - .5, max(data) - .5, max(data) - min(data) + 1)
 
-            if coherent: n, bins, _ = ax.hist(data,bins = bins,density = False,edgecolor ='black',zorder = 1,label= "std:" +str(round(np.std(data),2)) )
-            else: n, bins, _ = ax.hist(data,bins = bins,density = 1,edgecolor ='black',zorder = 1,label= "Mean:"+str(round(np.mean(data),3))+", std:"+str(round(np.std(data),3)) )
+            #if coherent:
+            n, bins, _ = ax.hist(data,bins = bins,edgecolor ='black',zorder = 1,label= "RMS = " +str(round(np.std(data),2)) )
+            #else: n, bins, _ i      = ax.hist(data,bins = bins,density = 1,edgecolor ='black',zorder = 1,label= "RMS:"+str(round(np.std(data),2)) )
+             
+
 
             y_max = max(n)
-  	    
-	    centers = (0.5*(bins[1:]+bins[:-1]))
+      
+            centers = (0.5*(bins[1:]+bins[:-1]))
             if do_fit:
                 if coherent: pars, cov = curve_fit(gauss, centers, n, p0=[0,np.std(data),y_max])  
-                else: pars, cov = curve_fit(lambda x, mu, sig : stats.norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[np.mean(data),np.std(data)])  
+                else: pars, cov = curve_fit(gauss, centers, n, p0=[np.mean(data),np.std(data),y_max])  
 
 	        mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
 	        sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
@@ -207,20 +207,16 @@ class AnalyzePed(object):
 
             if plot:
               if do_fit:
-                  if coherent:
-	              ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
-	              ax.plot(centers, gauss(centers,*pars), 'r.',linewidth = 2)        
-                  else:
-	              ax.plot(fit_points, stats.norm.pdf(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
-	              ax.plot(centers, stats.norm.pdf(centers,*pars), 'r.',linewidth = 2)        
+	        #ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
+	        ax.plot(centers, gauss(centers,*pars), 'r-',linewidth = 2,label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))        
 
               ax.legend()
               ax.set_xlabel("Sample Value [ADC Counts]")
-              ax.set_ylabel("Normalized Frequency")
-              ax.set_title(title + "(N = {N})".format(N = len(data)))
+              ax.set_ylabel("Events")
+              #ax.set_ylabel("Normalized Frequency")
+              ax.set_title(title)# + " (N = {N})".format(N = len(data)))
               if coherent: ax.set_xlabel("$\Sigma_{Ch} (S_{i} - \\bar{S})$ [ADC Counts]",horizontalalignment='right', x=1.0)
-              if coherent: ax.set_ylabel("Events")
-              if coherent: ax.set_title(title + " HG  (N = {N})".format(N = len(data))) 
+              if coherent: ax.set_title(title )
               ax.xaxis.set_major_locator(MaxNLocator(integer=True))
               #ax.xaxis.set_tick_params(rotation=45)
               ax.set_ylim(0,y_max*(1 + .3))
@@ -228,13 +224,14 @@ class AnalyzePed(object):
               #ax.set_xlim(42900,43100)
               if coherent: 
                   #ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
-                  ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
+                  formula = "\sqrt{ \Sigma (\sigma_i)^2}" 
+                  ax.text(.6,.75,"${}= {:.1f}\pm{:.1f} $".format(formula,coherent[0],coherent[1]),transform = ax.transAxes)
 
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
 
               print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
-              #plt.show()
-              plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
+              plt.show()
+              #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
 
             plt.cla()
             plt.clf()
@@ -250,14 +247,14 @@ class AnalyzePed(object):
         if not gains_to_plot: gains_to_plot = self.Gains
         if not chans_to_plot: chans_to_plot = self.Channels
 
-	mdacChannels = ['channel'+str(i).zfill(3) for i in range(0,128) if i%4 ==2 or i%4  == 3]
-	print(mdacChannels)
+        mdacChannels = ['channel'+str(i).zfill(3) for i in range(0,128) if i%4 ==2 or i%4  == 3]
+        print(mdacChannels)
 
-	mdac_hi = []
-	mdac_lo = []
- 	dre_hi = []
-	dre_lo = []
-	
+        mdac_hi = []
+        mdac_lo = []
+        dre_hi = []
+        dre_lo = []
+ 
         for meas in meas_to_plot:
           for i,gain in enumerate(gains_to_plot):
             for j,channel in enumerate(chans_to_plot):
@@ -268,35 +265,35 @@ class AnalyzePed(object):
                 mu, sigma, dsig = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
 		print(mu)
                 if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
-		elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
+                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
  
-	tit = ['Hi', 'Lo']
-	
-	for title,vals in zip(tit,[mdac_hi, mdac_lo]):
-	  dataUnpack = [list(t) for t in zip(*vals)]
-	  if title == "Lo":
-	    dataUnpack[0].pop(-1)
-	    dataUnpack[1].pop(-1)
-	    dataUnpack[2].pop(-1)
-	  muData = [dataUnpack[0], dataUnpack[1]]
-	  sigData = [dataUnpack[0], dataUnpack[2]]
+        tit = ['Hi', 'Lo']
+ 
+        for title,vals in zip(tit,[mdac_hi, mdac_lo]):
+            dataUnpack = [list(t) for t in zip(*vals)]
+            if title == "Lo":
+               dataUnpack[0].pop(-1)
+               dataUnpack[1].pop(-1)
+               dataUnpack[2].pop(-1)
+            muData = [dataUnpack[0], dataUnpack[1]]
+            sigData = [dataUnpack[0], dataUnpack[2]]
 
-          self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_run"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "Sigma MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
-	
+            self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_run"+runName+".png")
+            self.PlotSigmaMuSummary(sigData, "Sigma MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
+
     def PlotSigmaMuSummary(self,data,title,saveStr):
         fig,ax = plt.subplots(1)
-	
+
         ax.bar(data[0],data[1])
-	#for i, v in enumerate(data[1]):
-	#    ax.text(i+0.25, v+0.5, str(v), color='blue')
-	ax.set_title(title)
-	plt.xlabel('Channel')
-	plt.savefig(saveStr)
+        #for i, v in enumerate(data[1]):
+        #    ax.text(i+0.25, v+0.5, str(v), color='blue')
+        ax.set_title(title)
+        plt.xlabel('Channel')
+        plt.savefig(saveStr)
 
         plt.cla()
         plt.clf()
-        plt.close()	
+        plt.close()
 
     
     def PlotCoherent2D(self,plot_dir,chs):# ch1 = None,ch2 = None):
@@ -385,6 +382,7 @@ class AnalyzePed(object):
         print("channels: ",chs)
 
         #chs = chs[1:3] 
+        Nchan = len(chs)
 
         meas_to_plot = range(self.nMeas)
         for i,gain in enumerate(["lo", "hi"]):
@@ -423,7 +421,10 @@ class AnalyzePed(object):
                 dsig_2_tot/=sig_2_tot
                 print(dsig_2_tot)
 
-                self.makeFittedHist(ped_tot,plot_dir,"Coherent Noise ","coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
+                gain_str = "HG"
+                if gain == "lo":gain_str = "LG"
+
+                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
 
 
 
@@ -455,7 +456,7 @@ def main():
     #PedData.Gains = ["lo"]
     print(PedData.ChanDict)
     #PedData.PlotRaw(plot_dir)
-    #PedData.AnalyzeBaseline(plot_dir, runName)
+    PedData.AnalyzeBaseline(plot_dir, runName)
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
     PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
