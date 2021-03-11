@@ -57,7 +57,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Some version-dependent parameters/values
 
-        self.nSamples = 100000  # default number of samples to parse from standard readout
+        #self.nSamples = 1000000  # default number of samples to parse from standard readout
+        self.nSamples = 1000  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
@@ -126,7 +127,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
-        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,20)]))
+        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,21)]))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
@@ -641,17 +642,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sendFullDataLPGBTConfigs("lpgbt16")
         time.sleep(0.5)
  
-        if input("Configure all colutas?(y/n)\n") != 'y':
-            print("Exiting config all")
-            return
+        #if input("Configure all colutas?(y/n)\n") != 'y':
+        #    print("Exiting config all")
+        #    return
         for coluta in colutas:
             print("Configuring", coluta)
             self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
 
-        if input("Configure all laurocs?(y/n)\n") != 'y':
-            print("Exiting config all")
-            return 
+        #if input("Configure all laurocs?(y/n)\n") != 'y':
+        #    print("Exiting config all")
+        #    return 
         for lauroc in laurocs:
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
