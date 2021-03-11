@@ -85,10 +85,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.awgFreq = 1200 # Sampling freq of external AWG
         self.pulseLength = 64 # Pulse length in bunch crossings
  
-        # Define chips on board
-        self.allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
-        self.allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
-
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
@@ -120,7 +116,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,20)]))
+        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -131,7 +127,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
-        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,21)]))
+        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
@@ -934,10 +930,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def sendUpdatedConfigurations(self):
         """ Write all updated configuations for all chips """
-        #badLAUROCS = ['lauroc13', 'lauroc14', 'lauroc15', 'lauroc17', 'lauroc18', 'lauroc19']
-        #badCOLUTAs = ['coluta13', 'coluta14', 'coluta15', 'coluta18', 'coluta19']
-        #badChips = badCOLUTAs+badLAUROCS
-        badChips = []
+        badLAUROCS = [lauroc for lauroc in [f'lauroc{i}' for i in range(13,21)] if lauroc not in self.allLAUROCs]
+        badCOLUTAs = [coluta for coluta in [f'coluta{i}' for i in range(13,21)] if coluta not in self.allCOLUTAs]
+        badChips = badCOLUTAs+badLAUROCS
+        print("updating")
         for (chipName, chipConfig) in self.chips.items():
             if chipName in badChips:
                 continue
@@ -1300,12 +1296,26 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         runNumber = input("Enter run number: ")
         boardID = input("Enter boardID: ")
         awgType = input("Enter AWGtype: ")
-        print("Thanks! Please add any FLX mapping information by hand.")
+        assembled = input("Is your board fully assembled (8 ADCs, 8 PA/Ss)? Enter y or n: ")
+        if (assembled == 'y'):
+            colutas = [f'coluta{i}' for i in range(13,21)]
+            laurocs = [f'lauroc{i}' for i in range(13,21)]
+        else:
+            colutaNumStr = input('Please enter the indicies of COLUTAs on your board seperated by commas. Ex) 16,17,20 : ')
+            laurocNumStr = input('Please enter the indicies of LAUROCs on your board seperated by commas. Ex) 16,20 : ')
+            colutaNums = colutaNumStr.split(",")
+            laurocNums = laurocNumStr.split(",")
+            colutas = ['coluta'+num for num in colutaNums]
+            laurocs = ['lauroc'+num for num in laurocNums]
+
+        print("Thanks! Default FLX mapping information will be used. Please modify by hand if necessary.")
         metadata = {}
         metadata['runNumber'] = int(runNumber)
         metadata['boardID'] = boardID
         metadata['awgType'] = awgType
         metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
+        metadata["allCOLUTAs"] = colutas
+        metadata["allLAUROCs"] = laurocs
         with open('config/metadata.txt', 'w') as outfile:
             json.dump(metadata, outfile)
 
@@ -1318,6 +1328,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.boardID = metadata["boardID"]
             self.awgType = metadata["awgType"]
             self.flxMapping = metadata["flxMapping"]
+            self.allLAUROCs = metadata["allLAUROCs"]
+            self.allCOLUTAs = metadata["allCOLUTAs"]
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
@@ -1425,7 +1437,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             targetChipNames = []
         if targetSectionNames is None:
             targetSectionNames = []
-
+        
+        print("Warning: LPGBTPhase will not be copied")
         sourceChip = self.chips[sourceChipName]
         sourceSection = sourceChip[sourceSectionName]
         for (sourceSettingName, sourceSetting) in sourceSection.items():
@@ -1437,6 +1450,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     targetSettingName = sourceSettingName
                     targetSetting = targetSection[targetSettingName]
                     if sourceSetting == targetSetting: continue  # Don't want to mark as updated if nothing changed
+                    if targetSettingName == 'LPGBTPhase': continue # Don't copy clock settings
                     boxName = targetChipName + targetSectionName + targetSettingName + "Box"
                     self.updateBox(boxName, sourceSetting)
 

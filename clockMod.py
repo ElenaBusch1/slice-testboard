@@ -28,16 +28,30 @@ def writeToHDF5(tables):
   print("Closing HDF5")
 
 def putInSerializerMode(GUI, colutas):
-    return 0
+    for coluta in colutas:
+        GUI.serializerTestMode(coluta, "1")
 
 def setLPGBTPhaseToZero(GUI, colutas):
-    return 0
+    for coluta in colutas:
+        chip = GUI.chips[coluta]
+        for ch in [f'ch{i}' for i in range(1,9)]:
+            chip.setConfiguration(ch,"LPGBTPhase", '0000')
+            boxName = coluta+ch+'LPGBTPhaseBox'
+            GUI.updateBox(boxName, '0')
+
+def prepareChips(GUI,colutas):
+    putInSerializerMode(GUI,colutas)
+    setLPGBTPhaseToZero(GUI,colutas)
+    GUI.sendUpdatedConfigurations()
 
 def scanClocks(GUI,colutas): 
     """ Scan all clock parameters """
     with open('config/colutaLpGBTMapping.txt','r') as f:
         mapping = pyjson5.load(f)
         #lpgbtRegDict = mapping[coluta]
+
+    prepareChips(GUI,colutas)
+    return
 
     channels = ['ch'+str(i) for i in range(1,9)]
     channelSerializers = {channels[i]:bin(i)[2:].zfill(3) for i in range(0,8)}
