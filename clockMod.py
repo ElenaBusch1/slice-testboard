@@ -51,7 +51,6 @@ def scanClocks(GUI,colutas):
         #lpgbtRegDict = mapping[coluta]
 
     prepareChips(GUI,colutas)
-    return
 
     channels = ['ch'+str(i) for i in range(1,9)]
     channelSerializers = {channels[i]:bin(i)[2:].zfill(3) for i in range(0,8)}
