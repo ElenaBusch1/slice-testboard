@@ -4,6 +4,7 @@ import sys
 import time
 import configparser
 import numpy as np
+import json
 import chipConfiguration as CC
 import sliceMod
 import dataParser
@@ -11,6 +12,7 @@ import clockMod
 import serialMod
 import powerMod
 import parseDataMod
+import instrumentControlMod
 import status
 import subprocess
 from functools import partial
@@ -55,7 +57,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Some version-dependent parameters/values
 
-        self.nSamples = 100000  # default number of samples to parse from standard readout
+        #self.nSamples = 1000000  # default number of samples to parse from standard readout
+        self.nSamples = 1000  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
@@ -63,28 +66,33 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Readback configs as they are writen
         self.READBACK = False
 
+        self.getMetadataFromJSON()
+        self.opened = True
+
 	# Data taking parameters
-        self.boardID = '-99'
         self.att_val = '-99'
         self.awg_amp = '-99'
         self.awg_freq = '-99'
         self.measStep = '-99'
-        self.measType = ''
-        self.runNumber = 1
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
 
+        # Default attributes for hdf5 output, overwritten by instrument control
+        self.runType = 'sine'
+        self.sineFrequency = '1.00'
+        self.sineAmplitude = '0.50'
+        self.awgFreq = 1200 # Sampling freq of external AWG
+        self.pulseLength = 64 # Pulse length in bunch crossings
+ 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
-        # USB-ISS port setup
-        #i2cPortFound = None
-        #self.i2cPort = None
-        #if not self.pArgs.no_connect:
-        #    i2cPortFound = configureLpGBT1213.findPort()
-        #    self.i2cPort = configureLpGBT1213.setupSerial(i2cPortFound)
+        # Instrument control
+        #self.IPaddress = self.ipAddressBox.toPlainText()
+        #self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
+        #self.function_generator = getattr(self.IC,'function_generator')
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
@@ -104,16 +112,22 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Establish link between GUI buttons and internal configuration dictionaries
         self.connectButtons()
         self.connectPowerButtons()
+        self.connectCopyButtons()
 
-        self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
-        self.test3Button.clicked.connect(lambda: powerMod.vrefCalibrate(self))
-        #self.test2Button.clicked.connect(clockMod.scanClocks)
+        #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
+        self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
+        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+   
+        # instrument buttons
+        self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
+
+        # Data buttons
         self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
         self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
+        self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
-        self.initializeUSBButton.clicked.connect(self.initializeUSBISSModule)
-        self.disableParityButton.clicked.connect(self.disableParity)
+        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
@@ -149,45 +163,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
-        allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
-        allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
         allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
         allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
         allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, allLAUROCs, None))
-
-        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", allCOLUTAs, ["global"]))
-
-        self.COLUTA13CopyDRETo13Button.clicked.connect(copyConfig("coluta13", "ch1", ["coluta13"], allDREChannels))
-        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, ["ch1"]))
-        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, allDREChannels))
-
-        self.COLUTA13CopyMDACTo13Button.clicked.connect(copyConfig("coluta13", "ch5", ["coluta13"], allMDACChannels))
-        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, ["ch5"]))
-        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, allMDACChannels))
-
-        self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
-        self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
-
-        self.coluta13SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "1"))
-        self.coluta14SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "1"))
-        self.coluta15SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "1"))
-        self.coluta16SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "1"))
-        self.coluta17SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "1"))
-        self.coluta18SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "1"))
-        self.coluta19SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "1"))
-        self.coluta20SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "1"))
-
-        self.coluta13SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "0"))
-        self.coluta14SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "0"))
-        self.coluta15SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "0"))
-        self.coluta16SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "0"))
-        self.coluta17SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "0"))
-        self.coluta18SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "0"))
-        self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
-        self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
 
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
@@ -631,7 +611,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     ########################## Functions to Send Full Configurations ##########################
     def configureAll(self):
-        """ Configures LPGBT9-16, COLUTA16/17/20 and LAUROC16/20 """
+        """ Configures LPGBT9-16, COLUTA13-20 and LAUROC13-20 """
+        colutas = self.allCOLUTAs
+        laurocs = self.allLAUROCs
+
         print("Configuring lpgbt12")
         self.sendFullControlLPGBTConfigs("lpgbt12")
         time.sleep(0.5)
@@ -656,24 +639,24 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring lpgbt16")
         self.sendFullDataLPGBTConfigs("lpgbt16")
         time.sleep(0.5)
-       
-        print("Configuring COLUTA16")
-        self.sendFullCOLUTAConfig("coluta16")
-        time.sleep(0.5) 
-        print("Configuring COLUTA17")
-        self.sendFullCOLUTAConfig("coluta17")
-        time.sleep(0.5) 
-        print("Configuring COLUTA20")
-        self.sendFullCOLUTAConfig("coluta20")
-        time.sleep(0.5) 
+ 
+        #if input("Configure all colutas?(y/n)\n") != 'y':
+        #    print("Exiting config all")
+        #    return
+        for coluta in colutas:
+            print("Configuring", coluta)
+            self.sendFullCOLUTAConfig(coluta)
+            time.sleep(0.5) 
 
-        print("Configuring LAUROC16")
-        self.sendFullLAUROCConfigs("lauroc16")
-        time.sleep(0.5)
-        print("Configuring LAUROC20")
-        self.sendFullLAUROCConfigs("lauroc20")
-        time.sleep(0.5)
-        
+        #if input("Configure all laurocs?(y/n)\n") != 'y':
+        #    print("Exiting config all")
+        #    return 
+        for lauroc in laurocs:
+            print("Configuring", lauroc)
+            self.sendFullLAUROCConfigs(lauroc)
+            time.sleep(0.5)
+
+        print("Done Configuring") 
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
@@ -709,6 +692,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
+        print("Done configuring", lpgbt)
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -739,6 +723,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
+        print("Done configuring", lpgbt)
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -746,6 +731,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             lauroc = getattr(self, 'laurocConfigureBox').currentText()
         else:
             lauroc = laurocName
+        print("Configuring", lauroc)
         #print("Resetting lpgbt master control")
         lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
@@ -773,7 +759,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
-
+        print("Done configuring", lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -794,6 +780,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.writeToCOLUTAGlobal(coluta)
         if self.READBACK:
             self.readFromCOLUTAGlobal(coluta)
+        print("Done configuring", coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -943,9 +930,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def sendUpdatedConfigurations(self):
         """ Write all updated configuations for all chips """
-        badLAUROCS = ['lauroc13', 'lauroc14', 'lauroc15', 'lauroc17', 'lauroc18', 'lauroc19']
-        badCOLUTAs = ['coluta13', 'coluta14', 'coluta15', 'coluta18', 'coluta19']
+        badLAUROCS = [lauroc for lauroc in [f'lauroc{i}' for i in range(13,21)] if lauroc not in self.allLAUROCs]
+        badCOLUTAs = [coluta for coluta in [f'coluta{i}' for i in range(13,21)] if coluta not in self.allCOLUTAs]
         badChips = badCOLUTAs+badLAUROCS
+        print("updating")
         for (chipName, chipConfig) in self.chips.items():
             if chipName in badChips:
                 continue
@@ -983,6 +971,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                         self.writeToCOLUTAChannel(chipName, data[0])
             else:
                 print('ChipName Not recognized: ', chipName)
+        print("Done Updating")
 
 
     def sortUpdates(self, updates, maxConsecutive):
@@ -1039,6 +1028,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #self.status45.send()
             #self.status45.sendSoftwareReset()
 
+    def updateStatusBar(self,message='Ready'):
+        """Updates the status bar on the GUI frontpage"""
+        self.statusBar.showMessage('Run '+str(self.runNumber).zfill(4)+' - '+messaage)
 
     def handshake(self):
         """Checks the serial connections. Gives green status to valid ones"""
@@ -1105,6 +1097,53 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         else:
             isReady = False
         return isReady
+
+    def connectCopyButtons(self):
+        copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
+        #allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
+        #allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
+        allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
+        allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
+        allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
+        allControlLpGBTs = ["lpgbt12", "lpgbt13"]
+
+        for i in range(13,21):
+            boxName = 'COLUTA'+str(i)+'CopyMDACTo'+str(i)+'Button'
+            box = getattr(self, boxName)
+            box.clicked.connect(copyConfig("coluta"+str(i), "ch5", ["coluta"+str(i)], allMDACChannels))
+
+        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, self.allLAUROCs, None))
+
+        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", self.allCOLUTAs, ["global"]))
+
+        self.COLUTA13CopyDRETo13Button.clicked.connect(copyConfig("coluta13", "ch1", ["coluta13"], allDREChannels))
+        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", self.allCOLUTAs, ["ch1"]))
+        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", self.allCOLUTAs, allDREChannels))
+
+        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", self.allCOLUTAs, ["ch5"]))
+        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", self.allCOLUTAs, allMDACChannels))
+
+        self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
+        self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
+
+        self.coluta13SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "1"))
+        self.coluta14SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "1"))
+        self.coluta15SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "1"))
+        self.coluta16SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "1"))
+        self.coluta17SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "1"))
+        self.coluta18SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "1"))
+        self.coluta19SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "1"))
+        self.coluta20SerializerTestModeOnButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "1"))
+
+        self.coluta13SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta13', "0"))
+        self.coluta14SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta14', "0"))
+        self.coluta15SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta15', "0"))
+        self.coluta16SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta16', "0"))
+        self.coluta17SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta17', "0"))
+        self.coluta18SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta18', "0"))
+        self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
+        self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
+
 
     def connectButtons(self):
         """Create a signal response for each configuration box"""
@@ -1203,16 +1242,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def takeTriggerData(self, measType):
         """Runs takeTriggerData script"""
-        self.measType = measType
-        flxADCMapping = {"COLUTA20":'7', "COLUTA17":'4'}
-        if not os.path.exists("Runs"):
-            os.makedirs("Runs")
-        outputDirectory = 'Runs'
-        self.getRunNumber()
-        outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
-        stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
-        outputPath = outputDirectory+"/"+outputFile
-        outputPathStamped = outputDirectory+"/"+stampedOutputFile
+        # Collect metadata
+        self.runType = measType
+        flxADCMapping = self.flxMapping
         self.daqMode = getattr(self,'daqModeBox').currentText()
         ADCSelect = getattr(self,'daqADCSelectBox').currentText()
         try:
@@ -1224,6 +1256,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.singleADCMode_ADC = ADCSelect
         else:
             self.singleADCMode_ADC = 'trigger'
+
+        # Establish output file
+        if not os.path.exists("Runs"):
+            os.makedirs("Runs")
+        if self.opened:
+            self.incrementRunNumber()
+            self.opened = False  
+        outputDirectory = 'Runs'
+        outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
+        stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
+        outputPath = outputDirectory+"/"+outputFile
+        outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
         subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
@@ -1237,12 +1281,55 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #subprocess.call("rm test.txt")
         # subprocess.call("python ")        
 
-    def getRunNumber(self):
-        outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
-        while os.path.exists(outputFile):
-            self.runNumber += 1
-            print(self.runNumber)
-            outputFile = 'Runs/run'+str(self.runNumber).zfill(4)+".hdf5"
+    def incrementRunNumber(self):
+        self.runNumber += 1
+        print("Run Number", self.runNumber)
+        with open('config/metadata.txt','r') as f:
+            temp = json.load(f)
+            temp['runNumber'] = self.runNumber
+
+        with open('config/metadata.txt','w') as f:
+            json.dump(temp,f)
+
+    def makeMetadataJSON(self):
+        print("Hello! We need to collect some system information to get started.")
+        runNumber = input("Enter run number: ")
+        boardID = input("Enter boardID: ")
+        awgType = input("Enter AWGtype: ")
+        assembled = input("Is your board fully assembled (8 ADCs, 8 PA/Ss)? Enter y or n: ")
+        if (assembled == 'y'):
+            colutas = [f'coluta{i}' for i in range(13,21)]
+            laurocs = [f'lauroc{i}' for i in range(13,21)]
+        else:
+            colutaNumStr = input('Please enter the indicies of COLUTAs on your board seperated by commas. Ex) 16,17,20 : ')
+            laurocNumStr = input('Please enter the indicies of LAUROCs on your board seperated by commas. Ex) 16,20 : ')
+            colutaNums = colutaNumStr.split(",")
+            laurocNums = laurocNumStr.split(",")
+            colutas = ['coluta'+num for num in colutaNums]
+            laurocs = ['lauroc'+num for num in laurocNums]
+
+        print("Thanks! Default FLX mapping information will be used. Please modify by hand if necessary.")
+        metadata = {}
+        metadata['runNumber'] = int(runNumber)
+        metadata['boardID'] = boardID
+        metadata['awgType'] = awgType
+        metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
+        metadata["allCOLUTAs"] = colutas
+        metadata["allLAUROCs"] = laurocs
+        with open('config/metadata.txt', 'w') as outfile:
+            json.dump(metadata, outfile)
+
+    def getMetadataFromJSON(self):
+        if not os.path.exists('config/metadata.txt'):
+            self.makeMetadataJSON()
+        with open('config/metadata.txt') as json_file:
+            metadata = json.load(json_file)
+            self.runNumber = metadata["runNumber"]   
+            self.boardID = metadata["boardID"]
+            self.awgType = metadata["awgType"]
+            self.flxMapping = metadata["flxMapping"]
+            self.allLAUROCs = metadata["allLAUROCs"]
+            self.allCOLUTAs = metadata["allCOLUTAs"]
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
@@ -1350,7 +1437,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             targetChipNames = []
         if targetSectionNames is None:
             targetSectionNames = []
-
+        
+        print("Warning: LPGBTPhase will not be copied")
         sourceChip = self.chips[sourceChipName]
         sourceSection = sourceChip[sourceSectionName]
         for (sourceSettingName, sourceSetting) in sourceSection.items():
@@ -1362,6 +1450,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     targetSettingName = sourceSettingName
                     targetSetting = targetSection[targetSettingName]
                     if sourceSetting == targetSetting: continue  # Don't want to mark as updated if nothing changed
+                    if targetSettingName == 'LPGBTPhase': continue # Don't copy clock settings
                     boxName = targetChipName + targetSectionName + targetSettingName + "Box"
                     self.updateBox(boxName, sourceSetting)
 

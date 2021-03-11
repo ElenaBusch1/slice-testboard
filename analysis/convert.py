@@ -26,16 +26,19 @@ class Process(object):
 
         out_file = h5py.File(output_dir + mType + "_Data_Normal.hdf5","w")
 
-        for meas_ind,meas in enumerate(self.measTypeDict["normal"]):
+
+        for meas_ind,meas in enumerate(self.measTypeDict[mType]):
             out_file.create_group("Measurement_" + str(meas_ind))
             for gain in self.Gains:        
+                  print(gain)
                   for channel in self.Channels:
 
-                    raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
+                    raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3),\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
 
-                    if len(raw_data) == 0: continue  
+                    #raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3)))
+                    if np.shape(raw_data)[-1] == 0: continue  
 
                     print(np.shape(raw_data))
 
@@ -53,8 +56,8 @@ class Process(object):
     def getChannelsAndGains(self):
 
         f = h5py.File(self.fileName,"r")
-        self.Channels = f["Measurement_0/"].keys()        
-        self.Gains = f["Measurement_0/{channel}".format(channel = self.Channels[0])].keys()        
+        self.Channels = f["Measurement_000/"].keys()        
+        self.Gains = f["Measurement_000/{channel}".format(channel = self.Channels[0])].keys()        
         f.close()
 
     def getMeasTypeDict(self):
@@ -64,12 +67,14 @@ class Process(object):
       f = h5py.File(self.fileName,"r")
 
       for meas_num in range(len(f)):
-
+          
+          meas_str = str(meas_num).zfill(3)
           try:
-              measType = f["Measurement_{meas_num}".format(meas_num = meas_num)].attrs["measType"]
+              measType = f["Measurement_"+meas_str].attrs["measType"]
           except KeyError:
               measType = "normal"
 
+          measType = "Pedestal"
           if not measType in meas_dict.keys():
 
                  meas_dict[measType] = []
@@ -91,15 +96,18 @@ def main():
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
-    sliceAnalyzeFile = Process(input_dir + runName + "_testpulse.hdf5")
+    sliceAnalyzeFile = Process(input_dir + "run"+ runName + ".hdf5")
     #sliceAnalyzeFile = Process(input_dir + "Run_" + runName + "_Output.hdf5")
     print(sliceAnalyzeFile.fileName)
     sliceAnalyzeFile.getMeasTypeDict()
     sliceAnalyzeFile.getChannelsAndGains()
 
+    #sliceAnalyzeFile.Gains = [""]
+    #sliceAnalyzeFile.Channels = ["channel5","channel6","channel7","channel8"]
     print(sliceAnalyzeFile.measTypeDict)
     print(sliceAnalyzeFile.Channels)
-    mType = "Pulse"
+    #mType = "sine_normal"
+    mType = "Pedestal"
 
     sliceAnalyzeFile.getNormalWF(output_dir,mType)
 
