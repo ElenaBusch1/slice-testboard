@@ -47,14 +47,14 @@ class AnalyzePed(object):
     def __repr__(self):
 
      print("++++++++++++++++++++++++++++++")
-     print(("         Run  {name}          ".format(name = self.runNo)))
+     print("         Run  {name}          ".format(name = self.runNo))
      print("++++++++++++++++++++++++++++++\n\n")
 
      
-     print(("Gains: " + str(self.Gains)))
-     print(("n Channels: " +str(self.nChannels)))
-     print(("n Meas: " +str(self.nMeas)))
-     print(("Samples per Meas: " +str(self.nSamples)))
+     print("Gains: " + str(self.Gains))
+     print("n Channels: " +str(self.nChannels))
+     print("n Meas: " +str(self.nMeas))
+     print("Samples per Meas: " +str(self.nSamples))
      return ""
 
     def getChannelsAndGains(self):
@@ -62,8 +62,8 @@ class AnalyzePed(object):
         print("Getting Channels and Gains from hdf5....\n")
 
         f = h5py.File(self.fileName,"r")
-        self.Channels = list(f["Measurement_0/"].keys())        
-        self.Gains = list(f["Measurement_0/{channel}".format(channel = self.Channels[0])].keys())[::-1]        
+        self.Channels = f["Measurement_0/"].keys()        
+        self.Gains = f["Measurement_0/{channel}".format(channel = self.Channels[0])].keys()[::-1]        
         f.close()
 
 
@@ -93,7 +93,7 @@ class AnalyzePed(object):
             for i,gain in enumerate(self.Gains):
                 self.GainDict[gain] = i
                 for j,channel in enumerate(self.Channels):
-                    print((meas, gain, channel))
+                    print(meas, gain, channel)
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
@@ -107,7 +107,7 @@ class AnalyzePed(object):
 
         print("Plotting raw Pedestal....\n")
 
-        if not meas_to_plot:  meas_to_plot = list(range(self.nMeas))
+        if not meas_to_plot:  meas_to_plot = range(self.nMeas)
         if not gains_to_plot: gains_to_plot = self.Gains
         if not chans_to_plot: chans_to_plot = self.Channels
 
@@ -120,7 +120,7 @@ class AnalyzePed(object):
 
               if max(raw_data) > 2**15: continue
               if len(raw_data) <1: continue 
-              if min(raw_data) == max(raw_data): continue
+       	      if min(raw_data) == max(raw_data): continue
   
               fig,ax = plt.subplots()
               ax.plot(raw_data[10:],'b.')
@@ -184,9 +184,9 @@ class AnalyzePed(object):
             do_fit = True
             fig,ax = plt.subplots()
 
-            print(("here!",max(data)))
+            print("here!",max(data))
             fit_points = np.linspace(min(data),max(data),1000)
-            bins = np.linspace(min(data) - .5, max(data) - .5, int(max(data) - min(data) + 1))
+            bins = np.linspace(min(data) - .5, max(data) - .5, max(data) - min(data) + 1)
 
             #if coherent:
             n, bins, _ = ax.hist(data,bins = bins,edgecolor ='black',zorder = 1,label= "RMS = " +str(round(np.std(data),2)) )
@@ -201,14 +201,14 @@ class AnalyzePed(object):
                 if coherent: pars, cov = curve_fit(gauss, centers, n, p0=[0,np.std(data),y_max])  
                 else: pars, cov = curve_fit(gauss, centers, n, p0=[np.mean(data),np.std(data),y_max])  
 
-                mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
-                sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
-                print((sigma, dsigma))
+	        mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
+	        sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
+                print(sigma, dsigma)
 
             if plot:
               if do_fit:
-            #ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
-                 ax.plot(fit_points, gauss(fit_points,*pars), 'r-',linewidth = 2,label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))        
+	        #ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
+	        ax.plot(fit_points, gauss(fit_points,*pars), 'r-',linewidth = 2,label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))        
 
               ax.legend()
               ax.set_xlabel("Sample Value [ADC Counts]")
@@ -229,10 +229,10 @@ class AnalyzePed(object):
 
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
 
-              print(("Plotting Baseline hist for " + channel + " " + gain + " gain..."))
+              print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
               #plt.show()
               plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-              print(("Figure saved as: ",'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain)))
+              print("Figure saved as: ",'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
 
             plt.cla()
             plt.clf()
@@ -244,7 +244,7 @@ class AnalyzePed(object):
 
         print("Analyzing baseline....\n")
 
-        if not meas_to_plot:  meas_to_plot = list(range(self.nMeas))
+        if not meas_to_plot:  meas_to_plot = range(self.nMeas)
         if not gains_to_plot: gains_to_plot = self.Gains
         if not chans_to_plot: chans_to_plot = self.Channels
 
@@ -260,11 +260,11 @@ class AnalyzePed(object):
           for i,gain in enumerate(gains_to_plot):
             for j,channel in enumerate(chans_to_plot):
 
-                print((meas,str(gain),str(channel)))
+                print(meas,str(gain),str(channel))
                 pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
 
                 mu, sigma, dsig = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
-                print(mu)
+		print(mu)
                 if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
                 elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
  
@@ -311,9 +311,9 @@ class AnalyzePed(object):
         #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
         #chs = [("channel0" + str(no)) for no in chs_r]
         #chs = self.Channels
-        print(("self channels: ",self.Channels))        
+        print("self channels: ",self.Channels)        
 
-        meas_to_plot = list(range(self.nMeas))
+        meas_to_plot = range(self.nMeas)
         for meas in meas_to_plot:
             for i,gain in enumerate(self.Gains):
             #for i,gain in enumerate(["lo"]):
@@ -322,10 +322,10 @@ class AnalyzePed(object):
                 ped_tot_right = np.zeros(np.shape(self.Samples)[-1])
                 for channel in chs:
 
-                    print(("ANALYZING CHANNEL: ",channel)) 
+                    print("ANALYZING CHANNEL: ",channel) 
 
                     ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-                    print((gain,self.GainDict))
+                    print(gain,self.GainDict)
                     
                     if int(channel.strip("channel")) < 64: ped_tot_left += ped_i
                     else: ped_tot_right += ped_i
@@ -347,7 +347,7 @@ class AnalyzePed(object):
 
     def PlotPairwiseCorr(self,plot_dir,gain = "hi"):
 
-        meas_to_plot = list(range(self.nMeas))
+        meas_to_plot = range(self.nMeas)
 
         channels = self.Channels
         chs_l = [50,51,54,55,58,59,62,63]
@@ -365,39 +365,39 @@ class AnalyzePed(object):
           pearson = np.corrcoef(data_by_ch)
 
 
-          fig, ax = plt.subplots()
-          im = ax.imshow(pearson, cmap = "Blues",vmin = -.2,vmax = .3)
-
+	  fig, ax = plt.subplots()
+	  im = ax.imshow(pearson, cmap = "Blues",vmin = -.2,vmax = .3)
+	
           plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
                rotation_mode="anchor")
 
-          ax.set_xticks(np.arange(len(channels)))
-          ax.set_yticks(np.arange(len(channels)))
-          ax.set_xticklabels(channels)
-          ax.set_yticklabels(channels)
+	  ax.set_xticks(np.arange(len(channels)))
+	  ax.set_yticks(np.arange(len(channels)))
+	  ax.set_xticklabels(channels)
+	  ax.set_yticklabels(channels)
 
-          for i in range(len(channels)):
-            for j in range(len(channels)):
+	  for i in range(len(channels)):
+	    for j in range(len(channels)):
                 if i == j: color = "w"
                 else: color = "k"
                 text = ax.text(j, i, int(round(pearson[i, j],2)*100),
-                               ha="center", va="center", color=color)
+			       ha="center", va="center", color=color)
 
-          for edge, spine in list(ax.spines.items()):
-              spine.set_visible(False)
+          for edge, spine in ax.spines.items():
+		spine.set_visible(False)
 
-          ax.set_title("Pairwise Noise Correlation [%], " + str(gain) + " gain")
-          ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
-          ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
-          ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
-          fig.tight_layout()
+	  ax.set_title("Pairwise Noise Correlation [%], " + str(gain) + " gain")
+	  ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
+	  ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
+	  ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
+	  fig.tight_layout()
           plt.show()
-          #plt.savefig("/nevis/kolya/home/acs2325/colutaanalysis/PDRPlots/xtalk/" +  ASIC + "/" + input_dir  + "_4x4_rounded.pdf")
-          plt.close()
-          plt.clf()
+	  #plt.savefig("/nevis/kolya/home/acs2325/colutaanalysis/PDRPlots/xtalk/" +  ASIC + "/" + input_dir  + "_4x4_rounded.pdf")
+	  plt.close()
+	  plt.clf()
 
 
-          return
+	  return
 
  
     def PlotCoherentNoise(self,plot_dir,chs):# ch1 = None,ch2 = None):
@@ -406,25 +406,25 @@ class AnalyzePed(object):
             print("Please specify 2 channels to see a coherent noise plot")
             return
 
-        print(("self channels: ",self.Channels))
+        print("self channels: ",self.Channels)
         #chs = self.Channels
   
-        chs_l = [50,51,54,55,58,59,62,63]
-        chs_r = [66,67,70,71,74,75,78,79]
-        #chs_l = [12,13,14,15,16,17,18,19,28,29,30,31]
-        #chs_r = []
+        #chs_l = [50,51,54,55,58,59,62,63]
+        #chs_r = [66,67,70,71,74,75,78,79]
+        chs_l = [12,13,14,15,16,17,18,19,28,29,30,31]
+        chs_r = []
 
-        chs = [("channel0" + str(no)) for no in chs_l + chs_r]
+        #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
         #chs = [("channel0" + str(no)) for no in chs_r]
 
         #chs = chs[:16]
 
-        print(("channels: ",chs))
+        print("channels: ",chs)
 
         #chs = chs[1:3] 
         Nchan = len(chs)
 
-        meas_to_plot = list(range(self.nMeas))
+        meas_to_plot = range(self.nMeas)
         for i,gain in enumerate(["lo", "hi"]):
             for meas in meas_to_plot:
             #for i,gain in enumerate(self.Gains):
@@ -436,14 +436,14 @@ class AnalyzePed(object):
                 for channel in chs:
 
                     #if int(channel.strip("channel")) < 64: continue
-                    print(("ANALYZING CHANNEL: ",channel)) 
+                    print("ANALYZING CHANNEL: ",channel) 
 
                     #ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
                     ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
                     ped_i -= np.mean(ped_i)
 
                     mu_i,sig_i,dsig_i = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
-                    print((mu_i, sig_i, dsig_i))
+                    print(mu_i, sig_i, dsig_i)
                      
                     sig_2_tot += sig_i**2
                     dsig_2_tot += (sig_i**2)*(dsig_i**2)
@@ -483,8 +483,8 @@ def main():
 
     PedData.getChannelsAndGains()
 
-    print(("Gains: ",PedData.Gains))
-    print(("Channels: ",PedData.Channels))
+    print("Gains: ",PedData.Gains)
+    print("Channels: ",PedData.Channels)
 
     PedData.getSamples() 
     PedData.getDimensions()
@@ -496,14 +496,9 @@ def main():
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
     #PedData.PlotRaw(plot_dir)
-    PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
-                                                               "channel054","channel055",\
-                                                               "channel058","channel059",\
-                                                               "channel062","channel063",\
-                                                               "channel066","channel067",\
-                                                               "channel070","channel071",\
-                                                               "channel074","channel075",\
-                                                               "channel078","channel079"] ) 
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel014","channel015",\
+    #                                                           "channel018","channel019",\
+    #                                                           "channel030","channel031"] )
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
     #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     #PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
