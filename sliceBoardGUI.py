@@ -57,7 +57,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Some version-dependent parameters/values
 
-        self.nSamples = 100000  # default number of samples to parse from standard readout
+        #self.nSamples = 1000000  # default number of samples to parse from standard readout
+        self.nSamples = 1000  # default number of samples to parse from standard readout
         self.discarded = 0  # first N samples of readout are discarded by software (MSB end)
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
@@ -83,7 +84,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sineAmplitude = '0.50'
         self.awgFreq = 1200 # Sampling freq of external AWG
         self.pulseLength = 64 # Pulse length in bunch crossings
-
+ 
         # Instance of the Status class. Communicates with FIFO B / FPGA status registers
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
@@ -115,7 +116,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,20)]))
+        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -126,7 +127,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
-        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ['coluta'+str(i) for i in range (13,20)]))
+        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
@@ -162,8 +163,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
-        allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
-        allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
         allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
         allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
@@ -613,8 +612,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     ########################## Functions to Send Full Configurations ##########################
     def configureAll(self):
         """ Configures LPGBT9-16, COLUTA13-20 and LAUROC13-20 """
-        colutas = ["coluta"+str(i) for i in range(13,21)]
-        laurocs = ["lauroc"+str(i) for i in range(13,21)]
+        colutas = self.allCOLUTAs
+        laurocs = self.allLAUROCs
 
         print("Configuring lpgbt12")
         self.sendFullControlLPGBTConfigs("lpgbt12")
@@ -641,17 +640,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sendFullDataLPGBTConfigs("lpgbt16")
         time.sleep(0.5)
  
-        if input("Configure all colutas?(y/n)\n") != 'y':
-            print("Exiting config all")
-            return
+        #if input("Configure all colutas?(y/n)\n") != 'y':
+        #    print("Exiting config all")
+        #    return
         for coluta in colutas:
             print("Configuring", coluta)
             self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
 
-        if input("Configure all laurocs?(y/n)\n") != 'y':
-            print("Exiting config all")
-            return 
+        #if input("Configure all laurocs?(y/n)\n") != 'y':
+        #    print("Exiting config all")
+        #    return 
         for lauroc in laurocs:
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
@@ -931,10 +930,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def sendUpdatedConfigurations(self):
         """ Write all updated configuations for all chips """
-        #badLAUROCS = ['lauroc13', 'lauroc14', 'lauroc15', 'lauroc17', 'lauroc18', 'lauroc19']
-        #badCOLUTAs = ['coluta13', 'coluta14', 'coluta15', 'coluta18', 'coluta19']
-        #badChips = badCOLUTAs+badLAUROCS
-        badChips = []
+        badLAUROCS = [lauroc for lauroc in [f'lauroc{i}' for i in range(13,21)] if lauroc not in self.allLAUROCs]
+        badCOLUTAs = [coluta for coluta in [f'coluta{i}' for i in range(13,21)] if coluta not in self.allCOLUTAs]
+        badChips = badCOLUTAs+badLAUROCS
+        print("updating")
         for (chipName, chipConfig) in self.chips.items():
             if chipName in badChips:
                 continue
@@ -1101,8 +1100,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def connectCopyButtons(self):
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
-        allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
-        allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
+        #allLAUROCs = [f"lauroc{num}" for num in range(13, 21)]
+        #allCOLUTAs = [f"coluta{num}" for num in range(13, 21)]
         allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
         allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
@@ -1113,16 +1112,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             box = getattr(self, boxName)
             box.clicked.connect(copyConfig("coluta"+str(i), "ch5", ["coluta"+str(i)], allMDACChannels))
 
-        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, allLAUROCs, None))
+        self.LAUROC13CopyAllButton.clicked.connect(copyConfig("lauroc13", None, self.allLAUROCs, None))
 
-        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", allCOLUTAs, ["global"]))
+        self.COLUTA13CopyGlobalButton.clicked.connect(copyConfig("coluta13", "global", self.allCOLUTAs, ["global"]))
 
         self.COLUTA13CopyDRETo13Button.clicked.connect(copyConfig("coluta13", "ch1", ["coluta13"], allDREChannels))
-        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, ["ch1"]))
-        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", allCOLUTAs, allDREChannels))
+        self.COLUTA13CopyCh1ToAllButton.clicked.connect(copyConfig("coluta13", "ch1", self.allCOLUTAs, ["ch1"]))
+        self.COLUTA13CopyDREToAllButton.clicked.connect(copyConfig("coluta13", "ch1", self.allCOLUTAs, allDREChannels))
 
-        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, ["ch5"]))
-        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", allCOLUTAs, allMDACChannels))
+        self.COLUTA13CopyCh5ToAllButton.clicked.connect(copyConfig("coluta13", "ch5", self.allCOLUTAs, ["ch5"]))
+        self.COLUTA13CopyMDACToAllButton.clicked.connect(copyConfig("coluta13", "ch5", self.allCOLUTAs, allMDACChannels))
 
         self.lpGBT9CopyAllButton.clicked.connect(copyConfig("lpgbt9", None, allDataLpGBTs, None))
         self.lpGBT12CopyAllButton.clicked.connect(copyConfig("lpgbt12", None, allControlLpGBTs, None))
@@ -1297,12 +1296,26 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         runNumber = input("Enter run number: ")
         boardID = input("Enter boardID: ")
         awgType = input("Enter AWGtype: ")
-        print("Thanks! Please add any FLX mapping information by hand.")
+        assembled = input("Is your board fully assembled (8 ADCs, 8 PA/Ss)? Enter y or n: ")
+        if (assembled == 'y'):
+            colutas = [f'coluta{i}' for i in range(13,21)]
+            laurocs = [f'lauroc{i}' for i in range(13,21)]
+        else:
+            colutaNumStr = input('Please enter the indicies of COLUTAs on your board seperated by commas. Ex) 16,17,20 : ')
+            laurocNumStr = input('Please enter the indicies of LAUROCs on your board seperated by commas. Ex) 16,20 : ')
+            colutaNums = colutaNumStr.split(",")
+            laurocNums = laurocNumStr.split(",")
+            colutas = ['coluta'+num for num in colutaNums]
+            laurocs = ['lauroc'+num for num in laurocNums]
+
+        print("Thanks! Default FLX mapping information will be used. Please modify by hand if necessary.")
         metadata = {}
         metadata['runNumber'] = int(runNumber)
         metadata['boardID'] = boardID
         metadata['awgType'] = awgType
         metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
+        metadata["allCOLUTAs"] = colutas
+        metadata["allLAUROCs"] = laurocs
         with open('config/metadata.txt', 'w') as outfile:
             json.dump(metadata, outfile)
 
@@ -1315,6 +1328,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.boardID = metadata["boardID"]
             self.awgType = metadata["awgType"]
             self.flxMapping = metadata["flxMapping"]
+            self.allLAUROCs = metadata["allLAUROCs"]
+            self.allCOLUTAs = metadata["allCOLUTAs"]
 
     def fifoAReadData(self, port):
         """Requests measurement, moves data to buffer, and performs read operation"""
@@ -1422,7 +1437,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             targetChipNames = []
         if targetSectionNames is None:
             targetSectionNames = []
-
+        
+        print("Warning: LPGBTPhase will not be copied")
         sourceChip = self.chips[sourceChipName]
         sourceSection = sourceChip[sourceSectionName]
         for (sourceSettingName, sourceSetting) in sourceSection.items():
@@ -1434,6 +1450,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     targetSettingName = sourceSettingName
                     targetSetting = targetSection[targetSettingName]
                     if sourceSetting == targetSetting: continue  # Don't want to mark as updated if nothing changed
+                    if targetSettingName == 'LPGBTPhase': continue # Don't copy clock settings
                     boxName = targetChipName + targetSectionName + targetSettingName + "Box"
                     self.updateBox(boxName, sourceSetting)
 
