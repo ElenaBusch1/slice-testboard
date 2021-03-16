@@ -208,7 +208,7 @@ class AnalyzePed(object):
             if plot:
               if do_fit:
 	        #ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
-	        ax.plot(centers, gauss(centers,*pars), 'r-',linewidth = 2,label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))        
+	        ax.plot(fit_points, gauss(fit_points,*pars), 'r-',linewidth = 2,label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))        
 
               ax.legend()
               ax.set_xlabel("Sample Value [ADC Counts]")
@@ -230,8 +230,9 @@ class AnalyzePed(object):
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
 
               print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
-              plt.show()
-              #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
+              #plt.show()
+              plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
+              print("Figure saved as: ",'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
 
             plt.cla()
             plt.clf()
@@ -302,10 +303,12 @@ class AnalyzePed(object):
             print("Please specify 2 channels to see a coherent noise plot")
             return
 
-        chs_l = [50,51,54,55,58,59,62,63]
-        chs_r = [66,67,70,71,74,75,78,79]
+        #chs_l = [50,51,54,55,58,59,62,63]
+        #chs_r = [66,67,70,71,74,75,78,79]
+        chs_l = [12,13,14,15,16,17,18,1928,29,30,31]
+        chs_r = []
 
-        chs = [("channel0" + str(no)) for no in chs_l + chs_r]
+        #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
         #chs = [("channel0" + str(no)) for no in chs_r]
         #chs = self.Channels
         print("self channels: ",self.Channels)        
@@ -340,28 +343,63 @@ class AnalyzePed(object):
         plt.colorbar(image,cmap = "Blues",ax = ax)
         ax.set_title("Coherent noise by Sliceboard side")
         plt.show()
+ 
 
-
-    def PlotPairwiseCorr(self,plot_dir):
+    def PlotPairwiseCorr(self,plot_dir,gain = "hi"):
 
         meas_to_plot = range(self.nMeas)
 
-        chs_a = [ ch for ch in self.Channels if int(ch.strip("channel")) < 64]
-        chs_b = [ ch for ch in self.Channels if int(ch.strip("channel")) < 64]
+        channels = self.Channels
+        chs_l = [50,51,54,55,58,59,62,63]
+        chs_r = [66,67,70,71,74,75,78,79]
 
-        for meas in meas_to_plot:
-         for i,a in enumerate(chs_a):
-          for j,b in enumerate(chs_b):
+        channels = [("channel0" + str(no)) for no in chs_l + chs_r]
 
-              for k,gain in enumerate(["hi"]):
-
-
-                 ped_a = self.Samples[meas,self.GainDict[gain],self.ChanDict[a],:]
-                 ped_b = self.Samples[meas,self.GainDict[gain],self.ChanDict[b],:]
-
-                 r = ()*()/np.sqrt()
-
+        data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict[gain],self.ChanDict[channels[0]],:])))
   
+        for meas in meas_to_plot:
+          for row,ch in enumerate(channels):
+
+            data_by_ch[row,:] = self.Samples[meas,self.GainDict[gain],self.ChanDict[ch],:]
+
+          pearson = np.corrcoef(data_by_ch)
+
+
+	  fig, ax = plt.subplots()
+	  im = ax.imshow(pearson, cmap = "Blues",vmin = -.2,vmax = .3)
+	
+          plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+               rotation_mode="anchor")
+
+	  ax.set_xticks(np.arange(len(channels)))
+	  ax.set_yticks(np.arange(len(channels)))
+	  ax.set_xticklabels(channels)
+	  ax.set_yticklabels(channels)
+
+	  for i in range(len(channels)):
+	    for j in range(len(channels)):
+                if i == j: color = "w"
+                else: color = "k"
+                text = ax.text(j, i, int(round(pearson[i, j],2)*100),
+			       ha="center", va="center", color=color)
+
+          for edge, spine in ax.spines.items():
+		spine.set_visible(False)
+
+	  ax.set_title("Pairwise Noise Correlation [%], " + str(gain) + " gain")
+	  ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
+	  ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
+	  ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
+	  fig.tight_layout()
+          plt.show()
+	  #plt.savefig("/nevis/kolya/home/acs2325/colutaanalysis/PDRPlots/xtalk/" +  ASIC + "/" + input_dir  + "_4x4_rounded.pdf")
+	  plt.close()
+	  plt.clf()
+
+
+	  return
+
+ 
     def PlotCoherentNoise(self,plot_dir,chs):# ch1 = None,ch2 = None):
 
         if not (chs): 
@@ -371,11 +409,13 @@ class AnalyzePed(object):
         print("self channels: ",self.Channels)
         #chs = self.Channels
   
-        chs_l = [50,51,54,55,58,59,62,63]
-        chs_r = [66,67,70,71,74,75,78,79]
+        #chs_l = [50,51,54,55,58,59,62,63]
+        #chs_r = [66,67,70,71,74,75,78,79]
+        chs_l = [12,13,14,15,16,17,18,19,28,29,30,31]
+        chs_r = []
 
         #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
-        chs = [("channel0" + str(no)) for no in chs_r]
+        #chs = [("channel0" + str(no)) for no in chs_r]
 
         #chs = chs[:16]
 
@@ -389,7 +429,7 @@ class AnalyzePed(object):
             for meas in meas_to_plot:
             #for i,gain in enumerate(self.Gains):
 
-                if gain == "lo": chs.remove("channel079")
+                #if gain == "lo": chs.remove("channel079")
                 ped_tot = np.zeros(np.shape(self.Samples)[-1])
                 sig_2_tot = 0
                 dsig_2_tot = 0
@@ -454,13 +494,16 @@ def main():
 
     #PedData.Channels = ["channel030","channel031"]
     #PedData.Gains = ["lo"]
-    print(PedData.ChanDict)
+    #print(PedData.ChanDict)
     #PedData.PlotRaw(plot_dir)
-    PedData.AnalyzeBaseline(plot_dir, runName)
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel014","channel015",\
+    #                                                           "channel018","channel019",\
+    #                                                           "channel030","channel031"] )
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
-    PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
-    PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
-    ##PedData.PlotPairwiseCorr(plot_dir)
+    #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
+    #PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
+
+    PedData.PlotPairwiseCorr(plot_dir)
 
     '''
     PedData.Channels = ["channel031"]
