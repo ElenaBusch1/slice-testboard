@@ -89,7 +89,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
-        self.lpgbt12Only = False
+        self.lpgbt12Only = True
         self.lpgbt13Only = False
 
         # Instrument control
@@ -117,10 +117,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
         self.connectCopyButtons()
 
-        #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
+        self.test2Button.clicked.connect(lambda: self.controlLPGBTReset('lpgbt12'))
         #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
         self.test2Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05c,[0xa,0xb,0xc,0xd]))
-        self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt13', '1'))
+        self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt12', '1'))
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -1331,11 +1331,33 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(int(chip.i2cAddress, 2), 0x03c, [0x01], ICEC_CHANNEL=0)
         #readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1, ICEC_CHANNEL=0)
 
+    def controlLPGBTReset(self,lpgbt):
+        chip = self.chips[lpgbt]
+        chip.setConfiguration("piodirh","piodir10",'1')
+        chip.setConfiguration("pioouth","pioout10",'1')
+        chip.setConfiguration("piodrivestrengthh","piodrivestrength10",'1')
+        self.sendUpdatedConfigurations()
+        chip.setConfiguration("piodirh","piodir10",'0')
+        chip.setConfiguration("pioouth","pioout10",'0')
+        chip.setConfiguration("piodrivestrengthh","piodrivestrength10",'0')
+        self.sendUpdatedConfigurations()
+        chip.setConfiguration("piodirh","piodir10",'1')
+        chip.setConfiguration("pioouth","pioout10",'1')
+        chip.setConfiguration("piodrivestrengthh","piodrivestrength10",'1')
+        self.sendUpdatedConfigurations()
+        
+
     def enableGPIOPin(self, lpgbt, setting):
         chip = self.chips[lpgbt]
         chip.setConfiguration("piodirh","piodir14",setting)
         chip.setConfiguration("pioouth","pioout14",setting)
         chip.setConfiguration("piodrivestrengthh","piodrivestrength14",setting)
+        chip.setConfiguration("piodirh","piodir8",setting)
+        chip.setConfiguration("pioouth","pioout8",setting)
+        chip.setConfiguration("piodrivestrengthh","piodrivestrength8",setting)
+        chip.setConfiguration("piodirh","piodir12",setting)
+        chip.setConfiguration("pioouth","pioout12",setting)
+        chip.setConfiguration("piodrivestrengthh","piodrivestrength12",setting)
         self.sendUpdatedConfigurations()
 
     def showError(self, message):
