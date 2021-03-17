@@ -230,8 +230,8 @@ class AnalyzePed(object):
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
 
               print("Plotting Baseline hist for " + channel + " " + gain + " gain...")
-              plt.show()
-              #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
+              #plt.show()
+              plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_hist.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
 
             plt.cla()
             plt.clf()
@@ -339,7 +339,7 @@ class AnalyzePed(object):
         ax.set_ylabel("Right Side (ch 64-79) [cts.]")
         plt.colorbar(image,cmap = "Blues",ax = ax)
         ax.set_title("Coherent noise by Sliceboard side")
-        plt.show()
+        #plt.show()
 
 
     def PlotPairwiseCorr(self,plot_dir):
@@ -456,10 +456,10 @@ def main():
     #PedData.Gains = ["lo"]
     print(PedData.ChanDict)
 
-    PedData.PlotRaw(plot_dir)
+    #PedData.PlotRaw(plot_dir)
     PedData.AnalyzeBaseline(plot_dir, runName)
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
-    PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
+    #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     #PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     ##PedData.PlotPairwiseCorr(plot_dir)
 
