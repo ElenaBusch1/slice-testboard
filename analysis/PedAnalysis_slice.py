@@ -386,13 +386,13 @@ class AnalyzePed(object):
           for edge, spine in list(ax.spines.items()):
               spine.set_visible(False)
 
-          ax.set_title("Pairwise Noise Correlation [%], " + str(gain) + " gain")
+          ax.set_title("Run {name} Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
           ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
           fig.tight_layout()
           plt.show()
-          #plt.savefig("/nevis/kolya/home/acs2325/colutaanalysis/PDRPlots/xtalk/" +  ASIC + "/" + input_dir  + "_4x4_rounded.pdf")
+          #plt.savefig(r'{plot_dir}/{gain}_corr.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
           plt.close()
           plt.clf()
 
