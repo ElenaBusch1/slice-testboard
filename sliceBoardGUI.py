@@ -117,13 +117,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
         self.connectCopyButtons()
  
-        self.test1Button.clicked.connect(lambda: self.set140('lpgbt13'))
-        self.test2Button.clicked.connect(lambda: self.controlLPGBTRSTB('lpgbt13'))
+        #self.test1Button.clicked.connect(lambda: self.set140('lpgbt13'))
+        #self.test2Button.clicked.connect(lambda: self.controlLPGBTRSTB('lpgbt13'))
         #self.test2Button.clicked.connect(lambda: self.controlLPGBTReset('lpgbt12'))
-        #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        #self.test2Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05c,[0xa,0xb,0xc,0xd]))
-        self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt12', '1'))
-   
+        self.test2Button.clicked.connect(lambda: self.redundantReadFromControlLPGBT('lpgbt13', 0x1c7, 2))
+        self.test1Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05a,[0xa,0xb,0xc,0xd]))
+        self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt12', '1'))   
+ 
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
 
@@ -235,25 +235,37 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.redundantWriteToControlLPGBT(lpgbt, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00])
         self.redundantWriteToControlLPGBT(lpgbt, 0x0fd, [0xc])
          
-    def redundantWriteToECLPGBT(self,lpgbt, register, data):
-        
-        # We will write 16 bytes to i2cM1Data at a time
-        ecWriteToLpGBT(lpgbtI2CAddr, 0x100, [0x80 + ((len(data)+2) << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-        ecWriteToLpGBT(lpgbtI2CAddr, 0x104, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
-        # Write 2 byte register address, then 14 bytes of configuration
-        ecWriteToLpGBT(lpgbtI2CAddr, 0x100, [regL, regH, *data[:2]], ICEC_CHANNEL=ICEC_CHANNEL)
-        ecWriteToLpGBT(lpgbtI2CAddr, 0x104, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-        if len(data) > 2:
-            ecWriteToLpGBT(lpgbtI2CAddr, 0x100, [*data[2:6]], ICEC_CHANNEL=ICEC_CHANNEL)
-            ecWriteToLpGBT(lpgbtI2CAddr, 0x104, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
-        if len(data) > 6:    
-            ecWriteToLpGBT(lpgbtI2CAddr, 0x100, [*data[6:10]], ICEC_CHANNEL=ICEC_CHANNEL)
-            ecWriteToLpGBT(lpgbtI2CAddr, 0x104, [0xa], ICEC_CHANNEL=ICEC_CHANNEL)
-        if len(data) > 10:
-            ecWriteToLpGBT(lpgbtI2CAddr, 0x100, [*data[10:]], ICEC_CHANNEL=ICEC_CHANNEL)
-            ecWriteToLpGBT(lpgbtI2CAddr, 0x104, [0xb], ICEC_CHANNEL=ICEC_CHANNEL)
+    def redundantReadFromControlLPGBT(self, lpgbt, register, nBytes):
+        """ Reads nBytes back from the lpgbt, starting at the given register """
+        if lpgbt == 'lpgbt12':
+            control = 'lpgbt13'
+            ICEC_CHANNEL = 1
+        else:
+            control = 'lpgbt12'
+            ICEC_CHANNEL = 0
+
+        dataI2CAddr = int(self.chips[lpgbt].i2cAddress,2)
+        lpgbtI2CAddr = int(self.chips[control].i2cAddress,2)
+
+        #print("Reading register ", hex(register))
+        regH, regL = u16_to_bytes(register)
+        # We will write 2 bytes to the data lpGBT
+        writeToLpGBT(lpgbtI2CAddr, 0x100, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x104, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+        # Write 2 byte register address
+        writeToLpGBT(lpgbtI2CAddr, 0x100, [regL, regH, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x104, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0ff, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x104, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
+        # We will read 14 bytes from the data lpGBT
+        writeToLpGBT(lpgbtI2CAddr, 0x100, [0x80 + (nBytes << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x104,  [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0ff, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
+        writeToLpGBT(lpgbtI2CAddr, 0x104, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
+        # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+        ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x19e - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
+        print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
+        return ReverseReadback[::-1]
 
     def redundantWriteToControlLPGBT(self, lpgbt, register, data):
         """ Writes a maxiumum of 14 bytes to given register in data lpgbt """
@@ -1354,15 +1366,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def enableGPIOPin(self, lpgbt, setting):
         chip = self.chips[lpgbt]
+        #SC_I2C
         chip.setConfiguration("piodirh","piodir14",setting)
         chip.setConfiguration("pioouth","pioout14",setting)
-        chip.setConfiguration("piodrivestrengthh","piodrivestrength14",setting)
+        #Mode[1]
         chip.setConfiguration("piodirh","piodir8",setting)
-        chip.setConfiguration("pioouth","pioout8",setting)
-        chip.setConfiguration("piodrivestrengthh","piodrivestrength8",setting)
+        #LockMode
         chip.setConfiguration("piodirh","piodir12",setting)
-        chip.setConfiguration("pioouth","pioout12",setting)
-        chip.setConfiguration("piodrivestrengthh","piodrivestrength12",setting)
         self.sendUpdatedConfigurations()
 
     def showError(self, message):
