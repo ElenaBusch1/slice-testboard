@@ -199,8 +199,15 @@ class AnalyzePed(object):
             centers = (0.5*(bins[1:]+bins[:-1]))
             if do_fit:
                 if coherent: pars, cov = curve_fit(gauss, centers, n, p0=[0,np.std(data),y_max])  
-                else: pars, cov = curve_fit(gauss, centers, n, p0=[np.mean(data),np.std(data),y_max])  
-
+                else: 
+                  try:
+                    pars, cov = curve_fit(gauss, centers, n, p0=[np.mean(data),np.std(data),y_max])  
+                  except:
+                    print("WARNING: Could not complete curve fit - using statistical data instead")
+                    pars = [np.mean(data),np.std(data)]
+                    cov = np.array([[0,0,0],[0,0,0],[0,0,0]]) 
+                    do_fit = False
+                print(cov)
                 mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
                 sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
                 print((sigma, dsigma))
@@ -237,8 +244,8 @@ class AnalyzePed(object):
             plt.cla()
             plt.clf()
             plt.close()
-            if do_fit:
-                return mu, sigma, dsigma
+            #if do_fit:
+            return mu, sigma, dsigma
 
     def AnalyzeBaseline(self,plot_dir, runName, meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
 
@@ -262,7 +269,6 @@ class AnalyzePed(object):
 
                 print((meas,str(gain),str(channel)))
                 pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
-
                 mu, sigma, dsig = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
                 print(mu)
                 if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
@@ -344,22 +350,42 @@ class AnalyzePed(object):
         ax.set_title("Coherent noise by Sliceboard side")
         #plt.show()
  
-    def PlotPairwiseCorr(self,plot_dir,gain = "hi"):
+    def PlotPairwiseCorr(self,plot_dir,gain_flg = "hi"):
 
         meas_to_plot = list(range(self.nMeas))
+
+        hilo = False
+        if gain_flg == 'hi' or gain_flg == 'lo': gain = gain_flg
+        else:
+          hilo = True
+          gain = 'HiLo'
 
         channels = self.Channels
         chs_l = [50,51,54,55,58,59,62,63]
         chs_r = [66,67,70,71,74,75,78,79]
 
-        channels = [("channel0" + str(no)) for no in chs_l + chs_r]
-
-        data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict[gain],self.ChanDict[channels[0]],:])))
-  
+        if not hilo:
+          channels = [("channel0" + str(no)) for no in chs_l + chs_r]
+          data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict[gain],self.ChanDict[channels[0]],:])))
+        else:
+          channelshi = [("channel0" + str(no)+'hi') for no in chs_l + chs_r] 
+          channelslo = [("channel0" + str(no)+'lo') for no in chs_l + chs_r] 
+          #channels = channelshi+channelslo
+          channels = [val for pair in zip(channelshi, channelslo) for val in pair]
+          data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict['hi'],self.ChanDict[channels[0][:-2]],:])))
+ 
+         
         for meas in meas_to_plot:
           for row,ch in enumerate(channels):
 
-            data_by_ch[row,:] = self.Samples[meas,self.GainDict[gain],self.ChanDict[ch],:]
+            if not hilo:
+              data_by_ch[row,:] = self.Samples[meas,self.GainDict[gain],self.ChanDict[ch],:]
+            else:
+              if 'hi' in ch: ch_gain = 'hi'
+              else: ch_gain = 'lo'
+              ch_num = ch[:-2]
+                
+              data_by_ch[row,:] = self.Samples[meas,self.GainDict[ch_gain],self.ChanDict[ch_num],:]
 
           pearson = np.corrcoef(data_by_ch)
 
@@ -391,7 +417,7 @@ class AnalyzePed(object):
           ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
           fig.tight_layout()
           plt.show()
-          #plt.savefig("/nevis/kolya/home/acs2325/colutaanalysis/PDRPlots/xtalk/" +  ASIC + "/" + input_dir  + "_4x4_rounded.pdf")
+          plt.savefig(plot_dir  + "/xtalk_"+gain+".png")
           plt.close()
           plt.clf()
 
@@ -495,19 +521,22 @@ def main():
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
     #PedData.PlotRaw(plot_dir)
-    PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
-                                                               "channel054","channel055",\
-                                                               "channel058","channel059",\
-                                                               "channel062","channel063",\
-                                                               "channel066","channel067",\
-                                                               "channel070","channel071",\
-                                                               "channel074","channel075",\
-                                                               "channel078","channel079"] ) 
+    
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
+    #                                                           "channel054","channel055",\
+    #                                                           "channel058","channel059",\
+    #                                                           "channel062","channel063",\
+    #                                                           "channel066","channel067",\
+    #                                                           "channel070","channel071",\
+    #                                                           "channel074","channel075",\
+    #                                                           "channel078","channel079"] ) 
     #PedData.PlotCoherentNoise(plot_dir, ch1 = "channel018",ch2 = "channel019")
     #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     #PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
 
-    PedData.PlotPairwiseCorr(plot_dir)
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo')
+    #PedData.PlotPairwiseCorr(plot_dir, 'hi')
+    #PedData.PlotPairwiseCorr(plot_dir, 'lo')
 
     '''
     PedData.Channels = ["channel031"]
