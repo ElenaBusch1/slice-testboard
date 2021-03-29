@@ -117,7 +117,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectPowerButtons()
         self.connectCopyButtons()
 
-        self.test2Button.clicked.connect(lambda: self.controlLPGBTReset('lpgbt12'))
+        #self.test2Button.clicked.connect(lambda: self.controlLPGBTReset('lpgbt12'))
         #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
         self.test2Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05c,[0xa,0xb,0xc,0xd]))
         self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt12', '1'))
