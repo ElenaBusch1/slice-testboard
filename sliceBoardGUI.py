@@ -116,10 +116,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectButtons()
         self.connectPowerButtons()
         self.connectCopyButtons()
-
+ 
+        self.test1Button.clicked.connect(lambda: self.set140('lpgbt13'))
+        self.test2Button.clicked.connect(lambda: self.controlLPGBTRSTB('lpgbt13'))
         #self.test2Button.clicked.connect(lambda: self.controlLPGBTReset('lpgbt12'))
         #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05c,[0xa,0xb,0xc,0xd]))
+        #self.test2Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05c,[0xa,0xb,0xc,0xd]))
         self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt12', '1'))
    
         # instrument buttons
@@ -1051,7 +1053,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             if chipName in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
                 dataToSend = self.sortUpdates(updates, 4)
                 for (addr, data) in dataToSend.items():
-                    self.writeToControlLPGBT(chipName, addr, data)
+                    if chipName == 'lpgbt13': self.redundantWriteToControlLPGBT(chipName, addr, data)
+                    else: self.writeToControlLPGBT(chipName, addr, data)
             elif chipName in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
                 dataToSend = self.sortUpdates(updates, 14)
                 for (addr, data) in dataToSend.items():
@@ -1331,7 +1334,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(int(chip.i2cAddress, 2), 0x03c, [0x01], ICEC_CHANNEL=0)
         #readFromLpGBT(int(chip.i2cAddress, 2), 0x03c, 1, ICEC_CHANNEL=0)
 
-    def controlLPGBTReset(self,lpgbt):
+    def controlLPGBTRSTB(self,lpgbt):
         chip = self.chips[lpgbt]
         chip.setConfiguration("piodirh","piodir10",'1')
         chip.setConfiguration("pioouth","pioout10",'1')
@@ -1346,6 +1349,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         chip.setConfiguration("piodrivestrengthh","piodrivestrength10",'1')
         self.sendUpdatedConfigurations()
         
+    def set140(self, lpgbt):
+        self.redundantWriteToControlLPGBT(lpgbt, 0x140, [0x01] )
 
     def enableGPIOPin(self, lpgbt, setting):
         chip = self.chips[lpgbt]
