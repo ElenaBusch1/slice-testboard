@@ -37,3 +37,20 @@ _Note_: If you are switching between data lpGBTs, you will need to do a master r
 5. By default, COLUTA channels 1-6 come up in Serializer Test Mode, and channels 7-8 come up in normal mode. This can be changed in the COLUTA/Channel/DDPU tab. Additionally, in Channel 1 for each COLUTA there are **Turn On Serialier Mode** and **Turn Off Serializer Mode** buttons, which change serializer mode for all channels. 
 
 6. For now, if you want to change between trigger mode and single ADC mode, you'll need to edit takeTriggerData.py directly. Comments in the file indicate which settings are needed for each mode.
+
+#Slice Testboard Analysis#
+
+### Pedestal Data ###
+
+1. After a run is taken with the slice testboard, the data is stored on the FLX server. You can ssh in with `ssh -Y dawillia@flx-srv-atlas slice-testboard` (password is portmanteau of 2 universities). The data is stored in the directory `/home/dawillia/FLX/slice-testboard/Runs`. A list of good runs is kept here(https://docs.google.com/spreadsheets/d/1LRrg8CxLdXaRoX1FprGiC_ZAtnXlHQt8NTyy5Xv97Eo/edit#gid=0). The following code is meant to analyze Noise runs. Copy the run you want to analyze into the directory `slice-testboard/data/Raw`. 
+
+2. Convert the .hdf5 file containing the data from binary to decimal integer using the `convert.py` script ***Note*** this analysis may not work unless you have created the conda enviroment detailed above (see step 3 of 'Slice Testboard GUI - Setup'): 
+
+```
+cd slice-testboard/analysis
+python convert.py 0243
+```
+The above code will convert run0243.hdf5 and store the result in `slice-testboard/data/Processed/0243/Pedestal_Data_Normal.hdf5`.
+
+3. Edit the `main()` function of `PedAnalysis_slice.py` to include the plots you want to make, as well as the relevant channels. The functions which make these plots are all contained in `PedAnalysis_slice.py`. Output is saved in `slice-testboard/data/Processed/0243/Plots`.
+
