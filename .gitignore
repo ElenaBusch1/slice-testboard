@@ -1,5 +1,6 @@
 old/
 *.txt
+config/lpGBT16_backup.cfg
 *pycache*
 output-pulse-test-1.data
 config/lpGBT16_2.cfg
