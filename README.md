@@ -38,7 +38,7 @@ _Note_: If you are switching between data lpGBTs, you will need to do a master r
 
 6. For now, if you want to change between trigger mode and single ADC mode, you'll need to edit takeTriggerData.py directly. Comments in the file indicate which settings are needed for each mode.
 
-#Slice Testboard Analysis#
+# Slice Testboard Analysis #
 
 ### Pedestal Data ###
 
