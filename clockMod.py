@@ -15,7 +15,7 @@ def sendInversionBits(GUI, clock640, colutaName):
 
 def writeToHDF5(tables):
 
-  fileName = 'clockScanBoard633Coluta1320.hdf5'
+  fileName = 'clockScanBoard634Repeat.hdf5'
   out_file = h5py.File(fileName,'w')
   print("Opening hdf5 file: "+ fileName)
 
@@ -142,7 +142,7 @@ def scanClocks(GUI,colutas):
         print('You need the tabulate package...')
 
     for coluta in colutas:
-        with open("clockScanBoard633"+coluta+".txt", "w") as f:
+        with open("clockScanBoard634Repeat"+coluta+".txt", "w") as f:
             for ch in channels:
                 f.write("Channel "+ch[-1]+"\n")
                 prettyTable = tabulate(LPGBTPhase[coluta][ch], headers, showindex = "always", tablefmt="psql")

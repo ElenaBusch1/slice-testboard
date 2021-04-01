@@ -133,8 +133,51 @@ class AnalyzePed(object):
               plt.clf()
               plt.close()
               self.getFftWaveform(raw_data,plot_dir,channel,gain)
-             
-    def getFftWaveform(self,data,plot_dir,channel,gain):
+
+    def getFftWaveform(self,vals,plot_dir,channel,gain):
+            fft_wf = np.fft.fft(vals)
+            fftWf_x = []
+            fftWf_y = []
+            psd = []
+            psd_x = []
+            for sampNum,samp in enumerate(fft_wf) :
+              if sampNum > float( len(fft_wf) ) / 2. :
+                continue
+              freqVal = 40. * sampNum/float(len(fft_wf))
+
+              sampVal = np.abs(samp)
+              if sampNum == 0 :
+                sampVal = 0
+              fftWf_x.append(freqVal)
+              fftWf_y.append(sampVal)
+            if np.max(fftWf_y) <= 0 :
+              return psd_x,psd
+
+            fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
+            for sampNum,samp in enumerate(fourier_fftWf_y) :
+              if sampNum == -1 :
+                continue
+              else:
+                psd_x.append( fftWf_x[sampNum] )
+                psd.append( 20*np.log10(samp) )
+
+            fig,ax = plt.subplots()
+            ax.plot(psd_x,psd,'b-')
+            ax.grid(True)
+            ax.set_title(channel + " " + gain + "gain")
+            ax.set_xlabel("Frequency [MHz]")
+            ax.set_ylabel("PSD [dB]")
+            ax.set_xlim(0,1)
+            #plt.ylim(-50,0)
+            print("\tPlotting FFT waveform....\n")
+            plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_FFT.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
+            plt.cla()
+            plt.clf()
+            plt.close()
+            #plt.show()
+            #return fftWf_x,fftWf_y,psd_x,psd,sinad,enob,snr 
+
+    def getFftWaveformOrooni(self,data,plot_dir,channel,gain):
 
             data = data[1:] #DROP FIRST SAMPLE TO GET 6251 SAMPLES!!!! critical
             fft_wf = np.fft.fft(data)
@@ -144,7 +187,8 @@ class AnalyzePed(object):
             psd_x = []
             for sampNum,samp in enumerate(fft_wf) :
               if sampNum > float( len(fft_wf) ) / 2. :
-                continue
+                 pass
+                 #continue
               freqVal = 40.8 * sampNum/float(len(fft_wf))
               sampVal = np.abs(samp)
               if sampNum == 0 :
@@ -152,24 +196,22 @@ class AnalyzePed(object):
               fftWf_x.append(freqVal)
               fftWf_y.append(sampVal)
               if np.max(fftWf_y) <= 0 :
-                return psd_x,psd
+                print(psd_x,psd)
 
             fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
             for sampNum,samp in enumerate(fourier_fftWf_y) :
-              if sampNum == 0 :
-                 continue
-            else:
                 psd_x.append( fftWf_x[sampNum] )
                 psd.append( 20*np.log10(samp) )
 
             plt.plot(psd_x,psd,'b-')
             plt.grid()
-            plt.xlim(0,2)
-            plt.ylim(-100,0)
+            #plt.xlim(0,2)
+            #plt.ylim(-100,0)
             plt.xlabel("Frequency [MHz]")
             plt.ylabel("PSD [dB]")
-            plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_FFT.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-            #plt.show()
+            print("\tPlotting FFT waveform....\n")
+            #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_FFT.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
+            plt.show()
             plt.close()
             plt.clf()
 
@@ -358,8 +400,14 @@ class AnalyzePed(object):
           gain = 'HiLo'
 
         channels = self.Channels
-        chs_l = [50,51,54,55,58,59,62,63]
-        chs_r = [66,67,70,71,74,75,78,79]
+        #chs_l = [50,51,54,55,58,59,62,63]
+        #chs_r = [66,67,70,71,74,75,78,79]
+        #chs_l = [49,52,53,56,60,61]
+        #chs_r = [65,69,77]
+        chs_l = [49,50,51,52,53,54,55,56,58,59,60,61,62,63]
+        chs_r = [65,66,67,69,70,71,74,75,77,78,79]
+        #chs_l = [14,15,18,19,30,31]
+        #chs_r = []
 
         if not hilo:
           channels = [("channel0" + str(no)) for no in chs_l + chs_r]
@@ -393,8 +441,13 @@ class AnalyzePed(object):
           plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
                rotation_mode="anchor")
 
+          channels_relabeled = [ "channel" + str(int(x.strip("channel")[:-2]) + 48) + x[-2:]  for x in channels]
+
+          print(channels,channels_relabeled)
           ax.set_xticks(np.arange(len(channels)))
           ax.set_yticks(np.arange(len(channels)))
+          #ax.set_xticklabels(channels_relabeled)
+          #ax.set_yticklabels(channels_relabeled)
           ax.set_xticklabels(channels)
           ax.set_yticklabels(channels)
 
@@ -408,13 +461,13 @@ class AnalyzePed(object):
           for edge, spine in list(ax.spines.items()):
               spine.set_visible(False)
 
-          ax.set_title("Run {name} Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
+          ax.set_title("Run {name} MDAC + DRE Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
           ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
           fig.tight_layout()
-          #plt.show()
-          plt.savefig(r'{plot_dir}/{gain}_corr.png'.format(plot_dir = plot_dir,gain = gain))
+          plt.show()
+          #plt.savefig(r'{plot_dir}/{gain}_corr.png'.format(plot_dir = plot_dir,gain = gain))
           plt.close()
           plt.clf()
 
@@ -502,11 +555,13 @@ def main():
     #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
     ##### you can do it here
 
-    #PedData.Channels = ["channel030","channel031"]
+    #PedData.Channels = ["channel018","channel019","channel014","channel015","channel030","channel031"]
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
-    PedData.PlotRaw(plot_dir)
+    #PedData.PlotRaw(plot_dir)
      
+    #PedData.AnalyzeBaseline(plot_dir, runName)
+    '''
     PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
                                                                "channel054","channel055",\
                                                                "channel058","channel059",\
@@ -515,17 +570,21 @@ def main():
                                                                "channel070","channel071",\
                                                                "channel074","channel075",\
                                                                "channel078","channel079"] ) 
-    
+    '''
     #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
-    chs_l = [50,51,54,55,58,59,62,63]
-    chs_r = [66,67,70,71,74,75,78,79]
+    #chs_l = [50,51,54,55,58,59,62,63]
+    #chs_r = [66,67,70,71,74,75,78,79]
+    chs_l = list(np.array([50,51,54,55,58,59,62,63]) - 2)
+    chs_r = list(np.array([66,67,70,71,74,75,78,79]) - 2)
+    #chs_l = [14,15,18,19,30,31]
+    #chs_r = []
     chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
-    PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot)
+    #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot)
     #PedData.PlotCoherent2D(plot_dir,chs =["channel014"] ) #<----- rarely used
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo')
-    #PedData.PlotPairwiseCorr(plot_dir, 'hi')
-    #PedData.PlotPairwiseCorr(plot_dir, 'lo')
+    #PedData.PlotPairwiseCorr(plot_dir, 'hilo')
+    PedData.PlotPairwiseCorr(plot_dir, 'hi')
+    PedData.PlotPairwiseCorr(plot_dir, 'lo')
 
 
 if __name__ == "__main__":
