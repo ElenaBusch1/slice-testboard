@@ -520,7 +520,7 @@ def main():
     #PedData.Channels = ["channel030","channel031"]
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
-    #PedData.PlotRaw(plot_dir)
+    PedData.PlotRaw(plot_dir)
     '''
     PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
                                                                "channel054","channel055",\
@@ -535,7 +535,7 @@ def main():
     #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
     #PedData.PlotCoherent2D(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo')
+    #PedData.PlotPairwiseCorr(plot_dir, 'hilo')
     #PedData.PlotPairwiseCorr(plot_dir, 'hi')
     #PedData.PlotPairwiseCorr(plot_dir, 'lo')
 
