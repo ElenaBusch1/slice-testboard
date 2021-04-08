@@ -42,6 +42,10 @@ class Process(object):
 
                     raw_data = raw_data.transpose()
                     samples = np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
+                    #print("Samples: ",samples)
+                    #print(samples[ samples >2**15])
+
+
                     dataset_str = "Measurement_{meas_ind}/{channel}/{gain}/samples".format(meas_ind = meas_ind, channel = str(channel),gain = gain)
                     print(("Creating Dataset: "+ dataset_str))
                     out_file.create_dataset(dataset_str, data=samples)

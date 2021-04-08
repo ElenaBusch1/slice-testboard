@@ -100,6 +100,8 @@ class AnalyzePed(object):
                     self.Samples[meas,i,j,:] = raw_data 
                     self.ChanDict[channel] = j
 
+
+
         f.close()
 
 
@@ -128,7 +130,7 @@ class AnalyzePed(object):
               ax.set_ylabel("ADC Code")
               plt.savefig('{plot_dir}/rawPed_meas{meas}_{channel}_{gain}.png'.format(plot_dir = plot_dir,runNo = self.runNo,\
                                                                                                meas = meas,channel =channel, gain = gain))
-              #plt.show()      
+              plt.show()      
               plt.cla()
               plt.clf()
               plt.close()
@@ -284,7 +286,7 @@ class AnalyzePed(object):
             plt.clf()
             plt.close()
             #if do_fit:
-            return mu, sigma, dsigma
+            return mu, sigma, dsigma, np.std(data)
 
     def AnalyzeBaseline(self,plot_dir, runName, meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
 
@@ -308,14 +310,23 @@ class AnalyzePed(object):
 
                 print((meas,str(gain),str(channel)))
                 pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
-                mu, sigma, dsig = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
+                mu, sigma, dsig, rms = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
                 print(mu)
-                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
-                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
+                #### USE STD FROM FIT #####
+                #if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
+                #elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
+                #elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,sigma))
+                #elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,sigma))
+                #### USE RMS #####
+                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,rms))
+                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,rms))
+                elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,rms))
+                elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,rms))
  
         tit = ['Hi', 'Lo']
         
         for title,vals in zip(tit,[mdac_hi, mdac_lo]):
+          print("HG MDAC: ",dre_hi)
           dataUnpack = [list(t) for t in zip(*vals)]
           if title == "Lo" and False:
             dataUnpack[0].pop(-1)
@@ -325,8 +336,22 @@ class AnalyzePed(object):
           sigData = [dataUnpack[0], dataUnpack[2]]
 
           self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_run"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "Sigma MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
+          self.PlotSigmaMuSummary(sigData, "RMS MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
         
+        for title,vals in zip(tit,[dre_hi, dre_lo]):
+
+          print("HG DRE: ",dre_hi)
+          dataUnpack = [list(t) for t in zip(*vals)]
+          if title == "Lo" and False:
+            dataUnpack[0].pop(-1)
+            dataUnpack[1].pop(-1)
+            dataUnpack[2].pop(-1)
+          muData = [dataUnpack[0], dataUnpack[1]]
+          sigData = [dataUnpack[0], dataUnpack[2]]
+
+          self.PlotSigmaMuSummary(muData, "Means DRE "+title+ " Gain Run"+runName, plot_dir+"/DRE-"+title+"_mu_run"+runName+".png")
+          self.PlotSigmaMuSummary(sigData, "RMS DRE "+title+" Gain Run"+runName, plot_dir+"/DRE-"+title+"_sig_run"+runName+".png")
+
     def PlotSigmaMuSummary(self,data,title,saveStr):
         fig,ax = plt.subplots(1)
 
@@ -399,13 +424,21 @@ class AnalyzePed(object):
           hilo = True
           gain = 'HiLo'
 
-        channels = self.Channels
+        #channels = self.Channels
         #chs_l = [50,51,54,55,58,59,62,63]
         #chs_r = [66,67,70,71,74,75,78,79]
         #chs_l = [49,52,53,56,60,61]
         #chs_r = [65,69,77]
-        chs_l = [49,50,51,52,53,54,55,56,58,59,60,61,62,63]
-        chs_r = [65,66,67,69,70,71,74,75,77,78,79]
+        #if gain_flg != "lo":
+        if gain_flg == "hilo":
+
+            chs_l = []
+            chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]
+
+        else:
+            #chs_l = []
+            chs_l = [48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]
+            chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]
         #chs_l = [14,15,18,19,30,31]
         #chs_r = []
 
@@ -436,7 +469,7 @@ class AnalyzePed(object):
 
 
           fig, ax = plt.subplots()
-          im = ax.imshow(pearson, cmap = "Blues",vmin = -.2,vmax = .3)
+          im = ax.imshow(pearson, cmap = "RdBu",vmin = -.3,vmax = .3)
 
           plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
                rotation_mode="anchor")
@@ -456,7 +489,7 @@ class AnalyzePed(object):
                 if i == j: color = "w"
                 else: color = "k"
                 text = ax.text(j, i, int(round(pearson[i, j],2)*100),
-                               ha="center", va="center", color=color)
+                               ha="center",fontsize = 10, va="center", color=color)
 
           for edge, spine in list(ax.spines.items()):
               spine.set_visible(False)
@@ -505,7 +538,7 @@ class AnalyzePed(object):
                     ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
                     ped_i -= np.mean(ped_i)
 
-                    mu_i,sig_i,dsig_i = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
+                    mu_i,sig_i,dsig_i, _ = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
                     print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}\n".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i))
                      
                     sig_2_tot += sig_i**2
@@ -558,9 +591,9 @@ def main():
     #PedData.Channels = ["channel018","channel019","channel014","channel015","channel030","channel031"]
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
-    #PedData.PlotRaw(plot_dir)
+    #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
      
-    #PedData.AnalyzeBaseline(plot_dir, runName)
+    PedData.AnalyzeBaseline(plot_dir, runName)
     '''
     PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
                                                                "channel054","channel055",\
@@ -578,13 +611,14 @@ def main():
     chs_r = list(np.array([66,67,70,71,74,75,78,79]) - 2)
     #chs_l = [14,15,18,19,30,31]
     #chs_r = []
+    #print("CHS TO PLOT: ",chs_to_plot)
     chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
     #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot)
     #PedData.PlotCoherent2D(plot_dir,chs =["channel014"] ) #<----- rarely used
 
-    #PedData.PlotPairwiseCorr(plot_dir, 'hilo')
-    PedData.PlotPairwiseCorr(plot_dir, 'hi')
-    PedData.PlotPairwiseCorr(plot_dir, 'lo')
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo')
+    #PedData.PlotPairwiseCorr(plot_dir, 'hi')
+    #PedData.PlotPairwiseCorr(plot_dir, 'lo')
 
 
 if __name__ == "__main__":
