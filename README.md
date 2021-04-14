@@ -54,3 +54,7 @@ The above code will convert run0243.hdf5 and store the result in `slice-testboar
 
 3. Edit the `main()` function of `PedAnalysis_slice.py` to include the plots you want to make, as well as the relevant channels. The functions which make these plots are all contained in `PedAnalysis_slice.py`. Output is saved in `slice-testboard/data/Processed/0243/Plots`. Typical plots for a pedestal analysis include raw waveforms, fitted baseline pedestals, coherent noise plots, and a noise correlation matrix in both hi and lo gain.
 
+```
+python PedAnalysis_slice.py 0243
+```
+
