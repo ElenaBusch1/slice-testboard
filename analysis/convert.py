@@ -94,7 +94,7 @@ def main():
         return 
 
     runName = sys.argv[1]
-    input_dir = "../data/Raw/"
+    input_dir = "../Runs/"
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 

@@ -414,33 +414,20 @@ class AnalyzePed(object):
         ax.set_title("Coherent noise by Sliceboard side")
         #plt.show()
  
-    def PlotPairwiseCorr(self,plot_dir,gain_flg = "hi"):
+    def PlotPairwiseCorr(self,plot_dir,gain_flg = "hi",
+                         chs_l = [48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63],
+                         chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]):
 
         meas_to_plot = list(range(self.nMeas))
+
+        print("chs L:",chs_l)
+        print("chs R:",chs_r)
 
         hilo = False
         if gain_flg == 'hi' or gain_flg == 'lo': gain = gain_flg
         else:
           hilo = True
           gain = 'HiLo'
-
-        #channels = self.Channels
-        #chs_l = [50,51,54,55,58,59,62,63]
-        #chs_r = [66,67,70,71,74,75,78,79]
-        #chs_l = [49,52,53,56,60,61]
-        #chs_r = [65,69,77]
-        #if gain_flg != "lo":
-        if gain_flg == "hilo":
-
-            chs_l = []
-            chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]
-
-        else:
-            #chs_l = []
-            chs_l = [48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]
-            chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]
-        #chs_l = [14,15,18,19,30,31]
-        #chs_r = []
 
         if not hilo:
           channels = [("channel0" + str(no)) for no in chs_l + chs_r]
@@ -468,7 +455,7 @@ class AnalyzePed(object):
           pearson = np.corrcoef(data_by_ch)
 
 
-          fig, ax = plt.subplots()
+          fig, ax = plt.subplots(figsize = (30,30))
           im = ax.imshow(pearson, cmap = "RdBu",vmin = -.3,vmax = .3)
 
           plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
@@ -498,9 +485,12 @@ class AnalyzePed(object):
           ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
-          fig.tight_layout()
-          plt.show()
-          #plt.savefig(r'{plot_dir}/{gain}_corr.png'.format(plot_dir = plot_dir,gain = gain))
+          #fig.tight_layout()
+          #plt.show()
+          figure = plt.gcf()
+          figure.set_size_inches(16, 12)
+
+          plt.savefig(r'{plot_dir}/{gain}_corr.png'.format(plot_dir = plot_dir,gain = gain),dpi = 100)
           plt.close()
           plt.clf()
 
@@ -592,6 +582,8 @@ def main():
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
     #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
+    PedData.PlotPairwiseCorr(plot_dir, 'hi')
+    PedData.PlotPairwiseCorr(plot_dir, 'lo')
      
     PedData.AnalyzeBaseline(plot_dir, runName)
     '''
@@ -609,6 +601,10 @@ def main():
     #chs_r = [66,67,70,71,74,75,78,79]
     chs_l = list(np.array([50,51,54,55,58,59,62,63]) - 2)
     chs_r = list(np.array([66,67,70,71,74,75,78,79]) - 2)
+
+
+    chs_l = []
+    chs_r = list(np.array([76,77,78,79]))
     #chs_l = [14,15,18,19,30,31]
     #chs_r = []
     #print("CHS TO PLOT: ",chs_to_plot)
@@ -616,9 +612,9 @@ def main():
     #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot)
     #PedData.PlotCoherent2D(plot_dir,chs =["channel014"] ) #<----- rarely used
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo')
-    #PedData.PlotPairwiseCorr(plot_dir, 'hi')
-    #PedData.PlotPairwiseCorr(plot_dir, 'lo')
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = [])
+    #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r)
+    #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
 
 
 if __name__ == "__main__":
