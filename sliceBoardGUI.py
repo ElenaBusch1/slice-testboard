@@ -405,6 +405,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
 
+        readbackSuccess = True
         for word in dataBits64:
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
             #print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
@@ -419,14 +420,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            readback = self.readFromCOLUTAChannel(coluta, word)
+            if readback[:6] != dataBits8[:6]: readbackSuccess = False
             if READBACK:
                 print("Writing", [hex(x) for x in dataBits8[:6]])
-                readback = self.readFromCOLUTAChannel(coluta, word)
                 print("Reading", [hex(x) for x in readback])
                 if readback[:6] == dataBits8[:6]:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
+        return readbackSuccess 
 
     def readFromCOLUTAChannel(self, coluta, word):
         """ Readback from region defined by word (refer to colutaI2CWriteControl for definition of word) """
@@ -481,10 +484,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]       
        
         counter = 1
+        full_write = []
         for word in dataBitsGlobal64[::-1]:
             addrModification = counter*8
             dataBits8 = [i for i in range(1,9)]
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+            for x in dataBits8:
+                full_write.append(x)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -496,6 +502,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             counter += 1
             if self.READBACK:
                 print("Writing Global: ", [hex(x) for x in dataBits8])
+
+        readback = self.readFromCOLUTAGlobal(coluta)
+        readbackSuccess = True
+        if full_write != readback: readbackSuccess = False
+        return readbackSuccess
 
     def readFromCOLUTAGlobal(self, coluta):
         """ Read all COLUTA global bits """
@@ -514,13 +525,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
 
         counter = 1
+        full_readback = []
         for _ in range(2):
             addrModification = counter*8
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
             readback = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189-8, 8, ICEC_CHANNEL=ICEC_CHANNEL)
-            print("Reading Global: ", [hex(x) for x in readback])
+            for x in readback:
+                full_readback.append(x)
+            if self.READBACK:
+                print("Reading Global: ", [hex(x) for x in readback])
             counter += 1   
+        return full_readback
 
     def lpgbtReset(self, lpgbt):
         print("Resetting", lpgbt, "master")
@@ -683,17 +699,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     bits = 0
                 sectionChunks[startReg].append(bits)
 
+        readbackSuccess = True
         for (register, dataBits) in sectionChunks.items():
             self.writeToControlLPGBT(lpgbt, register, dataBits)
+            readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+            if readback[:len(dataBits)] != dataBits: readbackSuccess = False
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
-                readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
                 if readback[:len(dataBits)] == dataBits:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
-        print("Done configuring", lpgbt)
+
+        print("Done configuring", lpgbt, ", success =", readbackSuccess)
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -713,18 +732,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 except IndexError:
                     bits = 0
                 dataBits14[startReg].append(bits)
-       
+
+        readbackSuccess = True
         for (register, dataBits) in dataBits14.items():
             self.writeToDataLPGBT(lpgbt, register, dataBits)
+            readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
+            if readback[:len(dataBits)] != dataBits: readbackSuccess = False
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
-                readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
                 if readback[:len(dataBits)] == dataBits:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
-        print("Done configuring", lpgbt)
+        print("Done configuring", lpgbt, ", success =", readbackSuccess)
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -748,19 +769,21 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 bits = 0
             sectionChunks[startReg] = bits
 
+        readbackSuccess = True
         for iSection in range(0, len(chip)):
             startReg = int(chipList[iSection].address, 0)
             data = sectionChunks[startReg]
             self.writeToLAUROC(lauroc, startReg, data)
+            readback = self.readFromLAUROC(lauroc, startReg)
+            if readback[0] != data: readbackSuccess = False
             if self.READBACK:
                 print("Writing", lauroc, hex(startReg), ":", hex(data))
-                readback = self.readFromLAUROC(lauroc, startReg)
                 print("Reading", lauroc, hex(startReg), ":", hex(readback[0]))
                 if readback[0] == data:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
-        print("Done configuring", lauroc)
+        print("Done configuring", lauroc, ", success =", readbackSuccess)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -774,14 +797,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpgbtReset(lpgbtMaster)
 
         channels = ["ch"+str(i) for i in range(1,9)]
+        readbackSuccess = True
         for ch in channels:
             print("Configuring ", ch, coluta)
-            self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+            readbackChSucess = self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+            readbackSuccess = readbackSuccess & readbackChSucess
 
-        self.writeToCOLUTAGlobal(coluta)
-        if self.READBACK:
-            self.readFromCOLUTAGlobal(coluta)
-        print("Done configuring", coluta)
+        globalSuccess = self.writeToCOLUTAGlobal(coluta)
+        readbackSuccess = readbackSuccess & globalSuccess
+        print("Done configuring", coluta, ", success =", readbackSuccess)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""

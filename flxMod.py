@@ -25,6 +25,7 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+import time
 import sys
 import os
 import subprocess
@@ -43,7 +44,7 @@ manager.InitializeFEB2()
 
 VERBOSE = False
 READBACK = False
-DEBUG = False
+DEBUG = True
 
 REG_IC_CONTROL=0x6640
 
@@ -145,7 +146,7 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
         print("GBTX BYTES R/W LENGTH, 1 means 1 byte: " + str(GBTX_LEN))
         print("GBTX OPERATION TYPE, 1 means READ, 0 means WRITEandREAD: " + str(GBTX_RW))
         if GBTX_RW==0:
-            print("GBTX DATA TO SENT: " + str(GBTX_DATA[0:GBTX_LEN]))
+            print("GBTX DATA TO SEND: " + str([hex(i) for i in GBTX_DATA[0:GBTX_LEN]]))
         print("-------------Tx packet--------------------------")
 
         print(hex(TXDATA0))
@@ -165,10 +166,10 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
 # """
     if READBACK:
         try:
-            RXDATA0 = int(reg_read64b(REG_IC_RX_DATA_0), 16)
-            RXDATA1 = int(reg_read64b(REG_IC_RX_DATA_1), 16)
-            RXDATA2 = int(reg_read64b(REG_IC_RX_DATA_2), 16)
-            RXDATA3 = int(reg_read64b(REG_IC_RX_DATA_3), 16)
+            RXDATA0 = reg_read64b(REG_IC_RX_DATA_0)
+            RXDATA1 = reg_read64b(REG_IC_RX_DATA_1)
+            RXDATA2 = reg_read64b(REG_IC_RX_DATA_2)
+            RXDATA3 = reg_read64b(REG_IC_RX_DATA_3)
 
             [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK] = IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
             print("GBTX READBACK REGISTER: " + str(hex(GBTX_ADDR)))
@@ -179,10 +180,10 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
 
     if DEBUG:
         try:
-            RXDATA0=int(reg_read64b(REG_IC_RX_DATA_0),16)
-            RXDATA1=int(reg_read64b(REG_IC_RX_DATA_1),16)
-            RXDATA2=int(reg_read64b(REG_IC_RX_DATA_2),16)
-            RXDATA3=int(reg_read64b(REG_IC_RX_DATA_3),16)
+            RXDATA0=reg_read64b(REG_IC_RX_DATA_0)
+            RXDATA1=reg_read64b(REG_IC_RX_DATA_1)
+            RXDATA2=reg_read64b(REG_IC_RX_DATA_2)
+            RXDATA3=reg_read64b(REG_IC_RX_DATA_3)
 
 
             print("-------------Rx packet--------------------------")
@@ -277,10 +278,10 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
 # """
     if READBACK:
         try:
-            RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
-            RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
-            RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
-            RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
+            RXDATA0=reg_read64b(REG_EC_RX_DATA_0)
+            RXDATA1=reg_read64b(REG_EC_RX_DATA_1)
+            RXDATA2=reg_read64b(REG_EC_RX_DATA_2)
+            RXDATA3=reg_read64b(REG_EC_RX_DATA_3)
 
             [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
             print("GBTX READBACK REGISTER: " + str(hex(GBTX_ADDR)))
@@ -291,10 +292,10 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
 
     if DEBUG:
         try:
-            RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
-            RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
-            RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
-            RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
+            RXDATA0=reg_read64b(REG_EC_RX_DATA_0)
+            RXDATA1=reg_read64b(REG_EC_RX_DATA_1)
+            RXDATA2=reg_read64b(REG_EC_RX_DATA_2)
+            RXDATA3=reg_read64b(REG_EC_RX_DATA_3)
 
 
             print("-------------Rx packet--------------------------")
@@ -376,10 +377,10 @@ def icReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
     reg_write64b(REG_IC_CONTROL, ICEC_TRIG)
     reg_write64b(REG_IC_CONTROL, 0x000)
 
-    RXDATA0=int(reg_read64b(REG_IC_RX_DATA_0),16)
-    RXDATA1=int(reg_read64b(REG_IC_RX_DATA_1),16)
-    RXDATA2=int(reg_read64b(REG_IC_RX_DATA_2),16)
-    RXDATA3=int(reg_read64b(REG_IC_RX_DATA_3),16)
+    RXDATA0=reg_read64b(REG_IC_RX_DATA_0)
+    RXDATA1=reg_read64b(REG_IC_RX_DATA_1)
+    RXDATA2=reg_read64b(REG_IC_RX_DATA_2)
+    RXDATA3=reg_read64b(REG_IC_RX_DATA_3)
 
     try:
         [GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, GBTX_RW, GBTX_DATA, TXCHK, RXCHK]=IC_DEPACKING(RXDATA0, RXDATA1, RXDATA2, RXDATA3)
@@ -465,10 +466,10 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
     reg_write64b(REG_IC_CONTROL, ICEC_TRIG)
     reg_write64b(REG_IC_CONTROL, 0x000)
 
-    RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
-    RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
-    RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
-    RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
+    RXDATA0=reg_read64b(REG_EC_RX_DATA_0)
+    RXDATA1=reg_read64b(REG_EC_RX_DATA_1)
+    RXDATA2=reg_read64b(REG_EC_RX_DATA_2)
+    RXDATA3=reg_read64b(REG_EC_RX_DATA_3)
 
     #print("-------------Rx packet--------------------------")
     #print(hex(RXDATA0))
