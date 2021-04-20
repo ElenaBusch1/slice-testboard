@@ -36,7 +36,7 @@ from pyFlxlpGBT import  *
 # First, instantiate a lpGBTManager to handle communication with the FLX Card 
 # For example, card 0 , setting verbosity level to INFO 
 
-manager = lpGBTManager(cardnr=0,verbose="INFO")
+manager = lpGBTManager(cardnr=0,verbose="TRACE")
 manager.ReadFEB2Registers()
 manager.InitializeFEB2()
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
@@ -44,7 +44,7 @@ manager.InitializeFEB2()
 
 VERBOSE = False
 READBACK = False
-DEBUG = True
+DEBUG = False
 
 REG_IC_CONTROL=0x6640
 
