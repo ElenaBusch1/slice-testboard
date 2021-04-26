@@ -704,9 +704,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         chip = self.chips[lpgbt]
         chipList = list(chip.values())
         dataBits14 = defaultdict(list)
-        for iSection in range(0, len(chip), 14):
+        for iSection in range(0, len(chip), 6):
             startReg = int(chipList[iSection].address, 0)
-            for i in range(14):
+            for i in range(6):
                 try:
                     bits = int(chipList[iSection+i].bits, 2)
                 except IndexError:
