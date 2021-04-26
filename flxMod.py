@@ -30,12 +30,13 @@ import os
 import subprocess
 from typing import List
 import numpy as np
+from time import  sleep
 from pyFlxlpGBT import  * 
 
 # First, instantiate a lpGBTManager to handle communication with the FLX Card 
 # For example, card 0 , setting verbosity level to INFO 
 
-manager = lpGBTManager(cardnr=0,verbose="TRACE")
+manager = lpGBTManager(cardnr=0,verbose="INFO")
 manager.ReadFEB2Registers()
 manager.InitializeFEB2()
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
@@ -93,6 +94,8 @@ REG_ICECBUSY = 0x6a80
 
 REG_FECERROR = 0x6750
 REG_BITERROR_RESET = 0x5410
+
+REG_IC_STATUS = 0x7840
 
 
 def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC_CHANNEL):
@@ -161,6 +164,13 @@ def icWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     # reg_write64b(REG_IC_CONTROL, 0x001)
     reg_write64b(REG_IC_CONTROL, ICEC_TRIG)
     reg_write64b(REG_IC_CONTROL, 0x000)
+    
+#     status = int(reg_read64b(REG_IC_STATUS))
+#     while(status!=0):
+#         sleep(0.01)
+#         status = int(reg_read64b(REG_IC_STATUS))
+#         print (status)
+
 
 # """
     if READBACK:
@@ -273,6 +283,11 @@ def ecWriteToLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, data_orig: List[int], ICEC
     # reg_write64b(REG_IC_CONTROL, 0x100)
     reg_write64b(REG_IC_CONTROL, ICEC_TRIG)
     reg_write64b(REG_IC_CONTROL, 0x000)
+    
+#     status = int(reg_read64b(REG_IC_STATUS))
+#     while(status!=0):
+#         sleep(0.01)
+#         status = int(reg_read64b(REG_IC_STATUS))
 
 # """
     if READBACK:
@@ -500,7 +515,7 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
 ################################################################
 
 def reg_read64b(addr):
-    return  manager.ReadFEB2Register(addr)
+    return  "%16lx"%(manager.ReadFEB2Register(addr))
 
 
 

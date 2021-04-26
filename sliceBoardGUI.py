@@ -297,19 +297,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
         
-        # Check to see if the i2c Bus Transaction is finished before proceeding
-        # i2cTransactionFinished = False
-        # counter = 0
-        # while not i2cTransactionFinished:
-        #     bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-        #     print("bit: ", bit)
-        #     if bit[0] == 4:
-        #         i2cTransactionFinished = True
-        #     time.sleep(0.1)
-        #     if counter == 10:
-        #         print("I2C Transaction Failed after 1s")
-        #         break
-        #     counter += 1
+        #Check to see if the i2c Bus Transaction is finished before proceeding
+        i2cTransactionFinished = False
+        counter = 0
+        while not i2cTransactionFinished:
+            bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            #print("bit: ", bit)
+            if bit[0] == 4:
+                i2cTransactionFinished = True
+            time.sleep(0.1)
+            if counter == 10:
+                print("I2C Transaction Failed after 1s")
+                break
+            counter += 1
 
     def readFromDataLPGBT(self, lpgbt, register, nBytes):
         """ Reads nBytes back from the lpgbt, starting at the given register """
@@ -704,9 +704,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         chip = self.chips[lpgbt]
         chipList = list(chip.values())
         dataBits14 = defaultdict(list)
-        for iSection in range(0, len(chip), 14):
+        for iSection in range(0, len(chip), 6):
             startReg = int(chipList[iSection].address, 0)
-            for i in range(14):
+            for i in range(6):
                 try:
                     bits = int(chipList[iSection+i].bits, 2)
                 except IndexError:
@@ -719,7 +719,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
                 readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
-                if readback[:len(dataBits)] == dataBits:
+                if readback[:6] == dataBits[0:6]:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
