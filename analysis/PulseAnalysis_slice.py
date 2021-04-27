@@ -156,26 +156,26 @@ class AnalyzePulse(object):
           for i,gain in enumerate(gains_to_plot):
             for j,channel in enumerate(chans_to_plot):
 
-		   fig,ax = plt.subplots()
-		   #print("Plotting meas " + str(meas))
-		   #channel = "channel" + str(j + 28); gain = str(i)
-		   #ax.plot(,'b.')
-		   ax.plot(self.Interleaved[meas,i,j,:],'b.')
-		   ax.plot(self.Trains[meas,i,j,:],'r.')
+                   fig,ax = plt.subplots()
+                   #print("Plotting meas " + str(meas))
+                   #channel = "channel" + str(j + 28); gain = str(i)
+                   #ax.plot(,'b.')
+                   ax.plot(self.Interleaved[meas,i,j,:],'b.')
+                   ax.plot(self.Trains[meas,i,j,:],'r.')
                    spp = 64
-		   ax.plot(np.arange(0,len(self.Trains[meas,i,j,::spp]))*spp,self.Trains[meas,i,j,::spp],'g.')
-		   ax.grid(True)
-		   #ax.set_ylim(7000,8000)
-		   #ax.set_ylim(6000,11000)
-		   ax.set_title(channel + " " + gain + " gain raw data" )
-		   ax.set_xlabel("sample number")
-		   ax.set_ylabel("ADC Code")
+                   ax.plot(np.arange(0,len(self.Trains[meas,i,j,::spp]))*spp,self.Trains[meas,i,j,::spp],'g.')
+                   ax.grid(True)
+                   #ax.set_ylim(7000,8000)
+                   #ax.set_ylim(6000,11000)
+                   ax.set_title(channel + " " + gain + " gain raw data" )
+                   ax.set_xlabel("sample number")
+                   ax.set_ylabel("ADC Code")
                    plt.savefig(r'{plot_dir}/interleavedPulse_meas{meas}_{channel}_{gain}.png'.format(plot_dir = plot_dir,runNo = self.runNo,\
                                                                                                meas = meas,channel =channel, gain = gain))
-		   #plt.show()
-		   plt.cla()
-		   plt.clf()
-		   plt.close()
+                   #plt.show()
+                   plt.cla()
+                   plt.clf()
+                   plt.close()
 
  
     def InterleaveContinuous(self,plot_dir,spp = 64,n_phases = 11):
@@ -250,20 +250,20 @@ class AnalyzePulse(object):
 
             fir,ax = plt.subplots()
 
-	    fit_points = np.linspace(min(data),max(data),1000)
+            fit_points = np.linspace(min(data),max(data),1000)
             bins = np.linspace(min(data) - .5, max(data) - .5, max(data) - min(data) + 1)
-		  
-	    n, bins, _ = ax.hist(data,bins = bins, density =1,edgecolor ='black',zorder = 1,label='Mean: '+str(round(np.mean(data),3))+", std:"+str(round(np.std(data),3)) )
-	    y_max = max(n)
-	    
-	    centers = (0.5*(bins[1:]+bins[:-1]))
-	    pars, cov = curve_fit(lambda x, mu, sig : stats.norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[np.mean(data),np.std(data)])  
+                  
+            n, bins, _ = ax.hist(data,bins = bins, density =1,edgecolor ='black',zorder = 1,label='Mean: '+str(round(np.mean(data),3))+", std:"+str(round(np.std(data),3)) )
+            y_max = max(n)
+            
+            centers = (0.5*(bins[1:]+bins[:-1]))
+            pars, cov = curve_fit(lambda x, mu, sig : stats.norm.pdf(x, loc=mu, scale=sig), centers, n, p0=[np.mean(data),np.std(data)])  
 
-	    mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
-	    sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
+            mu, dmu = pars[0], np.sqrt(cov[0,0 ]) 
+            sigma, dsigma = pars[1], np.sqrt(cov[1,1 ])  
 
-	    ax.plot(fit_points, stats.norm.pdf(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.4f}$\pm${:.4f}, $\sigma=${:.4f}$\pm${:.4f}'.format(mu,dmu,sigma,dsigma))   
-	    ax.plot(centers, stats.norm.pdf(centers,*pars), 'r.',linewidth = 2)        
+            ax.plot(fit_points, stats.norm.pdf(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.4f}$\pm${:.4f}, $\sigma=${:.4f}$\pm${:.4f}'.format(mu,dmu,sigma,dsigma))   
+            ax.plot(centers, stats.norm.pdf(centers,*pars), 'r.',linewidth = 2)        
             ax.legend()
             ax.set_xlabel("Sample Value [ADC Counts]")
             ax.set_ylabel("Normalized Frequency")

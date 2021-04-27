@@ -516,8 +516,10 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
 ################################################################
 
 def reg_read64b(addr):
-    return  "%16lx"%(manager.ReadFEB2Register(addr))
-
+    #value = "%16lx"%(manager.ReadFEB2Register(addr))
+    return manager.ReadFEB2Register(addr)
+    #print(value)
+    #return int(value)
 
 
 def reg_write64b(addr,data):
