@@ -120,15 +120,15 @@ def make_chanData_trigger(allPackets):
         cu_ch0_hi = []
         cu_ch0_lo = []
       else: 
-        cu_ch3_lo = convert_to_bin(packet[d_ADCs[adc][0]+4][0]) # bits 31:16 = ADC ch1
-        cu_ch3_hi = convert_to_bin(packet[d_ADCs[adc][0]+3][1]) # ADC ch2  
-        cu_ch2_hi = convert_to_bin(packet[d_ADCs[adc][0]+3][0]) # ADC ch3
-        cu_ch2_lo = convert_to_bin(packet[d_ADCs[adc][0]+2][1]) 
-        cu_ch1_lo = convert_to_bin(packet[d_ADCs[adc][0]+2][0]) 
-        cu_ch1_hi = convert_to_bin(packet[d_ADCs[adc][0]+1][1]) 
-        cu_ch0_hi = convert_to_bin(packet[d_ADCs[adc][0]+1][0]) 
-        cu_ch0_lo = convert_to_bin(packet[d_ADCs[adc][0]][1]) # ADC ch8
-      cu1frame8 = convert_to_bin(packet[d_ADCs[adc][0]][0]) # frame
+        cu_ch3_lo = packet[d_ADCs[adc][0]+4][0] # bits 31:16 = ADC ch1
+        cu_ch3_hi = packet[d_ADCs[adc][0]+3][1] # ADC ch2  
+        cu_ch2_hi = packet[d_ADCs[adc][0]+3][0] # ADC ch3
+        cu_ch2_lo = packet[d_ADCs[adc][0]+2][1] 
+        cu_ch1_lo = packet[d_ADCs[adc][0]+2][0] 
+        cu_ch1_hi = packet[d_ADCs[adc][0]+1][1] 
+        cu_ch0_hi = packet[d_ADCs[adc][0]+1][0] 
+        cu_ch0_lo = packet[d_ADCs[adc][0]][1] # ADC ch8
+      cu1frame8 = packet[d_ADCs[adc][0]][0] # frame
       #if int(cu1frame8) == int(0xfa8): continue # will never get to here
       corr_chanNum = (chanNum+48)%128
       # add to master channel dataset 
@@ -186,6 +186,7 @@ def make_chanData_singleADC(allPackets,adc):
     #chanData.append( packet[11][1] ) 
 
     counter = int(packet[0][1]) & 0xFF
+    """
     # 3 samples for this ADC in each packet
     cu_ch3_lo = [convert_to_bin(packet[4][1]), convert_to_bin(packet[10][0]), convert_to_bin(packet[15][0])] # bits 31:16 = ADC ch1
     cu_ch3_hi = [convert_to_bin(packet[4][0]), convert_to_bin(packet[9][1]), convert_to_bin(packet[14][1])] # ADC ch2  
@@ -195,6 +196,16 @@ def make_chanData_singleADC(allPackets,adc):
     cu_ch1_hi = [convert_to_bin(packet[2][0]), convert_to_bin(packet[7][0]), convert_to_bin(packet[12][1])] 
     cu_ch0_hi = [convert_to_bin(packet[1][1]), convert_to_bin(packet[6][1]), convert_to_bin(packet[12][0])] 
     cu_ch0_lo = [convert_to_bin(packet[1][0]), convert_to_bin(packet[6][0]), convert_to_bin(packet[11][1])] #ADC ch8
+    """
+    #save samples as 16-bits
+    cu_ch3_lo = [packet[4][1], packet[10][0], packet[15][0]] # bits 31:16 = ADC ch1
+    cu_ch3_hi = [packet[4][0], packet[9][1], packet[14][1]] # ADC ch2  
+    cu_ch2_hi = [packet[3][1], packet[9][0], packet[14][0]] # ADC ch3
+    cu_ch2_lo = [packet[3][0], packet[8][1], packet[13][1]] 
+    cu_ch1_lo = [packet[2][1], packet[7][1], packet[13][0]] 
+    cu_ch1_hi = [packet[2][0], packet[7][0], packet[12][1]] 
+    cu_ch0_hi = [packet[1][1], packet[6][1], packet[12][0]] 
+    cu_ch0_lo = [packet[1][0], packet[6][0], packet[11][1]]
 
     # add to master channel dataset 
     chanData[chanNum][0].append(  cu_ch0_lo) #index 0 is low gain, index 1 is high gain
@@ -279,12 +290,14 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
     if c < 10: cc = '00'+str(c)
     elif c >=10 and c< 100: cc = '0'+str(c)
     elif c >= 100: cc =str(c)
-
+    #print( "CHannel ", cc)
+    if cc != "079" : continue
+    #print(chanData[c][0])
     out_file.create_group("Measurement_"+m+"/channel"+cc)
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/hi")
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/lo")
-    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/lo/samples",data=chanData[c][0])
-    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/hi/samples",data=chanData[c][1])
+    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/lo/samples",data=chanData[c][0], chunks=True, compression="gzip", dtype='u2')
+    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/hi/samples",data=chanData[c][1], chunks=True, compression="gzip", dtype='u2')
   #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
 
 
@@ -353,7 +366,7 @@ def main(GUI, fileName):
   chanData = parseData(fileName,dataType,maxNumReads, attributes)
   print("Number of samples",len(chanData))
   #makePlots(chanData)
-  if saveHists:
+  if False and saveHists:
       makeHistograms(chanData, runNumber)
   writeToHDF5(chanData,fileName,attributes)
   print('runtime: ',datetime.now() - startTime)

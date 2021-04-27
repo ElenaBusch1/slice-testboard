@@ -9,7 +9,7 @@ ext_freq = 1200e6  # arbitrary waveform generator frequency
 sim = float(1 / ext_freq)  # simulation time resolution
 rise = 2.4e-9  # rise time
 width = 400e-9  # width of pulse
-period = float(1600e-9 - 1 * sim)  # total length of signal
+period = float(160000e-9 - 1 * sim)  # total length of signal
 amp = 1  # amplitude of signal
 delay = 10*sim # 0e-9
 tau = 21.5e-9  # RC time constant
@@ -42,8 +42,8 @@ filtered_pulse = lfilter(b, a, pulse)
 #######################################
 ## Convert to Bytes
 
-data1 = -1*filtered_pulse
-data2 = -1*pulse
+data1 = 1*filtered_pulse
+data2 = 1*pulse
 SampleNum = len(data1)
 byteSamples = bytearray(2 * SampleNum)  # declare the array of bytes
 

@@ -309,7 +309,10 @@ class AnalyzePed(object):
             for j,channel in enumerate(chans_to_plot):
 
                 print((meas,str(gain),str(channel)))
-                pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
+                try:
+                  pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
+                except:
+                  continue
                 mu, sigma, dsig, rms = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
                 print(mu)
                 #### USE STD FROM FIT #####
@@ -578,12 +581,13 @@ def main():
     #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
     ##### you can do it here
 
+    PedData.Channels = ["channel079"]
     #PedData.Channels = ["channel018","channel019","channel014","channel015","channel030","channel031"]
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
     #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
-    PedData.PlotPairwiseCorr(plot_dir, 'hi')
-    PedData.PlotPairwiseCorr(plot_dir, 'lo')
+    #PedData.PlotPairwiseCorr(plot_dir, 'hi')
+    #PedData.PlotPairwiseCorr(plot_dir, 'lo')
      
     PedData.AnalyzeBaseline(plot_dir, runName)
     '''
@@ -612,7 +616,7 @@ def main():
     #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot)
     #PedData.PlotCoherent2D(plot_dir,chs =["channel014"] ) #<----- rarely used
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = [])
+    #PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = [])
     #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r)
     #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
 

@@ -340,7 +340,9 @@ class t3awg3252(Device):
         # CH1_Frequency = 0.078288
         # CH1_Frequency = 0.083507
         # CH1_Frequency = 1.251303
-        CH1_Frequency = 0.6253257
+        #CH1_Frequency = 0.6253257
+        #CH1_Frequency = 0.2083695086
+        CH1_Frequency =  0.08000
         # CH1_Frequency = self.getSetting('ramp_frequency')
         #CH1_Amplitude = self.getSetting('pulse_amplitude')
         CH1_Amplitude = str(self.coluta.pulse_amplitudeBox.toPlainText())

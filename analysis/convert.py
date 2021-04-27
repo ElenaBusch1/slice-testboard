@@ -40,8 +40,8 @@ class Process(object):
 
                     print((np.shape(raw_data)))
 
-                    raw_data = raw_data.transpose()
-                    samples = np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
+                    #raw_data = raw_data.transpose()
+                    samples = raw_data #np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
                     #print("Samples: ",samples)
                     #print(samples[ samples >2**15])
 
