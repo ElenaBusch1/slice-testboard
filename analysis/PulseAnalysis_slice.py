@@ -24,6 +24,33 @@ from itertools import product
 def gauss(x, b, c, a):
     return a * np.exp(-(x - b)**2.0 / (2 * c**2))
 
+def PulseOverlay(datum,runList):
+
+ fig,ax = plt.subplots()
+
+ ax.grid()
+ ax.set_title("Interleaved Pulses")
+ ax.set_xlabel("time [ns]")
+ ax.set_ylabel("Amplitude [ADC Counts]")
+ ax.set_xlim(2000,3500)
+ for i,(times,raw_data) in enumerate(datum):
+
+    raw_data[raw_data > 50000] = 0
+
+    time_indices_sorted = times.flatten().argsort()
+    interleaved_times = times.flatten()[time_indices_sorted]
+    interleaved_samples = raw_data.flatten()[time_indices_sorted]
+
+    n_per_group = 30 
+
+    plt.plot(np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1),np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1),'-',label = str(runList[i]))
+
+ plt.legend()
+ plt.show()
+ plt.cla()
+ plt.clf()
+ plt.close()
+
 class AnalyzePulse(object):
 
     #__INIT__#
@@ -275,42 +302,85 @@ class AnalyzePulse(object):
         plt.xlabel('Channel')
         plt.savefig(saveStr)
 
+
         plt.cla()
         plt.clf()
         plt.close()
-
         return
 
-    def FindTrainStart(self):
+    def FindTrainStart(self,START = 0, plot = 0):
 
           """
-          first, find group of 50000 samples where rms is low.
-     
-          then, find sample following this group which is above the baseline
+          Trigger on pulse train 
           """
 
           raw_data = self.Samples[0,self.GainDict[self.Gains[0]],self.ChanDict[self.Channels[0]],:] 
+          print("raw data length: ",len(raw_data))
+
+          baseline = np.mean(raw_data[START: START + 1000])
+
+          raw_data = raw_data[START:]  - baseline #subtract baseline
 
           height = np.max(raw_data)
+
           low_points = np.copy(raw_data)
-          low_points[raw_data - np.mean(raw_data) < (height - np.mean(raw_data) )*.05] = 0
-          plt.plot(low_points,'b.')
-          plt.show()
+          low_points[raw_data < .1*height] = 0 #set data points less that 10% of pulse height to zero
 
-          '''
-          for i in range(len(raw_data[:-100000])):
+          trigger = np.nonzero(low_points)[0][0] #find index corresponding to first nonzero value of low_points, this is our trigger
 
-              rms = np.std(raw_data[i: i + 5000]) 
-              if i%100000 == 0:
-                   print("RMS: ",i, rms) 
-                   print("Mean: ",i, np.mean(raw_data)) 
-          '''
+          #check
+          if plot:
+              plt.plot(raw_data,'b.')
+              plt.plot(trigger,raw_data[trigger],'r.')
+              plt.show()
+              plt.cla()
+              plt.clf()
+              plt.close()
 
-          return
+          return baseline, START + trigger
 
-    def Interleave(self,plot_dir):
+    def Interleave(self,plot_dir,baseline,start_sample, samples_per_pulse = 501,pulses_per_train = 500):
 
-          return
+          FLX_FRQ = 40.079 #MHz
+          AWG_FRQ = 1200.0 #MHZ 
+
+          sec_per_sample = (1.0/FLX_FRQ) * 1000 #ns
+          offset = (1.0/AWG_FRQ) * 1000 #ns
+
+
+          print("Seconds per sample: ", sec_per_sample)
+          print("AWG offset: ", -offset)
+
+          raw_data = self.Samples[0,self.GainDict[self.Gains[0]],self.ChanDict[self.Channels[0]],:]
+
+          raw_data -= baseline
+
+          start_sample -= 100 #cushion
+
+          raw_data = raw_data[start_sample: start_sample +  samples_per_pulse*pulses_per_train]
+
+
+          raw_data = raw_data.reshape(pulses_per_train,samples_per_pulse)
+          n_phases = 30
+
+          times = np.zeros(np.shape(raw_data))
+     
+          for j in range(pulses_per_train):  
+
+              times[j,:] = np.arange(samples_per_pulse)*sec_per_sample + j*offset
+              #plt.plot(np.arange(samples_per_pulse)*sec_per_sample + j*offset, raw_data[j,:])
+              #plt.plot(times[j,:], raw_data[j,:])
+
+          time_indices_sorted = times.flatten().argsort()
+          interleaved_times = times.flatten()[time_indices_sorted]
+          interleaved_samples = raw_data.flatten()[time_indices_sorted]
+
+          n_per_group = 100 
+
+          #plt.plot(np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1),np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1),'b-')
+          #plt.show()
+
+          return times, raw_data
 
     def PlotRaw(self,plot_dir,meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
 
@@ -344,11 +414,13 @@ class AnalyzePulse(object):
 
 def main():
 
-    if len(sys.argv) != 2 :
+    if len(sys.argv) < 2 :
         print("ERROR, program requires filename argument")
         return 
 
     runList = sys.argv[1:]
+
+    datum = []
 
     for runName in runList:
 
@@ -370,15 +442,17 @@ def main():
 
 	    PulseData.getSamples() 
 	    PulseData.getDimensions()
-            PulseData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
-	    print(PulseData)
+            #PulseData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
  
             
-            start_sample = PulseData.FindTrainStart()
-            PulseData.Interleave(plot_dir)
+            baseline,start_sample = PulseData.FindTrainStart(START = 250000)
 
+            print("Baseline,start_sample: ",baseline,start_sample)
+            times, raw_data =  PulseData.Interleave(plot_dir,baseline,start_sample)
 
+            datum.append((times,raw_data))
 
+    PulseOverlay(datum,runList)
 
 if __name__ == "__main__":
 
