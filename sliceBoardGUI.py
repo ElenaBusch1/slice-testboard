@@ -298,19 +298,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
         
-        #Check to see if the i2c Bus Transaction is finished before proceeding
-        i2cTransactionFinished = False
-        counter = 0
-        while not i2cTransactionFinished:
-            bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-            #print("bit: ", bit)
-            if bit[0] == 4:
-                i2cTransactionFinished = True
-            time.sleep(0.1)
-            if counter == 10:
-                print("I2C Transaction Failed after 1s")
-                break
-            counter += 1
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        # i2cTransactionFinished = False
+        # counter = 0
+        # while not i2cTransactionFinished:
+        #     bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+        #     print("bit: ", bit)
+        #     if bit[0] == 4:
+        #         i2cTransactionFinished = True
+        #     time.sleep(0.1)
+        #     if counter == 10:
+        #         print("I2C Transaction Failed after 1s")
+        #         break
+        #     counter += 1
 
     def readFromDataLPGBT(self, lpgbt, register, nBytes):
         """ Reads nBytes back from the lpgbt, starting at the given register """

@@ -474,10 +474,10 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
     reg_write64b(REG_IC_CONTROL, ICEC_TRIG)
     reg_write64b(REG_IC_CONTROL, 0x000)
 
-    RXDATA0=reg_read64b(REG_EC_RX_DATA_0)
-    RXDATA1=reg_read64b(REG_EC_RX_DATA_1)
-    RXDATA2=reg_read64b(REG_EC_RX_DATA_2)
-    RXDATA3=reg_read64b(REG_EC_RX_DATA_3)
+    RXDATA0=int(reg_read64b(REG_EC_RX_DATA_0),16)
+    RXDATA1=int(reg_read64b(REG_EC_RX_DATA_1),16)
+    RXDATA2=int(reg_read64b(REG_EC_RX_DATA_2),16)
+    RXDATA3=int(reg_read64b(REG_EC_RX_DATA_3),16)
 
     #print("-------------Rx packet--------------------------")
     #print(hex(RXDATA0))
