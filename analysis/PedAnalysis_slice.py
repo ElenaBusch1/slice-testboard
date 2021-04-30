@@ -97,6 +97,8 @@ class AnalyzePed(object):
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
+
+                    print(np.shape(raw_data),np.shape(self.Samples))
                     self.Samples[meas,i,j,:] = raw_data 
                     self.ChanDict[channel] = j
 
@@ -565,7 +567,7 @@ def main():
     plot_dir = "../data/Processed/" + runName + "/Plots"
     if not (os.path.exists(plot_dir)): os.mkdir(plot_dir)
 
-    PedData = AnalyzePed(input_dir + "Pedestal_Data_Normal.hdf5",runName)
+    PedData = AnalyzePed(input_dir + "Data_Normal.hdf5",runName)
 
     PedData.getChannelsAndGains()
 
@@ -581,7 +583,7 @@ def main():
     #PedData.Channels = ["channel018","channel019","channel014","channel015","channel030","channel031"]
     #PedData.Gains = ["lo"]
     #print(PedData.ChanDict)
-    #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
+    PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
     PedData.PlotPairwiseCorr(plot_dir, 'hi')
     PedData.PlotPairwiseCorr(plot_dir, 'lo')
      

@@ -17,14 +17,14 @@ class Process(object):
       self.Gains = None
       self.Channels = None
 
-    def getNormalWF(self,output_dir,mType):
+    def getNormalWF(self,output_dir,mType,isBinary = 0):
 
         bit_range = np.arange(0,16)[::-1]
         normal_codes = np.array([2**(i) for i in bit_range])
 
         f = h5py.File(self.fileName,"r")
 
-        out_file = h5py.File(output_dir + mType + "_Data_Normal.hdf5","w")
+        out_file = h5py.File(output_dir + "Data_Normal.hdf5","w")
 
 
         for meas_ind,meas in enumerate(self.measTypeDict[mType]):
@@ -39,9 +39,11 @@ class Process(object):
                     if np.shape(raw_data)[-1] == 0: continue  
 
                     print((np.shape(raw_data)))
+                    samples = raw_data
 
-                    raw_data = raw_data.transpose()
-                    samples = np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
+                    if isBinary:
+                        raw_data = raw_data.transpose()
+                        samples = np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
                     #print("Samples: ",samples)
                     #print(samples[ samples >2**15])
 
@@ -89,12 +91,17 @@ class Process(object):
 
 def main():
 
-    if len(sys.argv) != 2 :
+    isBinary = 0
+    print("Len of args:" ,len(sys.argv))
+
+    if len(sys.argv) < 2 :
         print("ERROR, program requires filename argument")
         return 
 
     runName = sys.argv[1]
-    input_dir = "../Runs/"
+    if len(sys.argv) > 2:   isBinary = sys.argv[2] 
+
+    input_dir = "../data/Raw/"
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
@@ -111,7 +118,7 @@ def main():
     #mType = "sine_normal"
     mType = "Pedestal"
 
-    sliceAnalyzeFile.getNormalWF(output_dir,mType)
+    sliceAnalyzeFile.getNormalWF(output_dir,mType,isBinary)
 
 if __name__ == "__main__":
 
