@@ -576,46 +576,28 @@ def main():
 
     PedData.getSamples() 
     PedData.getDimensions()
-    print(PedData)
-    #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
-    ##### you can do it here
 
+    #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
+    ##### you can do it here:
+
+    '''Example'''
     #PedData.Channels = ["channel018","channel019","channel014","channel015","channel030","channel031"]
     #PedData.Gains = ["lo"]
-    #print(PedData.ChanDict)
-    PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
-    PedData.PlotPairwiseCorr(plot_dir, 'hi')
-    PedData.PlotPairwiseCorr(plot_dir, 'lo')
+
+
+    PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
      
-    PedData.AnalyzeBaseline(plot_dir, runName)
-    '''
-    PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051",\
-                                                               "channel054","channel055",\
-                                                               "channel058","channel059",\
-                                                               "channel062","channel063",\
-                                                               "channel066","channel067",\
-                                                               "channel070","channel071",\
-                                                               "channel074","channel075",\
-                                                               "channel078","channel079"] ) 
-    '''
-    #PedData.PlotCoherentNoise(plot_dir, chs = ["channel014","channel015","channel018","channel019","channel030","channel031"])
-    #chs_l = [50,51,54,55,58,59,62,63]
-    #chs_r = [66,67,70,71,74,75,78,79]
-    chs_l = list(np.array([50,51,54,55,58,59,62,63]) - 2)
-    chs_r = list(np.array([66,67,70,71,74,75,78,79]) - 2)
+    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
+   
+    chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
+    chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
 
-
-    chs_l = []
-    chs_r = list(np.array([76,77,78,79]))
-    #chs_l = [14,15,18,19,30,31]
-    #chs_r = []
-    #print("CHS TO PLOT: ",chs_to_plot)
     chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
-    #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot)
-    #PedData.PlotCoherent2D(plot_dir,chs =["channel014"] ) #<----- rarely used
+    #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = [])
-    #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r)
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = []) #plot pairwise noise correlation for hi and lo gain
+    #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
     #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
 
 
