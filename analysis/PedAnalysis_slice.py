@@ -93,12 +93,12 @@ class AnalyzePed(object):
             for i,gain in enumerate(self.Gains):
                 self.GainDict[gain] = i
                 for j,channel in enumerate(self.Channels):
-                    print((meas, gain, channel))
+                    #print((meas, gain, channel))
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = meas,\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
 
-                    print(np.shape(raw_data),np.shape(self.Samples))
+                    #print(np.shape(raw_data),np.shape(self.Samples))
                     self.Samples[meas,i,j,:] = raw_data 
                     self.ChanDict[channel] = j
 
@@ -136,7 +136,7 @@ class AnalyzePed(object):
               plt.cla()
               plt.clf()
               plt.close()
-              self.getFftWaveform(raw_data,plot_dir,channel,gain)
+              #self.getFftWaveform(raw_data,plot_dir,channel,gain)
 
     def getFftWaveform(self,vals,plot_dir,channel,gain):
             fft_wf = np.fft.fft(vals)
@@ -299,7 +299,11 @@ class AnalyzePed(object):
         if not chans_to_plot: chans_to_plot = self.Channels
 
         mdacChannels = ['channel'+str(i).zfill(3) for i in range(0,128) if i%4 ==2 or i%4  == 3]
-        print(mdacChannels)
+        print("Channels to plot: ",chans_to_plot)
+        print("")
+        print("Gains to plot: ",gains_to_plot)
+        print("")
+        #print("mdac channels: ",mdacChannels)
 
         mdac_hi = []
         mdac_lo = []
@@ -310,26 +314,28 @@ class AnalyzePed(object):
           for i,gain in enumerate(gains_to_plot):
             for j,channel in enumerate(chans_to_plot):
 
-                print((meas,str(gain),str(channel)))
+                #print((meas,str(gain),str(channel)))
                 pedestal = self.Samples[meas,i,self.ChanDict[channel],:]
                 mu, sigma, dsig, rms = self.makeFittedHist(pedestal,plot_dir,"Baseline value, Ped Run",channel,gain)
-                print(mu)
+                print("Mean pedestal value: " +  str(mu) + "\n")
                 #### USE STD FROM FIT #####
                 #if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,sigma))
                 #elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
                 #elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,sigma))
                 #elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,sigma))
                 #### USE RMS #####
-                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,rms))
+                if str(channel) in mdacChannels and str(gain) == 'lo': mdac_hi.append((channel[-2:],mu,rms))
                 elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,rms))
                 elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,rms))
                 elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,rms))
- 
+
+        ''' 
         tit = ['Hi', 'Lo']
         
         for title,vals in zip(tit,[mdac_hi, mdac_lo]):
-          print("HG MDAC: ",dre_hi)
+          print("HG MDAC: ",mdac_hi)
           dataUnpack = [list(t) for t in zip(*vals)]
+          print("Data Unpack", dataUnpack)
           if title == "Lo" and False:
             dataUnpack[0].pop(-1)
             dataUnpack[1].pop(-1)
@@ -343,6 +349,7 @@ class AnalyzePed(object):
         for title,vals in zip(tit,[dre_hi, dre_lo]):
 
           print("HG DRE: ",dre_hi)
+          if len(dre_hi) == 0 or len(dre_lo) == 0: print("No dre channels to analyze"); break
           dataUnpack = [list(t) for t in zip(*vals)]
           if title == "Lo" and False:
             dataUnpack[0].pop(-1)
@@ -353,6 +360,7 @@ class AnalyzePed(object):
 
           self.PlotSigmaMuSummary(muData, "Means DRE "+title+ " Gain Run"+runName, plot_dir+"/DRE-"+title+"_mu_run"+runName+".png")
           self.PlotSigmaMuSummary(sigData, "RMS DRE "+title+" Gain Run"+runName, plot_dir+"/DRE-"+title+"_sig_run"+runName+".png")
+          '''
 
     def PlotSigmaMuSummary(self,data,title,saveStr):
         fig,ax = plt.subplots(1)
@@ -571,8 +579,9 @@ def main():
 
     PedData.getChannelsAndGains()
 
-    print(("Gains: ",PedData.Gains))
-    print(("Channels: ",PedData.Channels))
+    print(("Gains containing data in this run: ",PedData.Gains))
+    print(("Channels containing data in this run: ",PedData.Channels))
+    print("")
 
     PedData.getSamples() 
     PedData.getDimensions()
@@ -585,10 +594,10 @@ def main():
     #PedData.Gains = ["lo"]
 
 
-    PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
+    #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
      
-    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
-    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
+    #PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
+    PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
    
     chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
     chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
@@ -596,7 +605,7 @@ def main():
     chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
     #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = []) #plot pairwise noise correlation for hi and lo gain
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = chs_l, chs_r = chs_r) #plot pairwise noise correlation for hi and lo gain
     #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
     #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
 
