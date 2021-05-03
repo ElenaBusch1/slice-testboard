@@ -25,6 +25,7 @@ class Process(object):
         f = h5py.File(self.fileName,"r")
 
         out_file = h5py.File(output_dir + "Data_Normal.hdf5","w")
+        print('Output file name: ', output_dir + "Data_Normal.hdf5")
 
 
         for meas_ind,meas in enumerate(self.measTypeDict[mType]):
@@ -101,14 +102,13 @@ def main():
     runName = sys.argv[1]
     if len(sys.argv) > 2:   isBinary = sys.argv[2] 
 
-    #input_dir = "../data/Raw/"
-    input_dir = "/data/users/acs2325/slice_runs/"
+    input_dir = "../data/Raw/"
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
-    sliceAnalyzeFile = Process(input_dir + "run"+ runName + ".hdf5")
+    sliceAnalyzeFile = Process(input_dir + runName + ".hdf5")
     #sliceAnalyzeFile = Process(input_dir + "Run_" + runName + "_Output.hdf5")
-    print((sliceAnalyzeFile.fileName))
+    print('Input file name: ', sliceAnalyzeFile.fileName)
     sliceAnalyzeFile.getMeasTypeDict()
     sliceAnalyzeFile.getChannelsAndGains()
 

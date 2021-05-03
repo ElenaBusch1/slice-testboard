@@ -596,8 +596,8 @@ def main():
 
     #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
      
-    #PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
-    PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
+    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
    
     chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
     chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
