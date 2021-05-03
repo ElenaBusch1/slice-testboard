@@ -24,7 +24,7 @@ from itertools import product
 def gauss(x, b, c, a):
     return a * np.exp(-(x - b)**2.0 / (2 * c**2))
 
-def PulseOverlay(datum,runList):
+def PulseOverlay(datum,runList, align = 0):
 
  fig,ax = plt.subplots()
 
@@ -33,6 +33,8 @@ def PulseOverlay(datum,runList):
  ax.set_xlabel("time [ns]")
  ax.set_ylabel("Amplitude [ADC Counts]")
  ax.set_xlim(2000,3500)
+ if align: ax.set_xlim(-300,600)
+
  for i,(times,raw_data) in enumerate(datum):
 
     raw_data[raw_data > 50000] = 0
@@ -44,7 +46,17 @@ def PulseOverlay(datum,runList):
     n_per_group = 30 
     av_times = np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1)
     av_samples = np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1)
+
+    if align:
+
+        t0 = av_times[np.argmax(av_samples)] #get maximum
+        av_times -= t0
+
+
+
     plt.plot(av_times,av_samples,'-',label = str(runList[i]))
+
+
 
  plt.legend()
  plt.show()
@@ -52,7 +64,7 @@ def PulseOverlay(datum,runList):
  plt.clf()
  plt.close()
 
-def calc_of_coeffs(ac, g, dg, amp, dg=None, verbose = 0):
+def calc_of_coeffs(ac, g, dg, amp, verbose = 0):
 
     if verbose:
        print("AC",ac,type(ac))
@@ -360,7 +372,8 @@ class AnalyzePulse(object):
 
           baseline = np.mean(raw_data[START: START + 1000])
 
-          ac = autocorr(baseline)
+          #ac = autocorr(baseline)
+          ac = 0
 
           raw_data = raw_data[START:]  - baseline #subtract baseline
 
@@ -419,14 +432,13 @@ class AnalyzePulse(object):
           interleaved_samples = raw_data.flatten()[time_indices_sorted]
 
 
-          plt.plot(times.flatten(),'k.')
-          plt.show()
 
           n_per_group = 30 
           av_times = np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1)
           av_samples = np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1)
 
-          OFCs = calc_of_coeffs(ac, av_samples, av_times)
+          #OFCs = calc_of_coeffs(ac, av_samples, av_times)
+          OFCs = []
 
           #plt.plot(np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1),np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1),'b-')
           #plt.show()
@@ -499,11 +511,11 @@ def main():
             ac, baseline,start_sample = PulseData.FindTrainStart(START = 250000)
 
             print("Baseline,start_sample: ",baseline,start_sample)
-            times, raw_data =  PulseData.Interleave(plot_dir, ac, baseline, start_sample)
+            OFCs, times, raw_data =  PulseData.Interleave(plot_dir, ac, baseline, start_sample)
 
             datum.append((times,raw_data))
 
-    #PulseOverlay(datum,runList)
+    PulseOverlay(datum,runList, align = 1)
 
 if __name__ == "__main__":
 
