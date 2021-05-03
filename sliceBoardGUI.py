@@ -299,18 +299,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
         
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        # i2cTransactionFinished = False
-        # counter = 0
-        # while not i2cTransactionFinished:
-        #     bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-        #     print("bit: ", bit)
-        #     if bit[0] == 4:
-        #         i2cTransactionFinished = True
-        #     time.sleep(0.1)
-        #     if counter == 10:
-        #         print("I2C Transaction Failed after 1s")
-        #         break
-        #     counter += 1
+        print("Writing")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
     def readFromDataLPGBT(self, lpgbt, register, nBytes):
         """ Reads nBytes back from the lpgbt, starting at the given register """
@@ -341,6 +331,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
         # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+        
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        print("Reading")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+
         ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
         #print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
         return ReverseReadback[::-1]
@@ -365,6 +360,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
 
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        print("Checking Write")
+        outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+        if outcome == 'reset':
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+            outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+            if outcome == 'reset': print("Failed after reset")
+
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
         lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
@@ -384,6 +392,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
+
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        print("Checking Read")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
         return readback
 
@@ -553,6 +566,27 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
         writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
 
+    def i2cTransactionCheck(self, lpgbtI2CAddr, ICEC_CHANNEL):
+        lpgbt = 'lpgbt13'
+        if lpgbtI2CAddr == 114: lpgbt = 'lpgbt12' 
+        i2cTransactionFinished = False
+        counter = 0
+        while not i2cTransactionFinished:
+            bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            if bit[0] == 4:
+                i2cTransactionFinished = True
+                continue
+            elif bit[0] == 8:
+                self.lpgbtReset(lpgbt)
+                print('bit:', bit[0])
+                return 'reset' 
+            print('bit:', bit[0])
+            counter += 1
+            time.sleep(0.1)
+            if counter == 5:
+                print("I2C Transaction Failed after 0.5s")
+                break
+        return 'none'
 
     ########################## Functions to Write/Read from GUI Interface ##########################
 
