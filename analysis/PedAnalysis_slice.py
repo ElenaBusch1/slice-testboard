@@ -21,6 +21,17 @@ import argparse
 import time
 from itertools import product
 
+
+MDAC_CHS_LEFT = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board
+MDAC_CHS_RIGHT = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
+
+DRE_CHS_LEFT = [52,53,56,57,60,61,64,65] #MDAC channels on left side of board
+DRE_CHS_RIGHT = [68,69,72,73,76,77,80,81] #MDAC channels on right side of board
+
+ALL_CHS_LEFT  = [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65]
+ALL_CHS_RIGHT = [66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81]
+
+
 def gauss(x, b, c, a):
     return a * np.exp(-(x - b)**2.0 / (2 * c**2))
 
@@ -376,62 +387,15 @@ class AnalyzePed(object):
         plt.clf()
         plt.close()
 
-    
-    def PlotCoherent2D(self,plot_dir,chs):# ch1 = None,ch2 = None):
-
-        if not (chs): 
-            print("Please specify 2 channels to see a coherent noise plot")
-            return
-
-        #chs_l = [50,51,54,55,58,59,62,63]
-        #chs_r = [66,67,70,71,74,75,78,79]
-        chs_l = [12,13,14,15,16,17,18,1928,29,30,31]
-        chs_r = []
-
-        #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
-        #chs = [("channel0" + str(no)) for no in chs_r]
-        #chs = self.Channels
-        print(("self channels: ",self.Channels))        
-
-        meas_to_plot = list(range(self.nMeas))
-        for meas in meas_to_plot:
-            for i,gain in enumerate(self.Gains):
-            #for i,gain in enumerate(["lo"]):
-
-                ped_tot_left = np.zeros(np.shape(self.Samples)[-1])
-                ped_tot_right = np.zeros(np.shape(self.Samples)[-1])
-                for channel in chs:
-
-                    print(("ANALYZING CHANNEL: ",channel)) 
-
-                    ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-                    print((gain,self.GainDict))
-                    
-                    if int(channel.strip("channel")) < 64: ped_tot_left += ped_i
-                    else: ped_tot_right += ped_i
-
-        fig,ax = plt.subplots()
-
-        mult = 10
-
-        xbins = np.linspace(min(ped_tot_left) - .5, max(ped_tot_left) - .5,int( (max(ped_tot_left) - min(ped_tot_left) + 1)/mult) )
-        ybins = np.linspace(min(ped_tot_right) - .5, max(ped_tot_right) - .5,int( (max(ped_tot_right) - min(ped_tot_right) + 1)/mult) )
-        histo,_,_,image = ax.hist2d(ped_tot_left,ped_tot_right,cmap = "Blues",bins = [xbins,ybins])
-
-        ax.set_xlabel("Left  Side (ch 48-63) [cts.]")
-        ax.set_ylabel("Right Side (ch 64-79) [cts.]")
-        plt.colorbar(image,cmap = "Blues",ax = ax)
-        ax.set_title("Coherent noise by Sliceboard side")
-        #plt.show()
- 
+     
     def PlotPairwiseCorr(self,plot_dir,gain_flg = "hi",
                          chs_l = [48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63],
                          chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]):
 
         meas_to_plot = list(range(self.nMeas))
 
-        print("chs L:",chs_l)
-        print("chs R:",chs_r)
+        print("Channels to plot on left side of slice board:",chs_l)
+        print("Channels to plot on right side of slice board:",chs_r)
 
         hilo = False
         if gain_flg == 'hi' or gain_flg == 'lo': gain = gain_flg
@@ -447,7 +411,15 @@ class AnalyzePed(object):
           channelslo = [("channel0" + str(no)+'lo') for no in chs_l + chs_r] 
           #channels = channelshi+channelslo
           channels = [val for pair in zip(channelshi, channelslo) for val in pair]
-          data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict['hi'],self.ChanDict[channels[0][:-2]],:])))
+
+	  try:
+              data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict['hi'],self.ChanDict[channels[0][:-2]],:])))
+
+	  except KeyError:
+
+		print("\nYou are trying to plot a channel for which there is no data in this run. Exiting Coherent noise matrix plotter...")
+		print("Please make sure you are passing the the correct right and left-side sliceboard channels to PlotPairwiseCorr function\n")
+		return
  
          
         for meas in meas_to_plot:
@@ -532,10 +504,20 @@ class AnalyzePed(object):
                 for channel in chs:
 
                     #if int(channel.strip("channel")) < 64: continue
-                    print("  NOW ANALYZING: {channel}".format(channel = channel)) 
+                    print("\n  NOW ANALYZING: {channel}".format(channel = channel)) 
 
                     #ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-                    ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
+
+                    try:
+                        ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
+
+                    except KeyError:
+
+                        print("\nYou are trying to plot a channel for which there is no data in this run. Exiting Coherent noise matrix plotter...")
+                        print("Please make sure you are passing the the correct right and left-side sliceboard channels to PlotCoherentNoise function\n")
+                        return
+
+
                     ped_i -= np.mean(ped_i)
 
                     mu_i,sig_i,dsig_i, _ = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
@@ -596,16 +578,20 @@ def main():
 
     #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
      
-    #PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
-    PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
-   
-    chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
-    chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
+    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
+  
+ 
+    ### the following lines can be used to set relevant channels for Coherent Noise and Pariwise Correlation plots 
 
-    chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
-    #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
+    # chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
+    # chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
+    # chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
 
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = chs_l, chs_r = chs_r) #plot pairwise noise correlation for hi and lo gain
+    chs_to_plot = [("channel0" + str(no)) for no in ALL_CHS_LEFT + ALL_CHS_RIGHT]
+
+    PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
     #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
     #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
 
