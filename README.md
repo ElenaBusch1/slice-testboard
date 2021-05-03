@@ -63,3 +63,15 @@ python convert.py 0243 1
 python PedAnalysis_slice.py 0243
 ```
 
+### Pulse Data ###
+
+1. The instructions for retrieving the data and converting it are the same as for the pedestal analysis, please see steps (1) and (2) above.
+
+2. The Pulse analysis can run over multiple data runs at once to produce a famous 'multi-color' plot:
+
+```
+python PulseAnalysis_slice.py 0520 0521 0523 0530 0531 0532 0533 0534 0535 0536
+``` 
+
+
+

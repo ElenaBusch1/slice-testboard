@@ -42,14 +42,55 @@ def PulseOverlay(datum,runList):
     interleaved_samples = raw_data.flatten()[time_indices_sorted]
 
     n_per_group = 30 
-
-    plt.plot(np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1),np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1),'-',label = str(runList[i]))
+    av_times = np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1)
+    av_samples = np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1)
+    plt.plot(av_times,av_samples,'-',label = str(runList[i]))
 
  plt.legend()
  plt.show()
  plt.cla()
  plt.clf()
  plt.close()
+
+def calc_of_coeffs(ac, g, dg, amp, dg=None, verbose = 0):
+
+    if verbose:
+       print("AC",ac,type(ac))
+       print("G,",g,type(g))
+       print("AMP",amp,type(amp))
+
+    ac = np.ravel(ac) / ac[0]
+    g = np.ravel(g)
+    dg = np.ravel(dg) #if dg is not None else np.gradient(g)
+    #scale = max(g)
+    scale = amp
+    g /= scale
+    dg /= scale
+    # Calculate V = R^{-1}.
+    inv_ac = linalg.inv(linalg.toeplitz(ac))
+    # Calculate V*g and V*dg only once.
+    vg = np.dot(inv_ac, g)
+    vdg = np.dot(inv_ac, dg)
+    # Calculate helper variables.
+    q1 = np.dot(g, vg)
+    q2 = np.dot(dg, vdg)
+    q3 = np.dot(dg, vg)
+    delta = q1*q2 - q3*q3
+    # Calculate Lagrange multipliers
+    lm_lambda = q2/delta
+    lm_kappa = -q3/delta
+    lm_mu = q3/delta
+    lm_rho = -q1/delta
+    # Calculate filter coefficients.
+    a_coeffs = lm_lambda*vg + lm_kappa*vdg
+    b_coeffs = lm_mu*vg + lm_rho*vdg
+    # Reverse order to get canonical coefficient order.
+    #return a_coeffs[::-1], b_coeffs[::-1]
+    return a_coeffs, b_coeffs
+
+def autocorr(x):
+  result = np.correlate(x, x, mode='full')
+  return result[result.size // 2:]
 
 class AnalyzePulse(object):
 
@@ -319,6 +360,8 @@ class AnalyzePulse(object):
 
           baseline = np.mean(raw_data[START: START + 1000])
 
+          ac = autocorr(baseline)
+
           raw_data = raw_data[START:]  - baseline #subtract baseline
 
           height = np.max(raw_data)
@@ -337,9 +380,9 @@ class AnalyzePulse(object):
               plt.clf()
               plt.close()
 
-          return baseline, START + trigger
+          return ac, baseline, START + trigger
 
-    def Interleave(self,plot_dir,baseline,start_sample, samples_per_pulse = 501,pulses_per_train = 500):
+    def Interleave(self,plot_dir, ac, baseline,start_sample, samples_per_pulse = 501,pulses_per_train = 500):
 
           FLX_FRQ = 40.079 #MHz
           AWG_FRQ = 1200.0 #MHZ 
@@ -375,12 +418,20 @@ class AnalyzePulse(object):
           interleaved_times = times.flatten()[time_indices_sorted]
           interleaved_samples = raw_data.flatten()[time_indices_sorted]
 
-          n_per_group = 100 
+
+          plt.plot(times.flatten(),'k.')
+          plt.show()
+
+          n_per_group = 30 
+          av_times = np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1)
+          av_samples = np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1)
+
+          OFCs = calc_of_coeffs(ac, av_samples, av_times)
 
           #plt.plot(np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1),np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1),'b-')
           #plt.show()
 
-          return times, raw_data
+          return OFCs, times, raw_data
 
     def PlotRaw(self,plot_dir,meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
 
@@ -445,14 +496,14 @@ def main():
             #PulseData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
  
             
-            baseline,start_sample = PulseData.FindTrainStart(START = 250000)
+            ac, baseline,start_sample = PulseData.FindTrainStart(START = 250000)
 
             print("Baseline,start_sample: ",baseline,start_sample)
-            times, raw_data =  PulseData.Interleave(plot_dir,baseline,start_sample)
+            times, raw_data =  PulseData.Interleave(plot_dir, ac, baseline, start_sample)
 
             datum.append((times,raw_data))
 
-    PulseOverlay(datum,runList)
+    #PulseOverlay(datum,runList)
 
 if __name__ == "__main__":
 
