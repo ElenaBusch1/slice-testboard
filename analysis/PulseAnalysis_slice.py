@@ -24,6 +24,86 @@ from itertools import product
 def gauss(x, b, c, a):
     return a * np.exp(-(x - b)**2.0 / (2 * c**2))
 
+def PulseOverlay(datum,runList, align = 0):
+
+ fig,ax = plt.subplots()
+
+ ax.grid()
+ ax.set_title("Interleaved Pulses")
+ ax.set_xlabel("time [ns]")
+ ax.set_ylabel("Amplitude [ADC Counts]")
+ ax.set_xlim(2000,3500)
+ if align: ax.set_xlim(-300,600)
+
+ for i,(times,raw_data) in enumerate(datum):
+
+    raw_data[raw_data > 50000] = 0
+
+    time_indices_sorted = times.flatten().argsort()
+    interleaved_times = times.flatten()[time_indices_sorted]
+    interleaved_samples = raw_data.flatten()[time_indices_sorted]
+
+    n_per_group = 30 
+    av_times = np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1)
+    av_samples = np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1)
+
+    if align:
+
+        t0 = av_times[np.argmax(av_samples)] #get maximum
+        av_times -= t0
+
+
+
+    plt.plot(av_times,av_samples,'-',label = str(runList[i]))
+
+
+
+ plt.legend()
+ plt.show()
+ plt.cla()
+ plt.clf()
+ plt.close()
+
+def calc_of_coeffs(ac, g, dg, amp, verbose = 0):
+
+    if verbose:
+       print("AC",ac,type(ac))
+       print("G,",g,type(g))
+       print("AMP",amp,type(amp))
+
+    ac = np.ravel(ac) / ac[0]
+    g = np.ravel(g)
+    dg = np.ravel(dg) #if dg is not None else np.gradient(g)
+    #scale = max(g)
+    scale = amp
+    g /= scale
+    dg /= scale
+    # Calculate V = R^{-1}.
+    inv_ac = linalg.inv(linalg.toeplitz(ac))
+    # Calculate V*g and V*dg only once.
+    vg = np.dot(inv_ac, g)
+    vdg = np.dot(inv_ac, dg)
+    # Calculate helper variables.
+    q1 = np.dot(g, vg)
+    q2 = np.dot(dg, vdg)
+    q3 = np.dot(dg, vg)
+    delta = q1*q2 - q3*q3
+    # Calculate Lagrange multipliers
+    lm_lambda = q2/delta
+    lm_kappa = -q3/delta
+    lm_mu = q3/delta
+    lm_rho = -q1/delta
+    # Calculate filter coefficients.
+    a_coeffs = lm_lambda*vg + lm_kappa*vdg
+    b_coeffs = lm_mu*vg + lm_rho*vdg
+    # Reverse order to get canonical coefficient order.
+    #return a_coeffs[::-1], b_coeffs[::-1]
+    return a_coeffs, b_coeffs
+
+def autocorr(x):
+  result = np.correlate(x, x, mode='full')
+  return result[result.size // 2:]
+
 class AnalyzePulse(object):
 
     #__INIT__#
@@ -100,8 +180,6 @@ class AnalyzePulse(object):
                     self.Samples[meas,i,j,:] = raw_data 
                     self.ChanDict[channel] = j
 
-
-
         f.close()
 
 
@@ -134,93 +212,8 @@ class AnalyzePulse(object):
               plt.cla()
               plt.clf()
               plt.close()
-              self.getFftWaveform(raw_data,plot_dir,channel,gain)
-
-    def getFftWaveform(self,vals,plot_dir,channel,gain):
-            fft_wf = np.fft.fft(vals)
-            fftWf_x = []
-            fftWf_y = []
-            psd = []
-            psd_x = []
-            for sampNum,samp in enumerate(fft_wf) :
-              if sampNum > float( len(fft_wf) ) / 2. :
-                continue
-              freqVal = 40. * sampNum/float(len(fft_wf))
-
-              sampVal = np.abs(samp)
-              if sampNum == 0 :
-                sampVal = 0
-              fftWf_x.append(freqVal)
-              fftWf_y.append(sampVal)
-            if np.max(fftWf_y) <= 0 :
-              return psd_x,psd
-
-            fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
-            for sampNum,samp in enumerate(fourier_fftWf_y) :
-              if sampNum == -1 :
-                continue
-              else:
-                psd_x.append( fftWf_x[sampNum] )
-                psd.append( 20*np.log10(samp) )
-
-            fig,ax = plt.subplots()
-            ax.plot(psd_x,psd,'b-')
-            ax.grid(True)
-            ax.set_title(channel + " " + gain + "gain")
-            ax.set_xlabel("Frequency [MHz]")
-            ax.set_ylabel("PSD [dB]")
-            ax.set_xlim(0,1)
-            #plt.ylim(-50,0)
-            print("\tPlotting FFT waveform....\n")
-            plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_FFT.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-            plt.cla()
-            plt.clf()
-            plt.close()
-            #plt.show()
-            #return fftWf_x,fftWf_y,psd_x,psd,sinad,enob,snr 
-
-    def getFftWaveformOrooni(self,data,plot_dir,channel,gain):
-
-            data = data[1:] #DROP FIRST SAMPLE TO GET 6251 SAMPLES!!!! critical
-            fft_wf = np.fft.fft(data)
-            fftWf_x = []
-            fftWf_y = []
-            psd = []
-            psd_x = []
-            for sampNum,samp in enumerate(fft_wf) :
-              if sampNum > float( len(fft_wf) ) / 2. :
-                 pass
-                 #continue
-              freqVal = 40.8 * sampNum/float(len(fft_wf))
-              sampVal = np.abs(samp)
-              if sampNum == 0 :
-                sampVal = 0
-              fftWf_x.append(freqVal)
-              fftWf_y.append(sampVal)
-              if np.max(fftWf_y) <= 0 :
-                print(psd_x,psd)
-
-            fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
-            for sampNum,samp in enumerate(fourier_fftWf_y) :
-                psd_x.append( fftWf_x[sampNum] )
-                psd.append( 20*np.log10(samp) )
-
-            plt.plot(psd_x,psd,'b-')
-            plt.grid()
-            #plt.xlim(0,2)
-            #plt.ylim(-100,0)
-            plt.xlabel("Frequency [MHz]")
-            plt.ylabel("PSD [dB]")
-            print("\tPlotting FFT waveform....\n")
-            #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_FFT.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-            plt.show()
-            plt.close()
-            plt.clf()
-
 
     def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
-
-
 
             do_fit = True
             fig,ax = plt.subplots()
@@ -362,140 +355,95 @@ class AnalyzePulse(object):
         plt.xlabel('Channel')
         plt.savefig(saveStr)
 
+
         plt.cla()
         plt.clf()
         plt.close()
+        return
 
-    
-    def PlotCoherent2D(self,plot_dir,chs):# ch1 = None,ch2 = None):
+    def FindTrainStart(self,START = 0, plot = 0):
 
-        if not (chs): 
-            print("Please specify 2 channels to see a coherent noise plot")
-            return
+          """
+          Trigger on pulse train 
+          """
 
-        #chs_l = [50,51,54,55,58,59,62,63]
-        #chs_r = [66,67,70,71,74,75,78,79]
-        chs_l = [12,13,14,15,16,17,18,1928,29,30,31]
-        chs_r = []
+          raw_data = self.Samples[0,self.GainDict[self.Gains[0]],self.ChanDict[self.Channels[0]],:] 
+          print("raw data length: ",len(raw_data))
 
-        #chs = [("channel0" + str(no)) for no in chs_l + chs_r]
-        #chs = [("channel0" + str(no)) for no in chs_r]
-        #chs = self.Channels
-        print(("self channels: ",self.Channels))        
+          baseline = np.mean(raw_data[START: START + 1000])
 
-        meas_to_plot = list(range(self.nMeas))
-        for meas in meas_to_plot:
-            for i,gain in enumerate(self.Gains):
-            #for i,gain in enumerate(["lo"]):
+          #ac = autocorr(baseline)
+          ac = 0
 
-                ped_tot_left = np.zeros(np.shape(self.Samples)[-1])
-                ped_tot_right = np.zeros(np.shape(self.Samples)[-1])
-                for channel in chs:
+          raw_data = raw_data[START:]  - baseline #subtract baseline
 
-                    print(("ANALYZING CHANNEL: ",channel)) 
+          height = np.max(raw_data)
 
-                    ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-                    print((gain,self.GainDict))
-                    
-                    if int(channel.strip("channel")) < 64: ped_tot_left += ped_i
-                    else: ped_tot_right += ped_i
+          low_points = np.copy(raw_data)
+          low_points[raw_data < .1*height] = 0 #set data points less that 10% of pulse height to zero
 
-        fig,ax = plt.subplots()
+          trigger = np.nonzero(low_points)[0][0] #find index corresponding to first nonzero value of low_points, this is our trigger
 
-        mult = 10
+          #check
+          if plot:
+              plt.plot(raw_data,'b.')
+              plt.plot(trigger,raw_data[trigger],'r.')
+              plt.show()
+              plt.cla()
+              plt.clf()
+              plt.close()
 
-        xbins = np.linspace(min(ped_tot_left) - .5, max(ped_tot_left) - .5,int( (max(ped_tot_left) - min(ped_tot_left) + 1)/mult) )
-        ybins = np.linspace(min(ped_tot_right) - .5, max(ped_tot_right) - .5,int( (max(ped_tot_right) - min(ped_tot_right) + 1)/mult) )
-        histo,_,_,image = ax.hist2d(ped_tot_left,ped_tot_right,cmap = "Blues",bins = [xbins,ybins])
+          return ac, baseline, START + trigger
 
-        ax.set_xlabel("Left  Side (ch 48-63) [cts.]")
-        ax.set_ylabel("Right Side (ch 64-79) [cts.]")
-        plt.colorbar(image,cmap = "Blues",ax = ax)
-        ax.set_title("Coherent noise by Sliceboard side")
-        #plt.show()
- 
-    def PlotPairwiseCorr(self,plot_dir,gain_flg = "hi",
-                         chs_l = [48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63],
-                         chs_r = [64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79]):
+    def Interleave(self,plot_dir, ac, baseline,start_sample, samples_per_pulse = 501,pulses_per_train = 500):
 
-        meas_to_plot = list(range(self.nMeas))
+          FLX_FRQ = 40.079 #MHz
+          AWG_FRQ = 1200.0 #MHZ 
 
-        print("chs L:",chs_l)
-        print("chs R:",chs_r)
-
-        hilo = False
-        if gain_flg == 'hi' or gain_flg == 'lo': gain = gain_flg
-        else:
-          hilo = True
-          gain = 'HiLo'
-
-        if not hilo:
-          channels = [("channel0" + str(no)) for no in chs_l + chs_r]
-          data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict[gain],self.ChanDict[channels[0]],:])))
-        else:
-          channelshi = [("channel0" + str(no)+'hi') for no in chs_l + chs_r] 
-          channelslo = [("channel0" + str(no)+'lo') for no in chs_l + chs_r] 
-          #channels = channelshi+channelslo
-          channels = [val for pair in zip(channelshi, channelslo) for val in pair]
-          data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict['hi'],self.ChanDict[channels[0][:-2]],:])))
- 
-         
-        for meas in meas_to_plot:
-          for row,ch in enumerate(channels):
-
-            if not hilo:
-              data_by_ch[row,:] = self.Samples[meas,self.GainDict[gain],self.ChanDict[ch],:]
-            else:
-              if 'hi' in ch: ch_gain = 'hi'
-              else: ch_gain = 'lo'
-              ch_num = ch[:-2]
-                
-              data_by_ch[row,:] = self.Samples[meas,self.GainDict[ch_gain],self.ChanDict[ch_num],:]
-
-          pearson = np.corrcoef(data_by_ch)
+          sec_per_sample = (1.0/FLX_FRQ) * 1000 #ns
+          offset = (1.0/AWG_FRQ) * 1000 #ns
 
 
-          fig, ax = plt.subplots(figsize = (30,30))
-          im = ax.imshow(pearson, cmap = "RdBu",vmin = -.3,vmax = .3)
+          print("Seconds per sample: ", sec_per_sample)
+          print("AWG offset: ", -offset)
 
-          plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-               rotation_mode="anchor")
+          raw_data = self.Samples[0,self.GainDict[self.Gains[0]],self.ChanDict[self.Channels[0]],:]
 
-          channels_relabeled = [ "channel" + str(int(x.strip("channel")[:-2]) + 48) + x[-2:]  for x in channels]
+          raw_data -= baseline
 
-          print(channels,channels_relabeled)
-          ax.set_xticks(np.arange(len(channels)))
-          ax.set_yticks(np.arange(len(channels)))
-          #ax.set_xticklabels(channels_relabeled)
-          #ax.set_yticklabels(channels_relabeled)
-          ax.set_xticklabels(channels)
-          ax.set_yticklabels(channels)
+          start_sample -= 100 #cushion
 
-          for i in range(len(channels)):
-            for j in range(len(channels)):
-                if i == j: color = "w"
-                else: color = "k"
-                text = ax.text(j, i, int(round(pearson[i, j],2)*100),
-                               ha="center",fontsize = 10, va="center", color=color)
+          raw_data = raw_data[start_sample: start_sample +  samples_per_pulse*pulses_per_train]
 
-          for edge, spine in list(ax.spines.items()):
-              spine.set_visible(False)
 
-          ax.set_title("Run {name} MDAC + DRE Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
-          ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
-          ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
-          ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
-          #fig.tight_layout()
+          raw_data = raw_data.reshape(pulses_per_train,samples_per_pulse)
+          n_phases = 30
+
+          times = np.zeros(np.shape(raw_data))
+     
+          for j in range(pulses_per_train):  
+
+              times[j,:] = np.arange(samples_per_pulse)*sec_per_sample + j*offset
+              #plt.plot(np.arange(samples_per_pulse)*sec_per_sample + j*offset, raw_data[j,:])
+              #plt.plot(times[j,:], raw_data[j,:])
+
+          time_indices_sorted = times.flatten().argsort()
+          interleaved_times = times.flatten()[time_indices_sorted]
+          interleaved_samples = raw_data.flatten()[time_indices_sorted]
+
+
+
+          n_per_group = 30 
+          av_times = np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1)
+          av_samples = np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1)
+
+          #OFCs = calc_of_coeffs(ac, av_samples, av_times)
+          OFCs = []
+
+          #plt.plot(np.mean(interleaved_times.reshape(-1,n_per_group),axis = 1),np.mean(interleaved_samples.reshape(-1,n_per_group),axis = 1),'b-')
           #plt.show()
-          figure = plt.gcf()
-          figure.set_size_inches(16, 12)
 
-          plt.savefig(r'{plot_dir}/{gain}_corr.png'.format(plot_dir = plot_dir,gain = gain),dpi = 100)
-          plt.close()
-          plt.clf()
-
-
-          return
+          return OFCs, times, raw_data
 
     def PlotRaw(self,plot_dir,meas_to_plot = None, gains_to_plot = None, chans_to_plot = None):
 
@@ -522,74 +470,20 @@ class AnalyzePulse(object):
               ax.set_ylabel("ADC Code")
               plt.savefig('{plot_dir}/rawPed_meas{meas}_{channel}_{gain}.png'.format(plot_dir = plot_dir,runNo = self.runNo,\
                                                                                                meas = meas,channel =channel, gain = gain))
-              plt.show()      
+              #plt.show()      
               plt.cla()
               plt.clf()
               plt.close()
- 
-    def PlotCoherentNoise(self,plot_dir,chs):# ch1 = None,ch2 = None):
-
-        if not (chs): 
-            print("Please specify 2 channels to see a coherent noise plot")
-            return
-
-        print(("========= MAKING COHERENT NOISE PLOT WITH CHANNELS: ",chs))
-        print(("========= AVAILABLE CHANNELS IN THIS RUN: ",self.Channels))
-        #chs = self.Channels
-  
-        Nchan = len(chs)
-
-        meas_to_plot = list(range(self.nMeas))
-        for i,gain in enumerate(["lo", "hi"]):
-            for meas in meas_to_plot:
-            #for i,gain in enumerate(self.Gains):
-
-                #if gain == "lo": chs.remove("channel079")
-                ped_tot = np.zeros(np.shape(self.Samples)[-1])
-                sig_2_tot = 0
-                dsig_2_tot = 0
-                for channel in chs:
-
-                    #if int(channel.strip("channel")) < 64: continue
-                    print("  NOW ANALYZING: {channel}".format(channel = channel)) 
-
-                    #ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-                    ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-                    ped_i -= np.mean(ped_i)
-
-                    mu_i,sig_i,dsig_i, _ = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
-                    print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}\n".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i))
-                     
-                    sig_2_tot += sig_i**2
-                    dsig_2_tot += (sig_i**2)*(dsig_i**2)
-                    ped_tot += ped_i
-                #ped_1 = self.Samples[meas,i,self.ChanDict[ch1],:]                
-                #ped_2 = self.Samples[meas,i,self.ChanDict[ch2],:]
-
-                #sig1 = self.makeFittedHist(ped_1,plot_dir,"",ch1, gain, plot = False)
-                #sig2 = self.makeFittedHist(ped_2,plot_dir,"",ch2, gain, plot = False)
-                #print("s1**2 + s2**2 = ",np.sqrt(sig1**2 + sig2**2))
-
-                #joint_pedestal = ped_1 + ped_2               
-                #print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i)
-                #print(sig_2_tot)
-                dsig_2_tot/=sig_2_tot
-                #print(dsig_2_tot)
-
-                gain_str = "HG"
-                if gain == "lo":gain_str = "LG"
-
-                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
-
-
 
 def main():
 
-    if len(sys.argv) != 2 :
+    if len(sys.argv) < 2 :
         print("ERROR, program requires filename argument")
         return 
 
     runList = sys.argv[1:]
+
+    datum = []
 
     for runName in runList:
 
@@ -601,18 +495,27 @@ def main():
 
 
 	    PulseData.getChannelsAndGains()
+	    #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
+	    ##### you can do it here
+            PulseData.Gains = ["hi"]
+            PulseData.Channels = ["channel079"]
 
 	    print(("Gains: ",PulseData.Gains))
 	    print(("Channels: ",PulseData.Channels))
 
 	    PulseData.getSamples() 
 	    PulseData.getDimensions()
-            PulseData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
-	    print(PulseData)
-	    #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
-	    ##### you can do it here
+            #PulseData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
+ 
+            
+            ac, baseline,start_sample = PulseData.FindTrainStart(START = 250000)
 
+            print("Baseline,start_sample: ",baseline,start_sample)
+            OFCs, times, raw_data =  PulseData.Interleave(plot_dir, ac, baseline, start_sample)
 
+            datum.append((times,raw_data))
+
+    PulseOverlay(datum,runList, align = 1)
 
 if __name__ == "__main__":
 
