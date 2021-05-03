@@ -334,8 +334,8 @@ class AnalyzePed(object):
         
         for title,vals in zip(tit,[mdac_hi, mdac_lo]):
           print("HG MDAC: ",mdac_hi)
+          if len(mdac_hi) == 0 or len(mdac_lo) == 0: print("No mdac channels to analyze"); break
           dataUnpack = [list(t) for t in zip(*vals)]
-          print("Data Unpack", dataUnpack)
           if title == "Lo" and False:
             dataUnpack[0].pop(-1)
             dataUnpack[1].pop(-1)
