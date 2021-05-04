@@ -563,7 +563,7 @@ class AnalyzePed(object):
                 self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
 
 
-
+#-------------------------------------------------------------------------------------
 def main():
 
     if len(sys.argv) != 2 :
