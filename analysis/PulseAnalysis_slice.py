@@ -32,7 +32,7 @@ def PulseOverlay(datum,runList, align = 0):
  ax.set_title("Interleaved Pulses")
  ax.set_xlabel("time [ns]")
  ax.set_ylabel("Amplitude [ADC Counts]")
- ax.set_xlim(2000,3500)
+ ax.set_xlim(2200,3500)
  if align: ax.set_xlim(-300,600)
 
  for i,(times,raw_data) in enumerate(datum):
