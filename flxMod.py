@@ -31,15 +31,6 @@ import os
 import subprocess
 from typing import List
 import numpy as np
-from time import  sleep
-from pyFlxlpGBT import  * 
-
-# First, instantiate a lpGBTManager to handle communication with the FLX Card 
-# For example, card 0 , setting verbosity level to INFO 
-
-manager = lpGBTManager(cardnr=0,verbose="INFO")
-manager.ReadFEB2Registers()
-manager.InitializeFEB2()
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_DEPACKING
 
@@ -509,11 +500,18 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
 ################################################################
 
 def reg_read64b(addr):
-    return  "%16lx"%(manager.ReadFEB2Register(addr))
+    addr_str = str(hex(addr))
+    cmd = "fpepo " + addr_str
+    return_value = os.popen(cmd).readlines()[0][6:22]
+    # print(return_value)
+    return return_value
 
 
 def reg_write64b(addr,data):
-    return_value = manager.WriteFEB2Register(addr,data)
+    addr_str = str(hex(addr))
+    data_str = str(hex(data))
+    cmd = "fpepo " + addr_str + " "+ data_str
+    return_value = os.popen(cmd).readlines()[0][6:22]
     # print(return_value)
 
 

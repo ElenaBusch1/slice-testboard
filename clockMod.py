@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-import json5
+import pyjson5
 
 def sendInversionBits(GUI, clock640, colutaName):
     binary = f'{clock640:04b}'
