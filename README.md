@@ -1,4 +1,6 @@
-# Slice Testboard GUI - Setup #
+# Slice Testboard GUI #
+
+## Setup
 
 1. If starting completely from scratch, begin by downloading FLX software from here: https://gitlab.cern.ch/atlas-tdaq-felix/software. (If needed, change flx_setup1.sh to point to the proper paths)
 
@@ -21,7 +23,7 @@ conda activate coluta
 7. If you want to take data, run `python takeTriggerData.py` or use the **Take Trigger Data** button in the Data tab of the GUI.
 
 
-# Slice Testboard GUI - Configuration #
+## Configuration 
 
 1. To configure all chips on the board with their default configuration, press **Configure All** in the Control tab. This takes 4-5 minutes.
 
@@ -37,3 +39,51 @@ _Note_: If you are switching between data lpGBTs, you will need to do a master r
 5. By default, COLUTA channels 1-6 come up in Serializer Test Mode, and channels 7-8 come up in normal mode. This can be changed in the COLUTA/Channel/DDPU tab. Additionally, in Channel 1 for each COLUTA there are **Turn On Serialier Mode** and **Turn Off Serializer Mode** buttons, which change serializer mode for all channels. 
 
 6. For now, if you want to change between trigger mode and single ADC mode, you'll need to edit takeTriggerData.py directly. Comments in the file indicate which settings are needed for each mode.
+
+# Slice Testboard Analysis #
+
+After a run is taken with the slice testboard, the data is stored on the FLX server. You can ssh in with `ssh -Y dawillia@flx-srv-atlas slice-testboard` (password is portmanteau of 2 universities). The data is stored in the directory `/home/dawillia/FLX/slice-testboard/Runs`. 
+All runs are copied here on xenia for convenience: `/nevis/xenia2/data/users/jgonski/FLX/slice-testboard/Runs`
+The Good Run List gives a description of each run: https://docs.google.com/spreadsheets/d/1LRrg8CxLdXaRoX1FprGiC_ZAtnXlHQt8NTyy5Xv97Eo/edit#gid=0. 
+
+### Pedestal Data ###
+
+The following code is meant to analyze Noise runs. Note that runs taken in 'single ADC mode' only contain 1 chip (8 channels) of data, so there are not many available channels in these runs to do collective analysis like noise coherence and correlation. 
+
+1. Copy the .hdf5 file you want to analyze to the `/data/Raw` directory.
+
+```
+cp runXXXX.hdf5 slice-testboard/data/Raw/
+```
+
+2. Convert the .hdf5 file containing the data from binary to decimal integer using the `convert.py` script ***Note*** this analysis may not work unless you have created the conda enviroment detailed above (see step 3 of 'Slice Testboard GUI - Setup'): 
+
+```
+cd slice-testboard/analysis
+python convert.py runXXXX
+```
+The above code will convert runXXXX.hdf5 and store the result in `slice-testboard/data/Processed/runXXXX/Data_Normal.hdf5`. ***Note*** if the data has run number < 0509, the data is stored as binary rather than decimal. One will need to set the `isBinary` flag to true in converting:
+
+```
+python convert.py runXXXX 1
+```
+
+
+3. Edit the `main()` function of `PedAnalysis_slice.py` to include the plots you want to make, as well as the relevant channels. The functions which make these plots are all contained in `PedAnalysis_slice.py`. Output is saved in `slice-testboard/data/Processed/0243/Plots`. Typical plots for a pedestal analysis include raw waveforms, fitted baseline pedestals, coherent noise plots, and a noise correlation matrix in both hi and lo gain.
+
+```
+python PedAnalysis_slice.py runXXXX
+```
+
+### Pulse Data ###
+
+1. The instructions for retrieving the data and converting it are the same as for the pedestal analysis, please see steps (1) and (2) above.
+
+2. The Pulse analysis can run over multiple data runs at once to produce a famous 'multi-color' plot:
+
+```
+python PulseAnalysis_slice.py run0520 run0521 run0523 run0530 run0531 run0532 run0533 run0534 run0535 run0536
+``` 
+
+
+
