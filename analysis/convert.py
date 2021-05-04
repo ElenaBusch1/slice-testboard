@@ -17,14 +17,15 @@ class Process(object):
       self.Gains = None
       self.Channels = None
 
-    def getNormalWF(self,output_dir,mType):
+    def getNormalWF(self,output_dir,mType,isBinary = 0):
 
         bit_range = np.arange(0,16)[::-1]
         normal_codes = np.array([2**(i) for i in bit_range])
 
         f = h5py.File(self.fileName,"r")
 
-        out_file = h5py.File(output_dir + mType + "_Data_Normal.hdf5","w")
+        out_file = h5py.File(output_dir + "Data_Normal.hdf5","w")
+        print('Output file name: ', output_dir + "Data_Normal.hdf5")
 
 
         for meas_ind,meas in enumerate(self.measTypeDict[mType]):
@@ -32,20 +33,24 @@ class Process(object):
             for gain in self.Gains:        
                   print(gain)
                   for channel in self.Channels:
-
                     raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3),\
                                                                   channel = str(channel),\
                                                                   gain = gain)])
-
                     #raw_data =  np.array(f["Measurement_{meas}/{channel}/{gain}/samples".format(meas = str(meas_ind).zfill(3)))
                     if np.shape(raw_data)[-1] == 0: continue  
 
-                    print(np.shape(raw_data))
+                    print((np.shape(raw_data)))
+                    samples = raw_data
 
-                    raw_data = raw_data.transpose()
-                    samples = np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
+                    if isBinary:
+                        raw_data = raw_data.transpose()
+                        samples = np.sum(raw_data*normal_codes[:,np.newaxis],axis = 0)
+                    #print("Samples: ",samples)
+                    #print(samples[ samples >2**15])
+
+
                     dataset_str = "Measurement_{meas_ind}/{channel}/{gain}/samples".format(meas_ind = meas_ind, channel = str(channel),gain = gain)
-                    print("Creating Dataset: "+ dataset_str)
+                    print(("Creating Dataset: "+ dataset_str))
                     out_file.create_dataset(dataset_str, data=samples)
 
        
@@ -56,8 +61,8 @@ class Process(object):
     def getChannelsAndGains(self):
 
         f = h5py.File(self.fileName,"r")
-        self.Channels = f["Measurement_000/"].keys()        
-        self.Gains = f["Measurement_000/{channel}".format(channel = self.Channels[0])].keys()        
+        self.Channels = list(f["Measurement_000/"].keys())        
+        self.Gains = list(f["Measurement_000/{channel}".format(channel = self.Channels[0])].keys())        
         f.close()
 
     def getMeasTypeDict(self):
@@ -75,7 +80,7 @@ class Process(object):
               measType = "normal"
 
           measType = "Pedestal"
-          if not measType in meas_dict.keys():
+          if not measType in list(meas_dict.keys()):
 
                  meas_dict[measType] = []
  
@@ -87,29 +92,34 @@ class Process(object):
 
 def main():
 
-    if len(sys.argv) != 2 :
+    isBinary = 0
+    print("Len of args:" ,len(sys.argv))
+
+    if len(sys.argv) < 2 :
         print("ERROR, program requires filename argument")
         return 
 
     runName = sys.argv[1]
+    if len(sys.argv) > 2:   isBinary = sys.argv[2] 
+
     input_dir = "../data/Raw/"
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
-    sliceAnalyzeFile = Process(input_dir + "run"+ runName + ".hdf5")
+    sliceAnalyzeFile = Process(input_dir + runName + ".hdf5")
     #sliceAnalyzeFile = Process(input_dir + "Run_" + runName + "_Output.hdf5")
-    print(sliceAnalyzeFile.fileName)
+    print('Input file name: ', sliceAnalyzeFile.fileName)
     sliceAnalyzeFile.getMeasTypeDict()
     sliceAnalyzeFile.getChannelsAndGains()
 
     #sliceAnalyzeFile.Gains = [""]
     #sliceAnalyzeFile.Channels = ["channel5","channel6","channel7","channel8"]
-    print(sliceAnalyzeFile.measTypeDict)
-    print(sliceAnalyzeFile.Channels)
+    print((sliceAnalyzeFile.measTypeDict))
+    print((sliceAnalyzeFile.Channels))
     #mType = "sine_normal"
     mType = "Pedestal"
 
-    sliceAnalyzeFile.getNormalWF(output_dir,mType)
+    sliceAnalyzeFile.getNormalWF(output_dir,mType,isBinary)
 
 if __name__ == "__main__":
 
