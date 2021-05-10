@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 import sys
 import struct
 import h5py
+import subprocess
 import argparse
 import os
+import time
+import json
 from datetime import datetime
 
-
-def makeCorrectData():
-   correctData = {48: {0: 0xa5, 1: }}
 
 def takeTriggerData(outputPath):
   """Runs takeTriggerData script"""
@@ -18,6 +18,34 @@ def takeTriggerData(outputPath):
   subprocess.call("python takeTriggerData.py -o "+outputPath+" -t trigger -a 20", shell=True)
   time.sleep(5)
 
+#-------------------------------------------------------------------------
+def convert_to_dec(binArray):
+    decArray = []
+    for num in binArray:
+       dec = int(''.join([str(x) for x in num]),2)
+       decArray.append(dec)
+    return decArray
+
+def convert_to_bin(num):
+    binNum=str(int(bin(num)[2:]))
+    while(len(str(binNum)) < 16):
+      binNum = '0'+binNum
+    returnArr = []
+    for i in binNum:
+      returnArr.append(int(i))
+    return returnArr
+
+def make_adc_dict():
+  orig_ADC = 32
+  orig_line = 8 #first 7 are header info
+  #d_ADCs = np.zeros((32,2))
+  d_ADCs = {}
+  for y in range(32,0,-1):
+    d_ADCs[y] = [orig_line, orig_line + 4]
+    orig_line +=5 #each ADC data = 160 bits = 5 32-bit lines
+
+  return d_ADCs
+  
 def make_packets(allData,dataType):
   
   print('Making packets.....')
@@ -96,15 +124,23 @@ def make_chanData_trigger(allPackets):
         cu_ch0_hi = []
         cu_ch0_lo = []
       else: 
-        cu_ch3_lo = convert_to_bin(packet[d_ADCs[adc][0]+4][0]) # bits 31:16 = ADC ch1
-        cu_ch3_hi = convert_to_bin(packet[d_ADCs[adc][0]+3][1]) # ADC ch2  
-        cu_ch2_hi = convert_to_bin(packet[d_ADCs[adc][0]+3][0]) # ADC ch3
-        cu_ch2_lo = convert_to_bin(packet[d_ADCs[adc][0]+2][1]) 
-        cu_ch1_lo = convert_to_bin(packet[d_ADCs[adc][0]+2][0]) 
-        cu_ch1_hi = convert_to_bin(packet[d_ADCs[adc][0]+1][1]) 
-        cu_ch0_hi = convert_to_bin(packet[d_ADCs[adc][0]+1][0]) 
-        cu_ch0_lo = convert_to_bin(packet[d_ADCs[adc][0]][1]) # ADC ch8
-      cu1frame8 = convert_to_bin(packet[d_ADCs[adc][0]][0]) # frame
+        #cu_ch3_lo = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+4][0])) # bits 31:16 = ADC ch1
+        #cu_ch3_hi = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+3][1])) # ADC ch2  
+        #cu_ch2_hi = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+3][0])) # ADC ch3
+        #cu_ch2_lo = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+2][1])) 
+        #cu_ch1_lo = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+2][0])) 
+        #cu_ch1_hi = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+1][1])) 
+        #cu_ch0_hi = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]+1][0])) 
+        #cu_ch0_lo = convert_to_dec(convert_to_bin(packet[d_ADCs[adc][0]][1])) # ADC ch8
+        cu_ch3_lo = packet[d_ADCs[adc][0]+4][0] # bits 31:16 = ADC ch1
+        cu_ch3_hi = packet[d_ADCs[adc][0]+3][1] # ADC ch2  
+        cu_ch2_hi = packet[d_ADCs[adc][0]+3][0] # ADC ch3
+        cu_ch2_lo = packet[d_ADCs[adc][0]+2][1] 
+        cu_ch1_lo = packet[d_ADCs[adc][0]+2][0] 
+        cu_ch1_hi = packet[d_ADCs[adc][0]+1][1] 
+        cu_ch0_hi = packet[d_ADCs[adc][0]+1][0] 
+        cu_ch0_lo = packet[d_ADCs[adc][0]][1] # ADC ch8
+      cu1frame8 = packet[d_ADCs[adc][0]][0] # frame
       #if int(cu1frame8) == int(0xfa8): continue # will never get to here
       corr_chanNum = (chanNum+48)%128
       # add to master channel dataset 
@@ -148,37 +184,46 @@ def parseData(fileName,dataType,maxNumReads):
   chanData = make_chanData_trigger(allPackets)
   return chanData
 
-def checkData(chanData, channels, goodMeas, badMeas, correctData):
+def checkData(chanData, channels, goodMeas, badMeas):
+
+  with open("FEB2-CH_serializer.json") as f:
+    correctData = json.load(f)
 
   for chanNum in channels:
+    print(chanNum)
     for gain in [0,1]:
       for samp in chanData[chanNum][gain]:
-        if chanData[chanNum][gain][samp] == correctData[chanNum][gain]:
+        print(samp)
+        if samp == correctData[str(chanNum)][str(gain)]:
           goodMeas[chanNum][gain] += 1
         else:
-          badMeas[chanNum][gain].append(chanData[chanNum][gain][samp])
+          badMeas[chanNum][gain].append(samp)
 
-  return goodMead, badMeas
+  return goodMeas, badMeas
 
 def runStabilityChecks():
-    outputDirectory = 'stability'
-    outputFile = "stabilityMeas.dat"
-    stampedOutputFile = "stabilityMeas-1.dat"
-    outputPath = outputDirectory+"/"+outputFile
-    outputPathStamped = outputDirectory+"/"+stampedOutputFile
+  outputDirectory = 'stability'
+  outputFile = "stabilityMeas.dat"
+  stampedOutputFile = "stabilityMeas-1.dat"
+  outputPath = outputDirectory+"/"+outputFile
+  outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
-    channels = [i for i in range(48,80)]
-    goodMeas = {chanNum: {gain: 0 for gain in [0,1]} for chanNum in channels}
-    badMeas = {chanNum: {gain: [] for gain in [0,1]} for chanNum in channels}
-    repeats = 2
-    maxReads = 100000
-    for i in range(repeats):
-      takeTriggerData(outputPath)
-      chanData = parseData(outputPathStamped,'trigger', maxReads) 
-      goodMeas, badMeas = checkData(chanData, channels, goodMeas, badMeas)
-      print("Channel 79 HG Good:", goodMeas[79][1])
-      print("Channel 79 HG Bad:", len(badMeas[79][1])
-      ## remove
+  channels = [i for i in range(48,80)]
+  goodMeas = {chanNum: {gain: 0 for gain in [0,1]} for chanNum in channels}
+  badMeas = {chanNum: {gain: [] for gain in [0,1]} for chanNum in channels}
+  repeats = 1
+  maxReads = 1000
+  for i in range(repeats):
+    #takeTriggerData(outputPath)
+    #chanData = parseData(outputPathStamped,'trigger', maxReads) 
+    chanData = parseData('test-1.dat','trigger', maxReads) 
+    goodMeas, badMeas = checkData(chanData, channels, goodMeas, badMeas)
+    print("Channel 79 HG Good:", goodMeas[79][1])
+    print("Channel 79 HG Bad:", len(badMeas[79][1]))
+    print("Channel 67 LG Good:", goodMeas[67][0])
+    print("Channel 67 LG Bad:", len(badMeas[67][0]))
+    #subprocess.call("rm "+outputPathStamped, shell=True)
+    time.sleep(0.5)
 
 if __name__ == "__main__":
   runStabilityChecks()
