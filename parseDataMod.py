@@ -291,7 +291,7 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
     elif c >=10 and c< 100: cc = '0'+str(c)
     elif c >= 100: cc =str(c)
     #print( "CHannel ", cc)
-    if cc != "079" : continue
+    #if cc != "079" : continue
     #print(chanData[c][0])
     out_file.create_group("Measurement_"+m+"/channel"+cc)
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/hi")
