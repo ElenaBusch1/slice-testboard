@@ -1,11 +1,11 @@
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 #from matplotlib import pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 import csv
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from pylab import MaxNLocator     
 from matplotlib.font_manager import FontProperties
@@ -24,7 +24,7 @@ from itertools import product
 def gauss(x, b, c, a):
     return a * np.exp(-(x - b)**2.0 / (2 * c**2))
 
-def PulseOverlay(datum,runList, align = 0):
+def PulseOverlay(datum,runList,voltageList, align = 0):
 
  fig,ax = plt.subplots()
 
@@ -54,12 +54,14 @@ def PulseOverlay(datum,runList, align = 0):
 
 
 
-    plt.plot(av_times,av_samples,'-',label = str(runList[i]))
-
+    #plt.plot(av_times,av_samples,'-',label = str(runList[i]))
+    #Voltages in legend instead of run numbers
+    plt.plot(av_times,av_samples,'-',label = str(voltageList[i]))
 
 
  plt.legend()
  plt.show()
+ plt.savefig('interleaf_{run1}_{run2}_labeled.png'.format(run1 = runList[0],run2 = runList[-1]))
  plt.cla()
  plt.clf()
  plt.close()
@@ -482,29 +484,29 @@ def main():
         return 
 
     runList = sys.argv[1:]
-
+    voltageList = ["n/a", "n/a", "1", "0.4", "2", "4", "6", "5.5", "5", "0.5"]
     datum = []
 
     for runName in runList:
 
-	    input_dir = "../data/Processed/" + runName + "/"
-	    plot_dir = "../data/Processed/" + runName + "/Plots"
-	    if not (os.path.exists(plot_dir)): os.mkdir(plot_dir)
+            input_dir = "../data/Processed/" + runName + "/"
+            plot_dir = "../data/Processed/" + runName + "/Plots"
+            if not (os.path.exists(plot_dir)): os.mkdir(plot_dir)
 
-	    PulseData = AnalyzePulse(input_dir + "Data_Normal.hdf5",runName)
+            PulseData = AnalyzePulse(input_dir + "Data_Normal.hdf5",runName)
 
 
-	    PulseData.getChannelsAndGains()
-	    #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
-	    ##### you can do it here
+            PulseData.getChannelsAndGains()
+            #### IF YOU WANT TO SET SPECIFIC CHANNELS/GAINS TO ANALYZE #####
+            ##### you can do it here
             PulseData.Gains = ["hi"]
             PulseData.Channels = ["channel079"]
 
-	    print(("Gains: ",PulseData.Gains))
-	    print(("Channels: ",PulseData.Channels))
+            print(("Gains: ",PulseData.Gains))
+            print(("Channels: ",PulseData.Channels))
 
-	    PulseData.getSamples() 
-	    PulseData.getDimensions()
+            PulseData.getSamples() 
+            PulseData.getDimensions()
             #PulseData.PlotRaw(plot_dir,chans_to_plot = ["channel079"])
  
             
@@ -515,7 +517,7 @@ def main():
 
             datum.append((times,raw_data))
 
-    PulseOverlay(datum,runList, align = 1)
+    PulseOverlay(datum,runList,voltageList, align = 1)
 
 if __name__ == "__main__":
 

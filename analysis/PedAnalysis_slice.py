@@ -1,11 +1,11 @@
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 #from matplotlib import pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 import csv
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from pylab import MaxNLocator     
 from matplotlib.font_manager import FontProperties
@@ -354,8 +354,8 @@ class AnalyzePed(object):
           muData = [dataUnpack[0], dataUnpack[1]]
           sigData = [dataUnpack[0], dataUnpack[2]]
 
-          self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_run"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "RMS MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
+          self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_"+runName+".png")
+          self.PlotSigmaMuSummary(sigData, "RMS MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_"+runName+".png")
         
         for title,vals in zip(tit,[dre_hi, dre_lo]):
 
@@ -571,20 +571,22 @@ def main():
     #PedData.Gains = ["lo"]
 
 
+    
     #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
     PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
     #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
   
     ### the following lines can be used to set relevant channels for Coherent Noise and Pariwise Correlation plots 
-    # chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
-    # chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
+    chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
+    chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
     # chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
 
     chs_to_plot = [("channel0" + str(no)) for no in ALL_CHS_LEFT + ALL_CHS_RIGHT]
     PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
     PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
-    #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
-    #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
+    PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
+    PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
+
 
 
 if __name__ == "__main__":
