@@ -116,7 +116,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+        #self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+        self.test2Button.clicked.connect(self.testFunc)
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -185,6 +186,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.sendConfigurationsFromLpGBT()
 
     def testFunc(self):
+        print( self.chips['coluta13']['ch8'].keys() )
+        return
         while True:
           #print("Configuring LAUROC20")
           #self.sendFullLAUROCConfigs("lauroc20")
