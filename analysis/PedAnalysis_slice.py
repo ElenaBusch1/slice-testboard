@@ -144,7 +144,7 @@ class AnalyzePed(object):
               ax.set_ylabel("ADC Code")
               plt.savefig('{plot_dir}/rawPed_meas{meas}_{channel}_{gain}.png'.format(plot_dir = plot_dir,runNo = self.runNo,\
                                                                                                meas = meas,channel =channel, gain = gain))
-              plt.show()      
+              #plt.show()      
               plt.cla()
               plt.clf()
               plt.close()
@@ -195,7 +195,7 @@ class AnalyzePed(object):
 
 
 
-    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
+    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True, nchan = 0):
 
 
 
@@ -251,8 +251,15 @@ class AnalyzePed(object):
                   #ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
                   formula = "\sqrt{ \Sigma (\sigma_i)^2}" 
                   ax.text(.6,.75,"${}= {:.1f}\pm{:.1f} $".format(formula,coherent[0],coherent[1]),transform = ax.transAxes)
-
+            
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
+                  if sigma > coherent[0]:
+                      diff = (sigma**2-coherent[0]**2)**0.5/nchan
+                      ax.text(.6,.7, "Cor. noise per chan. = {:.2f}".format(diff), transform = ax.transAxes)
+                      print(diff)
+                   
+                  else:
+                      ax.text(.6,.7, "Cor. noise per chan. = N/A", transform = ax.transAxes)
 
               print(("Plotting Baseline hist for " + channel + " " + gain + " gain..."))
               #plt.show()
@@ -300,43 +307,60 @@ class AnalyzePed(object):
                 #elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,sigma))
 
                 #### USE RMS #####
-                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,rms))
-                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,rms))
-                elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,rms))
-                elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,rms))
+                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel,mu,rms))
+                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel,mu,rms))
+                elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel,mu,rms))
+                elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel,mu,rms))
 
-         
-        tit = ['Hi', 'Lo']
+
         
-        for title,vals in zip(tit,[mdac_hi, mdac_lo]):
-          print("HG MDAC: ",mdac_hi)
-          if len(mdac_hi) == 0 or len(mdac_lo) == 0: print("No mdac channels to analyze"); break
-          dataUnpack = [list(t) for t in zip(*vals)]
-          if title == "Lo" and False:
-            dataUnpack[0].pop(-1)
-            dataUnpack[1].pop(-1)
-            dataUnpack[2].pop(-1)
-          muData = [dataUnpack[0], dataUnpack[1]]
-          sigData = [dataUnpack[0], dataUnpack[2]]
+        #MDAC Summaries
 
-          self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "RMS MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_"+runName+".png")
-        
-        for title,vals in zip(tit,[dre_hi, dre_lo]):
+        if len(mdac_hi) == 0 or len(mdac_lo) == 0: 
 
-          print("HG DRE: ",dre_hi)
-          if len(dre_hi) == 0 or len(dre_lo) == 0: print("No dre channels to analyze"); break
-          dataUnpack = [list(t) for t in zip(*vals)]
-          if title == "Lo" and False:
-            dataUnpack[0].pop(-1)
-            dataUnpack[1].pop(-1)
-            dataUnpack[2].pop(-1)
-          muData = [dataUnpack[0], dataUnpack[1]]
-          sigData = [dataUnpack[0], dataUnpack[2]]
+            print("No mdac channels to analyze"); 
+            return
+        #print("MDAC Hi :", mdac_hi)
+        #print("MDAC Lo :", mdac_lo)
 
-          self.PlotSigmaMuSummary(muData, "Means DRE "+title+ " Gain Run"+runName, plot_dir+"/DRE-"+title+"_mu_run"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "RMS DRE "+title+" Gain Run"+runName, plot_dir+"/DRE-"+title+"_sig_run"+runName+".png")
-          
+        self.PlotSummary(mdac_lo,mdac_hi,"MDAC",plot_dir)
+        if len(dre_hi) == 0 or len(dre_lo) == 0: 
+
+            print("No DRE channels to analyze"); 
+            return
+        self.PlotSummary(dre_lo,dre_hi,"DRE",plot_dir)
+
+    def PlotSummary(self,data_lo,data_hi,chtype, plot_dir):
+
+        fig, ax = plt.subplots(1)                
+        plt.xticks(rotation = 45)
+        fig2, ax2 = plt.subplots(1)                
+        for col,title,data in [('b',"LG",data_lo), ('r',"HG",data_hi)] :
+
+            names, mus, stds = zip(*data)
+            ax.grid(zorder = 0)
+            ax.bar(names,mus,fill = False,ec = col, label = title, zorder = 3) 
+            ax.set_title(chtype + " Mean Pedestal Value")
+            ax.set_ylabel("ADC Counts")
+            ax.set_ylim(0,max(mus) + max(mus)/3)
+            ax.legend()
+            fig.savefig(r'{plot_dir}/{chtype}_mu_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
+            
+            names, mus, stds = zip(*data)
+            ax2.grid(zorder = 0)
+            plt.xticks(rotation = 45)
+            ax2.bar(names,stds,fill = False,ec = col, label = title, zorder = 3) 
+            ax2.set_title(chtype + " Pedestal RMS")
+            ax2.set_ylabel("ADC Counts")
+            ax2.set_ylim(0,max(stds) + max(stds)/4)
+            ax2.legend()
+            fig2.savefig(r'{plot_dir}/{chtype}_rms_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
+
+        plt.show()
+        plt.cla()
+        plt.clf()
+        plt.close()
+
 
     def PlotSigmaMuSummary(self,data,title,saveStr):
         fig,ax = plt.subplots(1)
@@ -487,7 +511,7 @@ class AnalyzePed(object):
                 gain_str = "HG"
                 if gain == "lo":gain_str = "LG"
 
-                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
+                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)], nchan = Nchan)
 
 
 #-------------------------------------------------------------------------------------
@@ -521,8 +545,7 @@ def main():
     #PedData.Gains = ["lo"]
 
 
-    
-    #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
+    PedData.PlotRaw(plot_dir)#,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
     PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
     #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
   
@@ -531,11 +554,11 @@ def main():
     chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
     # chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
 
-    chs_to_plot = [("channel0" + str(no)) for no in ALL_CHS_LEFT + ALL_CHS_RIGHT]
-    PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
+    chs_to_plot = [("channel0" + str(no)) for no in MDAC_CHS_LEFT + MDAC_CHS_RIGHT]
     PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
-    PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
-    PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
+    PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
+    PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = MDAC_CHS_LEFT,chs_r  = MDAC_CHS_RIGHT) #plot pairwise noise corelation for hi gain only
+    PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT)
 
 
 if __name__ == "__main__":
