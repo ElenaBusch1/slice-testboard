@@ -539,7 +539,7 @@ def main():
 
 
     PedData.PlotRaw(plot_dir)#,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
-    #PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
+    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
     #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
   
     ### the following lines can be used to set relevant channels for Coherent Noise and Pariwise Correlation plots 
@@ -549,7 +549,7 @@ def main():
 
     chs_to_plot = [("channel0" + str(no)) for no in MDAC_CHS_LEFT + MDAC_CHS_RIGHT]
     #PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
-    #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
+    PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
     PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = MDAC_CHS_LEFT,chs_r  = MDAC_CHS_RIGHT) #plot pairwise noise corelation for hi gain only
     PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT)
 
