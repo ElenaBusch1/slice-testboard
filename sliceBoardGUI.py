@@ -737,7 +737,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         for (register, dataBits) in sectionChunks.items():
             self.writeToControlLPGBT(lpgbt, register, dataBits)
             readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
-            if readback[:len(dataBits)] != dataBits: readbackSuccess = False
+            if readback[:len(dataBits)] != dataBits: 
+                readbackSuccess = False
+                print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
+                print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
+                print("Readback does not agree with what was written")     
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
