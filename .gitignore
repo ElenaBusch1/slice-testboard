@@ -1,5 +1,7 @@
 *.hdf5
 *.dat
+*orig*
+*new*
 data/
 analysis/convert.py.dep
 Runs/

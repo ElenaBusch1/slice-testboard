@@ -22,12 +22,13 @@ import time
 from itertools import product
 
 #-globals
-MDAC_CHS_LEFT = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board
-MDAC_CHS_RIGHT = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
-DRE_CHS_LEFT = [52,53,56,57,60,61,64,65] #MDAC channels on left side of board
-DRE_CHS_RIGHT = [68,69,72,73,76,77,80,81] #MDAC channels on right side of board
-ALL_CHS_LEFT  = [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65]
-ALL_CHS_RIGHT = [66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81]
+MDAC_CHS_LEFT =  [50, 51, 54, 55, 58, 59, 62, 63] #MDAC channels on left side of board
+MDAC_CHS_RIGHT = [66, 67, 70, 71, 74, 75, 78, 79] #MDAC channels on right side of board
+DRE_CHS_LEFT =   [48, 49, 52, 53, 56, 57, 60, 61] #MDAC channels on left side of board
+DRE_CHS_RIGHT =  [64, 65, 68, 69, 72, 73, 76, 77] #MDAC channels on right side of board
+
+ALL_CHS_LEFT  = [48,49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+ALL_CHS_RIGHT = [64,65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
 
 
 def gauss(x, b, c, a):
@@ -143,7 +144,7 @@ class AnalyzePed(object):
               ax.set_ylabel("ADC Code")
               plt.savefig('{plot_dir}/rawPed_meas{meas}_{channel}_{gain}.png'.format(plot_dir = plot_dir,runNo = self.runNo,\
                                                                                                meas = meas,channel =channel, gain = gain))
-              plt.show()      
+              #plt.show()      
               plt.cla()
               plt.clf()
               plt.close()
@@ -192,43 +193,6 @@ class AnalyzePed(object):
             #plt.show()
             #return fftWf_x,fftWf_y,psd_x,psd,sinad,enob,snr 
 
-    def getFftWaveformOrooni(self,data,plot_dir,channel,gain):
-
-            data = data[1:] #DROP FIRST SAMPLE TO GET 6251 SAMPLES!!!! critical
-            fft_wf = np.fft.fft(data)
-            fftWf_x = []
-            fftWf_y = []
-            psd = []
-            psd_x = []
-            for sampNum,samp in enumerate(fft_wf) :
-              if sampNum > float( len(fft_wf) ) / 2. :
-                 pass
-                 #continue
-              freqVal = 40.8 * sampNum/float(len(fft_wf))
-              sampVal = np.abs(samp)
-              if sampNum == 0 :
-                sampVal = 0
-              fftWf_x.append(freqVal)
-              fftWf_y.append(sampVal)
-              if np.max(fftWf_y) <= 0 :
-                print(psd_x,psd)
-
-            fourier_fftWf_y = fftWf_y/np.max(fftWf_y)
-            for sampNum,samp in enumerate(fourier_fftWf_y) :
-                psd_x.append( fftWf_x[sampNum] )
-                psd.append( 20*np.log10(samp) )
-
-            plt.plot(psd_x,psd,'b-')
-            plt.grid()
-            #plt.xlim(0,2)
-            #plt.ylim(-100,0)
-            plt.xlabel("Frequency [MHz]")
-            plt.ylabel("PSD [dB]")
-            print("\tPlotting FFT waveform....\n")
-            #plt.savefig(r'{plot_dir}/{channel}_{gain}_pedestal_FFT.png'.format(plot_dir = plot_dir,channel = channel,gain = gain))
-            plt.show()
-            plt.close()
-            plt.clf()
 
 
     def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
@@ -334,44 +298,62 @@ class AnalyzePed(object):
                 #elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,sigma))
                 #elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,sigma))
                 #elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,sigma))
+
                 #### USE RMS #####
-                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel[-2:],mu,rms))
-                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel[-2:],mu,rms))
-                elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel[-2:],mu,rms))
-                elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel[-2:],mu,rms))
+                if str(channel) in mdacChannels and str(gain) == 'hi': mdac_hi.append((channel,mu,rms))
+                elif str(channel) in mdacChannels and str(gain) == 'lo': mdac_lo.append((channel,mu,rms))
+                elif not(str(channel) in mdacChannels) and str(gain) == 'hi': dre_hi.append((channel,mu,rms))
+                elif not(str(channel) in mdacChannels) and str(gain) == 'lo': dre_lo.append((channel,mu,rms))
 
-         
-        tit = ['Hi', 'Lo']
+
         
-        for title,vals in zip(tit,[mdac_hi, mdac_lo]):
-          print("HG MDAC: ",mdac_hi)
-          if len(mdac_hi) == 0 or len(mdac_lo) == 0: print("No mdac channels to analyze"); break
-          dataUnpack = [list(t) for t in zip(*vals)]
-          if title == "Lo" and False:
-            dataUnpack[0].pop(-1)
-            dataUnpack[1].pop(-1)
-            dataUnpack[2].pop(-1)
-          muData = [dataUnpack[0], dataUnpack[1]]
-          sigData = [dataUnpack[0], dataUnpack[2]]
+        #MDAC Summaries
 
-          self.PlotSigmaMuSummary(muData, "Means MDAC "+title+ " Gain Run"+runName, plot_dir+"/mdac_"+title+"_mu_run"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "RMS MDAC "+title+" Gain Run"+runName, plot_dir+"/mdac_"+title+"_sig_run"+runName+".png")
-        
-        for title,vals in zip(tit,[dre_hi, dre_lo]):
+        if len(mdac_hi) == 0 or len(mdac_lo) == 0: 
 
-          print("HG DRE: ",dre_hi)
-          if len(dre_hi) == 0 or len(dre_lo) == 0: print("No dre channels to analyze"); break
-          dataUnpack = [list(t) for t in zip(*vals)]
-          if title == "Lo" and False:
-            dataUnpack[0].pop(-1)
-            dataUnpack[1].pop(-1)
-            dataUnpack[2].pop(-1)
-          muData = [dataUnpack[0], dataUnpack[1]]
-          sigData = [dataUnpack[0], dataUnpack[2]]
+            print("No mdac channels to analyze"); 
+            return
+        #print("MDAC Hi :", mdac_hi)
+        #print("MDAC Lo :", mdac_lo)
 
-          self.PlotSigmaMuSummary(muData, "Means DRE "+title+ " Gain Run"+runName, plot_dir+"/DRE-"+title+"_mu_run"+runName+".png")
-          self.PlotSigmaMuSummary(sigData, "RMS DRE "+title+" Gain Run"+runName, plot_dir+"/DRE-"+title+"_sig_run"+runName+".png")
-          
+        self.PlotSummary(mdac_lo,mdac_hi,"MDAC",plot_dir)
+        if len(dre_hi) == 0 or len(dre_lo) == 0: 
+
+            print("No DRE channels to analyze"); 
+            return
+        self.PlotSummary(dre_lo,dre_hi,"DRE",plot_dir)
+
+    def PlotSummary(self,data_lo,data_hi,chtype, plot_dir):
+
+        fig, ax = plt.subplots(1)                
+        plt.xticks(rotation = 45)
+        fig2, ax2 = plt.subplots(1)                
+        for col,title,data in [('b',"LG",data_lo), ('r',"HG",data_hi)] :
+
+            names, mus, stds = zip(*data)
+            ax.grid(zorder = 0)
+            ax.bar(names,mus,fill = False,ec = col, label = title, zorder = 3) 
+            ax.set_title(chtype + " Mean Pedestal Value")
+            ax.set_ylabel("ADC Counts")
+            ax.set_ylim(0,max(mus) + max(mus)/3)
+            ax.legend()
+            fig.savefig(r'{plot_dir}/{chtype}_mu_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
+            
+            names, mus, stds = zip(*data)
+            ax2.grid(zorder = 0)
+            plt.xticks(rotation = 45)
+            ax2.bar(names,stds,fill = False,ec = col, label = title, zorder = 3) 
+            ax2.set_title(chtype + " Pedestal RMS")
+            ax2.set_ylabel("ADC Counts")
+            ax2.set_ylim(0,max(stds) + max(stds)/4)
+            ax2.legend()
+            fig2.savefig(r'{plot_dir}/{chtype}_rms_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
+
+        plt.show()
+        plt.cla()
+        plt.clf()
+        plt.close()
+
 
     def PlotSigmaMuSummary(self,data,title,saveStr):
         fig,ax = plt.subplots(1)
@@ -410,14 +392,14 @@ class AnalyzePed(object):
         else:
           channelshi = [("channel0" + str(no)+'hi') for no in chs_l + chs_r] 
           channelslo = [("channel0" + str(no)+'lo') for no in chs_l + chs_r] 
-	  #channels = channelshi+channelslo
-	  channels = [val for pair in zip(channelshi, channelslo) for val in pair]
-	  try:
-	    data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict['hi'],self.ChanDict[channels[0][:-2]],:])))
-	  except KeyError:
-	    print("\nYou are trying to plot a channel for which there is no data in this run. Exiting Coherent noise matrix plotter...")
-	    print("Please make sure you are passing the the correct right and left-side sliceboard channels to PlotPairwiseCorr function\n")
-	    return
+          #channels = channelshi+channelslo
+          channels = [val for pair in zip(channelshi, channelslo) for val in pair]
+          try:
+            data_by_ch = np.zeros((len(channels),len(self.Samples[0,self.GainDict['hi'],self.ChanDict[channels[0][:-2]],:])))
+          except KeyError:
+            print("\nYou are trying to plot a channel for which there is no data in this run. Exiting Coherent noise matrix plotter...")
+            print("Please make sure you are passing the the correct right and left-side sliceboard channels to PlotPairwiseCorr function\n")
+            return
 
  
          
@@ -462,7 +444,7 @@ class AnalyzePed(object):
           for edge, spine in list(ax.spines.items()):
               spine.set_visible(False)
 
-          ax.set_title("Run {name} MDAC + DRE Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
+          ax.set_title("Run {name} Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
           ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
@@ -487,52 +469,37 @@ class AnalyzePed(object):
 
         print(("========= MAKING COHERENT NOISE PLOT WITH CHANNELS: ",chs))
         print(("========= AVAILABLE CHANNELS IN THIS RUN: ",self.Channels))
-        #chs = self.Channels
   
         Nchan = len(chs)
 
         meas_to_plot = list(range(self.nMeas))
         for i,gain in enumerate(["lo", "hi"]):
             for meas in meas_to_plot:
-            #for i,gain in enumerate(self.Gains):
 
-                #if gain == "lo": chs.remove("channel079")
                 ped_tot = np.zeros(np.shape(self.Samples)[-1])
                 sig_2_tot = 0
                 dsig_2_tot = 0
                 for channel in chs:
 
-                    #if int(channel.strip("channel")) < 64: continue
-		print("\n  NOW ANALYZING: {channel}".format(channel = channel)) 
+                        print("\n  NOW ANALYZING: {channel}".format(channel = channel)) 
 
-		#ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-		try:
-		  ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
-		except KeyError:
-		  print("\nYou are trying to plot a channel for which there is no data in this run. Exiting Coherent noise matrix plotter...")
-		  print("Please make sure you are passing the the correct right and left-side sliceboard channels to PlotCoherentNoise function\n")
-		  return
+                        try:
+                          ped_i = self.Samples[meas,self.GainDict[gain],self.ChanDict[channel],:]
+                        except KeyError:
+                          print("\nYou are trying to plot a channel for which there is no data in this run. Exiting Coherent noise matrix plotter...")
+                          print("Please make sure you are passing the the correct right and left-side sliceboard channels to PlotCoherentNoise function\n")
+                          return
 
-                ped_i -= np.mean(ped_i)
+                        ped_i -= np.mean(ped_i)
 
-                    mu_i,sig_i,dsig_i, _ = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
-                    print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}\n".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i))
-                     
-                    sig_2_tot += sig_i**2
-                    dsig_2_tot += (sig_i**2)*(dsig_i**2)
-                    ped_tot += ped_i
-                #ped_1 = self.Samples[meas,i,self.ChanDict[ch1],:]                
-                #ped_2 = self.Samples[meas,i,self.ChanDict[ch2],:]
+                        mu_i,sig_i,dsig_i, _ = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
+                        print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}\n".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i))
+                             
+                        sig_2_tot += sig_i**2
+                        dsig_2_tot += (sig_i**2)*(dsig_i**2)
+                        ped_tot += ped_i
 
-                #sig1 = self.makeFittedHist(ped_1,plot_dir,"",ch1, gain, plot = False)
-                #sig2 = self.makeFittedHist(ped_2,plot_dir,"",ch2, gain, plot = False)
-                #print("s1**2 + s2**2 = ",np.sqrt(sig1**2 + sig2**2))
-
-                #joint_pedestal = ped_1 + ped_2               
-                #print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i)
-                #print(sig_2_tot)
                 dsig_2_tot/=sig_2_tot
-                #print(dsig_2_tot)
 
                 gain_str = "HG"
                 if gain == "lo":gain_str = "LG"
@@ -571,8 +538,8 @@ def main():
     #PedData.Gains = ["lo"]
 
 
-    #PedData.PlotRaw(plot_dir,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
-    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
+    PedData.PlotRaw(plot_dir)#,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
+    #PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
     #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
   
     ### the following lines can be used to set relevant channels for Coherent Noise and Pariwise Correlation plots 
@@ -580,11 +547,11 @@ def main():
     # chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
     # chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
 
-    chs_to_plot = [("channel0" + str(no)) for no in ALL_CHS_LEFT + ALL_CHS_RIGHT]
-    PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
-    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
-    #PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = chs_l,chs_r  = chs_r) #plot pairwise noise corelation for hi gain only
-    #PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = chs_l,chs_r = chs_r)
+    chs_to_plot = [("channel0" + str(no)) for no in MDAC_CHS_LEFT + MDAC_CHS_RIGHT]
+    #PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
+    #PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
+    PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = MDAC_CHS_LEFT,chs_r  = MDAC_CHS_RIGHT) #plot pairwise noise corelation for hi gain only
+    PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT)
 
 
 if __name__ == "__main__":
