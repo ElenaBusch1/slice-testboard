@@ -27,6 +27,8 @@ from datetime import datetime
 from tests import lpgbt_14_test
 
 
+from sarCalibModule import SARCALIBMODULE
+
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
 
@@ -186,7 +188,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.sendConfigurationsFromLpGBT()
 
     def testFunc(self):
-        print( self.chips['coluta13']['ch8'].keys() )
+        #print( self.chips['coluta13']['ch8'].keys() )
+        sarCalibModule = SARCALIBMODULE(self)
+        sarCalibModule.testDataTaking()
         return
         while True:
           #print("Configuring LAUROC20")

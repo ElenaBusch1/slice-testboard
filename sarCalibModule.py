@@ -9,6 +9,7 @@ class SARCALIBMODULE(object):
     def testDataTaking(self):
         #self.GUI.takeSamples(6,'coluta',doDraw=False,isDAC=False,saveToDisk=False)
         #coluta_binary_data = self.GUI.ODP.colutaBinaryDict
+        print("HELLO HELLO")
         pass
 
     #def doSarCalib(self,MSBchannel,LSBchannel):
