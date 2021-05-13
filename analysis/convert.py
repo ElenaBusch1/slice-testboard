@@ -102,7 +102,8 @@ def main():
     runName = sys.argv[1]
     if len(sys.argv) > 2:   isBinary = sys.argv[2] 
 
-    input_dir = "../data/Raw/"
+    #input_dir = "/nevis/xenia2/data/users/jgonski/FLX/slice-testboard/Runs/"
+    input_dir = "../data/Raw/" 
     output_dir = "../data/Processed/" + runName + "/"
     if not (os.path.exists(output_dir)): os.mkdir(output_dir)
 
