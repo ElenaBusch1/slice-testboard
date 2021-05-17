@@ -8,6 +8,11 @@
 
 3. Create a conda virtual environment.  This only needs to be done once per installation instance of Python. Run the following commands in shell to generate the environment:
 ```
+conda env create -f coluta_env.yml
+```
+
+If you have trouble with the yml file, you can also create the environment by hand:
+```
 conda config --add channels conda-forge
 conda create --name coluta python=3 pyserial pyqt=5.9.2 numpy matplotlib h5py
 conda activate coluta
