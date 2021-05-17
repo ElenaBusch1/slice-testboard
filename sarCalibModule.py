@@ -1,16 +1,117 @@
 import numpy as np
 import configparser
 import time
+import subprocess
+import parseDataMod
+import math
 
 class SARCALIBMODULE(object):
     def __init__(self,GUI):
         self.GUI = GUI #just pass GUI object into SAR calib module to access configuration and data-taking methods....
+        self.outputPath = "test.dat"
+        self.dataMap = {}
+        self.mapFeb2ChToColutaCh = {}
+        self.mapColutaChToFeb2Ch = {}
+        self.defineMaps()
 
-    def testDataTaking(self):
-        #self.GUI.takeSamples(6,'coluta',doDraw=False,isDAC=False,saveToDisk=False)
-        #coluta_binary_data = self.GUI.ODP.colutaBinaryDict
+    def defineMaps(self):
+        #define feb2ch to COLUTA ch
+        numFeb2ChPerAsic = 4
+        for feb2Ch in range(0,128,1):
+          colutaNum = math.floor(int(feb2Ch) / numFeb2ChPerAsic)
+          colutaLabel = "coluta" + str(colutaNum+1)
+          self.mapFeb2ChToColutaCh[feb2Ch] = {}
+          #asic hi/lo pair
+          hiLoPair = feb2Ch % numFeb2ChPerAsic
+          if hiLoPair == 0 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,0,colutaLabel,"channel1")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,1,colutaLabel,"channel2")
+          if hiLoPair == 1 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,3,colutaLabel,"channel4")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,2,colutaLabel,"channel3")
+          if hiLoPair == 2 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,4,colutaLabel,"channel5")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,5,colutaLabel,"channel6")
+          if hiLoPair == 3 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,7,colutaLabel,"channel8")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,6,colutaLabel,"channel7")
+
+        numColutaPerFeb2 = 32
+        numChPerColuta = 8
+        for colutaNum in range(0,numColutaPerFeb2,1):
+          for chNum in range(0,numChPerColuta,1) :
+            febChNum = math.floor((numChPerColuta*colutaNum+chNum)/2)
+            hilo = "lo"
+            if chNum == 1 or chNum == 2 or chNum == 5 or chNum == 6 :
+              hilo = "hi"
+            colutaLabel = "coluta" + str(colutaNum+1)
+            channelLabel = "channel" + str(chNum+1)
+            if colutaLabel not in self.mapColutaChToFeb2Ch :
+              self.mapColutaChToFeb2Ch[colutaLabel] = {}
+            self.mapColutaChToFeb2Ch[colutaLabel][channelLabel] = (febChNum,hilo)
+
+        #for feb2Ch in range(0,128,1):
+        #  print(feb2Ch)
+        #  print("LO",self.mapFeb2ChToColutaCh[feb2Ch]["lo"])
+        #  print("HI",self.mapFeb2ChToColutaCh[feb2Ch]["hi"])
+
+        #for colutaNum in range(0,numColutaPerFeb2,1):
+        #  for chNum in range(0,numChPerColuta,1) :
+        #    colutaLabel = "coluta" + str(colutaNum+1)
+        #    channelLabel = "channel" + str(chNum+1)
+        #    print(colutaNum,chNum,colutaLabel,channelLabel,self.mapColutaChToFeb2Ch[colutaLabel][channelLabel])    
+        return
+
+    def takeTriggerData(self):
+        """Runs takeTriggerData script"""
+        subprocess.call("python takeTriggerData.py -o "+self.outputPath+" -t trigger -a 20", shell=True)
+        time.sleep(5)
+
+    def test(self):
+        #print(parseDataMod.convert_to_bin(32768))
+        #self.takeData()
+        coluta = "coluta20"
+        MSBchannel = "channel8"
+        LSBchannel = "channel7"
+        chLabel = "ch8"
+        cfgMSBchannel = self.GUI.chips[coluta][chLabel]
+        print(cfgMSBchannel.keys())
+
+    def takeData(self):
         print("HELLO HELLO")
-        pass
+        #self.takeTriggerData()
+        maxReads = 100000
+        attributes = {} #this is really bad
+        attributes['adc'] = self.GUI.singleADCMode_ADC
+        chanData = parseDataMod.parseData("test-1.dat",'trigger', maxReads,attributes)
+        self.dataMap = {}
+        for chanNum,data in enumerate(chanData) :
+          loData = data[0]
+          hiData = data[1]
+          if len(loData) == 0 or len(hiData) == 0 : continue
+          #check for fake data
+          if isinstance(loData[0], list) : continue
+
+          loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
+          hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]
+          
+          colutaLabel = self.mapFeb2ChToColutaCh[chanNum]["lo"][2]
+          lo_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["lo"][3]
+          hi_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["hi"][3]
+ 
+          if colutaLabel not in self.dataMap :
+            self.dataMap[colutaLabel] = {}
+          self.dataMap[colutaLabel][lo_colutaCh] = loDataBin
+          self.dataMap[colutaLabel][hi_colutaCh] = hiDataBin
+          continue
+          print( chanNum )
+          print( "\t",colutaLabel)
+          print( "\t", lo_colutaCh )
+          print( "\t", hi_colutaCh )
+          print( "\t", loData)
+          print( "\t", hiData)
+        
+        return
 
     #def doSarCalib(self,MSBchannel,LSBchannel):
     def doSarCalib(self,coluta,channel):
@@ -24,19 +125,29 @@ class SARCALIBMODULE(object):
           return None
         MSBchannel = channel
         LSBchannel = chLabelDict[channel][2]
-        cfgMSBchannel = self.GUI.chips[coluta][chLabelDict[channel][0]]
-        cfgLSBchannel = self.GUI.chips[coluta][chLabelDict[channel][1]]
+        #cfgMSBchannel = self.GUI.chips[coluta][chLabelDict[channel][0]]
+        #cfgLSBchannel = self.GUI.chips[coluta][chLabelDict[channel][1]]
+        MSBSectionName = chLabelDict[channel][0]
+        LSBSectionName = chLabelDict[channel][1]
 
         # Common Setting for Weighting Evaluation
-        cfgMSBchannel.setConfiguration('SHORTINPUT', '1')
-        cfgMSBchannel.setConfiguration('DREMDACToSAR', '0')
-        cfgMSBchannel.setConfiguration('OutputMode', '1')
-        cfgMSBchannel.setConfiguration('EXTToSAR', '0')
-        cfgLSBchannel.setConfiguration('DATAMUXSelect', '1')
+        #cfgMSBchannel.setConfiguration('SHORTINPUT', '1')
+        #cfgMSBchannel.setConfiguration('DREMDACToSAR', '0')
+        #cfgMSBchannel.setConfiguration('OutputMode', '1')
+        #cfgMSBchannel.setConfiguration('EXTToSAR', '0')
+        #cfgLSBchannel.setConfiguration('DATAMUXSelect', '1')
+        #self.chips[chipName][sectionName][settingName]
+        #self.chips[chipName].setConfiguration(sectionName, settingName, binary)
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'SHORTINPUT', '1')
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'DREMDACToSAR', '0')
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'OutputMode', '1')
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'EXTToSAR', '0')
+        self.GUI.chips[coluta].setConfiguration(LSBSectionName,'DATAMUXSelect', '1')
         self.GUI.sendUpdatedConfigurations()
 
         nRepeats = 1
-        self.GUI.nSamples = 8186
+        #self.GUI.nSamples = 8186
+        self.GUI.nSamples = 100000
         self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
 
         #list of weights to measure
@@ -44,7 +155,7 @@ class SARCALIBMODULE(object):
                        "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
         weightResultDict = {}
         for weightName in weightsList :
-          bitArrayDict = self.getWeightBits(weightName,MSBchannel,LSBchannel,nRepeats)
+          bitArrayDict = self.getWeightBits(weightName,coluta,MSBchannel,LSBchannel,nRepeats)
           weightResultDict[weightName] = bitArrayDict
 
         self.calcWeights(weightsList,weightResultDict)
@@ -164,27 +275,36 @@ class SARCALIBMODULE(object):
           print("INVALID CH")
           return None
 
-        cfg = self.GUI.configurations[coluta][ chLabelDict[MSBchannel]  ]
-        cfg.setConfiguration('SARCALEN', SARCALEN)
-        cfg.setConfiguration('CALDIR', CALDIR)
-        cfg.setConfiguration('CALPNDAC', CALPNDAC)
-        cfg.setConfiguration('CALREGA', CALREGA)
-        cfg.setConfiguration('CALREGB', CALREGB)
+        
+        #self.GUI.chips[coluta].setConfiguration(MSBSectionName,'SHORTINPUT', '1')
+        #self.GUI.chips[coluta].setConfiguration(MSBSectionName,'DREMDACToSAR', '0')
+
+        #cfg = self.GUI.configurations[coluta][ chLabelDict[MSBchannel]  ]
+        #cfg.setConfiguration('SARCALEN', SARCALEN)
+        #cfg.setConfiguration('CALDIR', CALDIR)
+        #cfg.setConfiguration('CALPNDAC', CALPNDAC)
+        #cfg.setConfiguration('CALREGA', CALREGA)
+        #cfg.setConfiguration('CALREGB', CALREGB)
+        MSBSectionName = chLabelDict[MSBchannel]
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'SARCALEN', SARCALEN)
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'CALDIR', CALDIR)
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'CALPNDAC', CALPNDAC)
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'CALREGA', CALREGA)
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'CALREGB', CALREGB)
+
         self.GUI.sendUpdatedConfigurations()
         time.sleep(0.1)
-        for i in range(nRepeats):
-            continue
-            #need to get this part working
-            self.GUI.takeSamples(6,'coluta',doDraw=False,isDAC=False,saveToDisk=False)
-            coluta_binary_data = self.GUI.ODP.colutaBinaryDict
-            MSB_list_string_buffer = coluta_binary_data[MSBchannel]
-            LSB_list_string_buffer = coluta_binary_data[LSBchannel]
-            if i == 0:
-                MSB_list_string=MSB_list_string_buffer
-                LSB_list_string=LSB_list_string_buffer
-            elif i != 0:
-                MSB_list_string=MSB_list_string+MSB_list_string_buffer
-                LSB_list_string=LSB_list_string+LSB_list_string_buffer
+
+        self.takeData()
+        if coluta not in self.dataMap :
+          return None
+        if MSBchannel not in self.dataMap[coluta] :
+          return None
+        if LSBchannel not in self.dataMap[coluta] :
+          return None
+
+        MSB_list_string = self.dataMap[coluta][MSBchannel]
+        LSB_list_string = self.dataMap[coluta][LSBchannel]
         BitsArrayP, BitsArrayN = self.sarCalibListDataToTwentyBits(MSB_list_string,LSB_list_string)
         return BitsArrayP, BitsArrayN
 
@@ -195,25 +315,26 @@ class SARCALIBMODULE(object):
         BitsArrayN  = 999*np.ones((ListLength,20),dtype=np.float)
         for i in range(ListLength):
             for bitPos in range(15,0-1,-1):
-              if LSBList[i][bitPos] == '1':
+              LSBbit = str(LSBList[i][bitPos])
+              if LSBbit == '1':
                 BitsArrayP[i,bitPos+4]=+1
                 BitsArrayN[i,bitPos+4]=+0
-              elif LSBList[i][bitPos] == '0':
+              elif LSBbit == '0':
                 BitsArrayP[i,bitPos+4]=+0
                 BitsArrayN[i,bitPos+4]=-1
-              elif LSBList[i][bitPos] != '1' and LSBList[i][bitPos] != '0':
+              elif LSBbit != '1' and LSBbit != '0':
                 BitsArrayP[i,bitPos+4]=500000000000000000
                 BitsArrayN[i,bitPos+4]=500000000000000000
 
               if bitPos < 12 : continue
-
-              if MSBList[i][bitPos] == '1':
+              MSBbit = str(MSBList[i][bitPos])
+              if MSBbit == '1':
                 BitsArrayP[i,bitPos-12]=+1
                 BitsArrayN[i,bitPos-12]=+0
-              elif MSBList[i][bitPos] == '0':
+              elif MSBbit == '0':
                 BitsArrayP[i,bitPos-12]=+0
                 BitsArrayN[i,bitPos-12]=-1
-              elif MSBList[i][bitPos] != '1' and MSBList[i][15] != '0':
+              elif MSBbit != '1' and MSBbit != '0':
                 BitsArrayP[i,bitPos-12]=500000000000000000
                 BitsArrayN[i,bitPos-12]=500000000000000000            
         return BitsArrayP, BitsArrayN
