@@ -140,7 +140,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
         self.configureAllButton.clicked.connect(self.configureAll)
         self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
-        self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
+        self.lpgbtConfigureButton.clicked.connect(lambda: self.sendFullLPGBTConfigs("box"))
         self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
         self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
@@ -658,9 +658,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("Done Configuring") 
 
-    def sendFullLPGBTConfigs(self):
+    def sendFullLPGBTConfigs(self, lpgbtName):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
-        lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        if lpgbtName == 'box':
+            lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        else:
+            lpgbt = lpgbtName
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.sendFullControlLPGBTConfigs(lpgbt)
         else:
