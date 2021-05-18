@@ -125,19 +125,10 @@ class SARCALIBMODULE(object):
           return None
         MSBchannel = channel
         LSBchannel = chLabelDict[channel][2]
-        #cfgMSBchannel = self.GUI.chips[coluta][chLabelDict[channel][0]]
-        #cfgLSBchannel = self.GUI.chips[coluta][chLabelDict[channel][1]]
         MSBSectionName = chLabelDict[channel][0]
         LSBSectionName = chLabelDict[channel][1]
 
         # Common Setting for Weighting Evaluation
-        #cfgMSBchannel.setConfiguration('SHORTINPUT', '1')
-        #cfgMSBchannel.setConfiguration('DREMDACToSAR', '0')
-        #cfgMSBchannel.setConfiguration('OutputMode', '1')
-        #cfgMSBchannel.setConfiguration('EXTToSAR', '0')
-        #cfgLSBchannel.setConfiguration('DATAMUXSelect', '1')
-        #self.chips[chipName][sectionName][settingName]
-        #self.chips[chipName].setConfiguration(sectionName, settingName, binary)
         self.GUI.chips[coluta].setConfiguration(MSBSectionName,'SHORTINPUT', '1')
         self.GUI.chips[coluta].setConfiguration(MSBSectionName,'DREMDACToSAR', '0')
         self.GUI.chips[coluta].setConfiguration(MSBSectionName,'OutputMode', '1')
@@ -146,13 +137,13 @@ class SARCALIBMODULE(object):
         self.GUI.sendUpdatedConfigurations()
 
         nRepeats = 1
-        #self.GUI.nSamples = 8186
         self.GUI.nSamples = 100000
         self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
 
         #list of weights to measure
-        weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
-                       "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
+        #weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
+        #               "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
+        weightsList = ["W_2ND_16"] #test only
         weightResultDict = {}
         for weightName in weightsList :
           bitArrayDict = self.getWeightBits(weightName,coluta,MSBchannel,LSBchannel,nRepeats)
@@ -190,6 +181,8 @@ class SARCALIBMODULE(object):
           list_Weighting_Second_Stage_N[listPos] = round(W_N,2)
         
         #need to update 1st stage weights, copied from original implementation
+        #comment out for tests only
+        """
         weightResultDict["W_1ST_128"]["W_P"] = weightResultDict["W_1ST_128"]["W_P"] + weightResultDict["W_1ST_Unit"]["W_P"]
         weightResultDict["W_1ST_128"]["W_N"] = weightResultDict["W_1ST_128"]["W_N"] + weightResultDict["W_1ST_Unit"]["W_N"]
 
@@ -212,7 +205,7 @@ class SARCALIBMODULE(object):
                                               + weightResultDict["W_1ST_640"]["W_P"] + weightResultDict["W_1ST_2048"]["W_P"] + weightResultDict["W_1ST_3584"]["W_P"]
         weightResultDict["W_1ST_3584"]["W_N"] = weightResultDict["W_1ST_128"]["W_N"] + weightResultDict["W_1ST_256"]["W_N"]  + weightResultDict["W_1ST_384"]["W_N"] \
                                               + weightResultDict["W_1ST_640"]["W_N"] + weightResultDict["W_1ST_2048"]["W_N"] + weightResultDict["W_1ST_3584"]["W_N"]
-        
+        """
         return None
 
     def calcWeight(self,weightName,weightResultDict,list_Weighting_Second_Stage_P,list_Weighting_Second_Stage_N):
@@ -228,6 +221,7 @@ class SARCALIBMODULE(object):
         calibTypeList = ["SWP","SWPB","SWN","SWNB"]
         for calibType in calibTypeList :
           if calibType not in weightResultDict[weightName] :
+            print("MISSING calibType in weightResultDict")
             return None
           PArray = weightResultDict[weightName][calibType]["P"]
           NArray = weightResultDict[weightName][calibType]["N"]
@@ -235,11 +229,14 @@ class SARCALIBMODULE(object):
           calibVal = np.sum(calibVal, axis=1)
           calibVal = np.mean(calibVal)
           weightResultDict[weightName][calibType]["val"] = calibVal
+          print(calibType, weightResultDict[weightName][calibType]["val"] )
 
         for calibType in calibTypeList :
           if calibType not in weightResultDict[weightName] :
+            print("MISSING calibType in weightResultDict")
             return None
           if "val" not in weightResultDict[weightName][calibType] :
+            print("MISSING val in weightResultDict")
             return None
         SWP  = weightResultDict[weightName]["SWP"]["val"]
         SWPB = weightResultDict[weightName]["SWPB"]["val"]
@@ -247,6 +244,7 @@ class SARCALIBMODULE(object):
         SWNB = weightResultDict[weightName]["SWNB"]["val"]
         weightResultDict[weightName]["W_P"] = SWP - SWPB
         weightResultDict[weightName]["W_N"] =SWNB -SWN
+        print( weightName ,"\t", weightResultDict[weightName]["W_P"] , "\t", weightResultDict[weightName]["W_N"])
         return None      
 
     def getWeightBits(self,weightName,coluta,MSBchannel,LSBchannel,nRepeats):
@@ -269,22 +267,13 @@ class SARCALIBMODULE(object):
         
         return bitArrayDict
 
+
     def SARCalibDataTaking(self,Evaluating_Indicator,coluta, MSBchannel,LSBchannel,nRepeats,SARCALEN,CALDIR,CALPNDAC,CALREGA,CALREGB):
         chLabelDict = { 'channel1':'ch1','channel2':'ch2','channel3':'ch3','channel4':'ch4','channel5':'ch5','channel6':'ch6','channel7':'ch7','channel8':'ch8'}
         if MSBchannel not in chLabelDict :
           print("INVALID CH")
           return None
 
-        
-        #self.GUI.chips[coluta].setConfiguration(MSBSectionName,'SHORTINPUT', '1')
-        #self.GUI.chips[coluta].setConfiguration(MSBSectionName,'DREMDACToSAR', '0')
-
-        #cfg = self.GUI.configurations[coluta][ chLabelDict[MSBchannel]  ]
-        #cfg.setConfiguration('SARCALEN', SARCALEN)
-        #cfg.setConfiguration('CALDIR', CALDIR)
-        #cfg.setConfiguration('CALPNDAC', CALPNDAC)
-        #cfg.setConfiguration('CALREGA', CALREGA)
-        #cfg.setConfiguration('CALREGB', CALREGB)
         MSBSectionName = chLabelDict[MSBchannel]
         self.GUI.chips[coluta].setConfiguration(MSBSectionName,'SARCALEN', SARCALEN)
         self.GUI.chips[coluta].setConfiguration(MSBSectionName,'CALDIR', CALDIR)
@@ -336,5 +325,13 @@ class SARCALIBMODULE(object):
                 BitsArrayN[i,bitPos-12]=-1
               elif MSBbit != '1' and MSBbit != '0':
                 BitsArrayP[i,bitPos-12]=500000000000000000
-                BitsArrayN[i,bitPos-12]=500000000000000000            
+                BitsArrayN[i,bitPos-12]=500000000000000000
+
+        return BitsArrayP, BitsArrayN
+        #debug only below
+        for i in range(ListLength):
+            print(i)
+            print("\t",BitsArrayP[i])
+            print("\t",BitsArrayN[i])
+         
         return BitsArrayP, BitsArrayN
