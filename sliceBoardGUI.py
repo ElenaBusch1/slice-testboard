@@ -190,7 +190,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def testFunc(self):
         #print( self.chips['coluta13']['ch8'].keys() )
         sarCalibModule = SARCALIBMODULE(self)
-        sarCalibModule.doSarCalib("coluta20","channel8")
+        sarCalibModule.doSarCalib("coluta20","channel2")
         #sarCalibModule.test()
         return
         while True:

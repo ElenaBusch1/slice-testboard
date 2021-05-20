@@ -12,10 +12,16 @@ parser.add_argument("-t", "--type", default = "trigger", type=str, nargs='+',
                    help="DAQ Mode: trigger or singleADC")
 parser.add_argument("-a", "--adc", default = "7", type=int, nargs='+',
                    help="select adc for singleADC mode. 4 = ADC17, 7 = ADC20")
+parser.add_argument("-s", "--sec", default = "2", type=int, nargs='+',
+                   help="number of seconds for fdaq to acquire data")
 args = parser.parse_args()
 output = args.outputfile[0]
 mode = args.type[0]
 adc = args.adc[0]
+if isinstance(args.sec, list) == True :
+  sec = args.sec[0]
+else:
+  sec = args.sec
 
 # Trigger mode
 if mode == 'trigger':
@@ -30,7 +36,8 @@ else:
 
 #Take data
 os.system("fpepo 0x66e0 0x7f0000")
-cmd = "fdaq -T -t 2 -C "+output+" &"
+#cmd = "fdaq -T -t 2 -C "+output+" &"
+cmd = "fdaq -T -t "+str(sec)+" -C "+output+" &"
 os.system(cmd)
 time.sleep(0.1)
 if mode == 'trigger':

@@ -18,7 +18,22 @@ class SARCALIBMODULE(object):
 
     def test(self):
         #generic module test function
+        data = []
+        for testNum in range(0,10,1):
+          self.takeData()
+          print( self.dataMap["coluta20"]["channel8"][0] )
+          data.append( self.dataMap["coluta20"]["channel8"][0] )
+          #self.printData()
+        for dataVal in data :
+          print(dataVal)
         pass
+
+    def printData(self):
+        for asicLabel in self.dataMap :
+          for chanLabel in self.dataMap[asicLabel] :
+            if len( self.dataMap[asicLabel][chanLabel] ) > 0 :
+              print(asicLabel,"\t",chanLabel,"\t",self.dataMap[asicLabel][chanLabel][0] )
+        return None
 
     def defineMaps(self):
         #define feb2ch to COLUTA ch
@@ -106,6 +121,7 @@ class SARCALIBMODULE(object):
           bitArrayDict = self.getWeightBits(weightName,coluta,MSBchannel,LSBchannel)
           weightResultDict[weightName] = bitArrayDict
 
+        #calculate the weights given the recorded data
         self.calcWeights(weightsList,weightResultDict)
         #print out weights
         for weightName in weightsList :
@@ -116,25 +132,28 @@ class SARCALIBMODULE(object):
             print("MISSING WEIGHT ", weightName)
             return None
           if weightName == "W_1ST_Unit" : continue
+          totalWeight = ( weightResultDict[weightName]["W_P"] + weightResultDict[weightName]["W_N"] ) / 2.0
+          weightResultDict[weightName]["TOTAL"] = totalWeight
           print(weightName,"P",weightResultDict[weightName]["W_P"])
           print(weightName,"N",weightResultDict[weightName]["W_N"])
-
+          print(weightName,"TOTAL",weightResultDict[weightName]["TOTAL"])
+          
         print("DONE TEST")
         return None
 
     def takeTriggerData(self):
         """Runs takeTriggerData script"""
-        subprocess.call("python takeTriggerData.py -o "+self.outputPath+" -t trigger -a 20", shell=True)
-        time.sleep(5)
+        subprocess.call("python takeTriggerData.py -o "+self.outputPath+" -t trigger -a 20 -s 1", shell=True)
+        time.sleep(1)
 
     def removeTriggerData(self):
         """Runs takeTriggerData script"""
         subprocess.call("rm "+self.outputPathStamped, shell=True)
-        time.sleep(5)
+        time.sleep(0.1)
 
     def takeData(self):
         self.takeTriggerData()
-        maxReads = 100000 #need to optimize
+        maxReads = 1000000 #need to optimize, currently gets about 5950 samples with 1000000
         attributes = {} #this is a really bad way to pass required attributes field to parseDataMod
         attributes['adc'] = self.GUI.singleADCMode_ADC
         chanData = parseDataMod.parseData("test-1.dat",'trigger', maxReads,attributes)
@@ -222,7 +241,6 @@ class SARCALIBMODULE(object):
         Weighting_Second_Stage_N=np.array(list_Weighting_Second_Stage_P)
         Weighting_Second_Stage_N=np.diag(Weighting_Second_Stage_N)
 
-        #for calibType in weightResultDict[weightName].keys() :
         calibTypeList = ["SWP","SWPB","SWN","SWNB"]
         for calibType in calibTypeList :
           if calibType not in weightResultDict[weightName] :
@@ -250,7 +268,6 @@ class SARCALIBMODULE(object):
         weightResultDict[weightName]["W_N"] =SWNB -SWN
         return None      
 
-    #def getWeightBits(self,weightName,coluta,MSBchannel,LSBchannel,nRepeats):
     def getWeightBits(self,weightName,coluta,MSBchannel,LSBchannel):
         #cal control
         CAL_Config = configparser.ConfigParser()
@@ -281,8 +298,6 @@ class SARCALIBMODULE(object):
           time.sleep(0.1)
 
           #record data
-          #BitsArrayP , BitsArrayN  = self.SARCalibDataTaking(
-          #            weightName + '_' + calibType ,coluta,MSBchannel ,LSBchannel ,nRepeats ,SARCALEN  ,CALDIR  ,CALPNDAC  ,CALREGA  ,CALREGB  )
           result = self.SARCalibDataTaking(weightName + '_' + calibType ,coluta,MSBchannel ,LSBchannel)
           if result == None : 
             return None
@@ -292,7 +307,6 @@ class SARCALIBMODULE(object):
         return bitArrayDict
 
 
-    #def SARCalibDataTaking(self,Evaluating_Indicator,coluta, MSBchannel,LSBchannel,nRepeats,SARCALEN,CALDIR,CALPNDAC,CALREGA,CALREGB):
     def SARCalibDataTaking(self,Evaluating_Indicator,coluta, MSBchannel,LSBchannel):
         self.takeData()
         if coluta not in self.dataMap :
