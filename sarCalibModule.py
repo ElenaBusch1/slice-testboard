@@ -18,14 +18,29 @@ class SARCALIBMODULE(object):
 
     def test(self):
         #generic module test function
-        data = []
-        for testNum in range(0,10,1):
-          self.takeData()
-          print( self.dataMap["coluta20"]["channel8"][0] )
-          data.append( self.dataMap["coluta20"]["channel8"][0] )
-          #self.printData()
-        for dataVal in data :
-          print(dataVal)
+        coluta = "coluta20"
+        channel = "channel7"
+        channelLabel = "ch7"
+        """
+        chWeightResultDict = {"W_1ST_3584" : 3572.20               ,"W_1ST_2048" : 2040.87              ,"W_1ST_1024" : 1021.80,\
+                              "W_1ST_640" : 639.17                 ,"W_1ST_384" : 383.71                ,"W_1ST_256" : 256.15  ,\
+                              "W_1ST_128" : 127.48                 ,"W_2ND_224" : 219.34                ,"W_2ND_128" : 125.96  ,\
+                              "W_2ND_64" : 62.74                   ,"W_2ND_32" : 31.55                  ,"W_2ND_24" : 23.63                  ,"W_2ND_16" : 15.86}
+
+        sarCalibDdpuConfigs = {"W_1ST_3584" : 'SARCorrectionCode20',"W_1ST_2048" : 'SARCorrectionCode19',"W_1ST_1024" : 'SARCorrectionCode18' ,\
+                               "W_1ST_640" : 'SARCorrectionCode17' ,"W_1ST_384" : 'SARCorrectionCode16' ,"W_1ST_256" : 'SARCorrectionCode15'  ,\
+                               "W_1ST_128" : 'SARCorrectionCode14' ,"W_2ND_224" : 'SARCorrectionCode13' ,"W_2ND_128" : 'SARCorrectionCode12'  ,\
+                               "W_2ND_64" : 'SARCorrectionCode11'  ,"W_2ND_32" : 'SARCorrectionCode10'  ,"W_2ND_24" : 'SARCorrectionCode9'    , "W_2ND_16" : 'SARCorrectionCode8' }
+
+        mapSarCorrToWeights = {'SARCorrectionCode20' : "W_1ST_3584",'SARCorrectionCode19' : "W_1ST_2048",'SARCorrectionCode18' : "W_1ST_1024" ,\
+                               'SARCorrectionCode17' : "W_1ST_640" ,'SARCorrectionCode16' : "W_1ST_384" ,'SARCorrectionCode15' : "W_1ST_256"  ,\
+                               'SARCorrectionCode14' : "W_1ST_128" ,'SARCorrectionCode13' : "W_2ND_224" ,'SARCorrectionCode12' : "W_2ND_128",\
+                               'SARCorrectionCode11'   ,'SARCorrectionCode10' ,'SARCorrectionCode9'  ,'SARCorrectionCode8' }
+        """
+
+        #look at current channel DDPU config
+        print(self.GUI.chips[coluta][channelLabel])
+        #print(chWeightResultDict)
         pass
 
     def printData(self):
@@ -200,6 +215,7 @@ class SARCALIBMODULE(object):
           if weightName not in weightPositionDict :
             #return None
             continue
+          #use position dict above to correctly update the list_Weighting_Second_Stage_P/N lists
           listPos = weightPositionDict[weightName]
           list_Weighting_Second_Stage_P[listPos] = round(W_P,2)
           list_Weighting_Second_Stage_N[listPos] = round(W_N,2)
