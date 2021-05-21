@@ -21,25 +21,54 @@ class SARCALIBMODULE(object):
         coluta = "coluta20"
         channel = "channel7"
         channelLabel = "ch7"
-        """
+        
         chWeightResultDict = {"W_1ST_3584" : 3572.20               ,"W_1ST_2048" : 2040.87              ,"W_1ST_1024" : 1021.80,\
                               "W_1ST_640" : 639.17                 ,"W_1ST_384" : 383.71                ,"W_1ST_256" : 256.15  ,\
                               "W_1ST_128" : 127.48                 ,"W_2ND_224" : 219.34                ,"W_2ND_128" : 125.96  ,\
-                              "W_2ND_64" : 62.74                   ,"W_2ND_32" : 31.55                  ,"W_2ND_24" : 23.63                  ,"W_2ND_16" : 15.86}
+                              "W_2ND_64" : 62.74                   ,"W_2ND_32" : 31.55                  ,"W_2ND_24" : 23.63    ,\
+                              "W_2ND_16" : 15.86                   ,"W_2ND_10" : 10.                    ,"W_2ND_6"  : 6. }
 
         sarCalibDdpuConfigs = {"W_1ST_3584" : 'SARCorrectionCode20',"W_1ST_2048" : 'SARCorrectionCode19',"W_1ST_1024" : 'SARCorrectionCode18' ,\
                                "W_1ST_640" : 'SARCorrectionCode17' ,"W_1ST_384" : 'SARCorrectionCode16' ,"W_1ST_256" : 'SARCorrectionCode15'  ,\
                                "W_1ST_128" : 'SARCorrectionCode14' ,"W_2ND_224" : 'SARCorrectionCode13' ,"W_2ND_128" : 'SARCorrectionCode12'  ,\
-                               "W_2ND_64" : 'SARCorrectionCode11'  ,"W_2ND_32" : 'SARCorrectionCode10'  ,"W_2ND_24" : 'SARCorrectionCode9'    , "W_2ND_16" : 'SARCorrectionCode8' }
+                               "W_2ND_64" : 'SARCorrectionCode11'  ,"W_2ND_32" : 'SARCorrectionCode10'  ,"W_2ND_24" : 'SARCorrectionCode9'    ,\
+                               "W_2ND_16" : 'SARCorrectionCode8'   ,"W_2ND_10" : 'SARCorrectionCode7'   ,"W_2ND_6"  : 'SARCorrectionCode6'}
 
         mapSarCorrToWeights = {'SARCorrectionCode20' : "W_1ST_3584",'SARCorrectionCode19' : "W_1ST_2048",'SARCorrectionCode18' : "W_1ST_1024" ,\
                                'SARCorrectionCode17' : "W_1ST_640" ,'SARCorrectionCode16' : "W_1ST_384" ,'SARCorrectionCode15' : "W_1ST_256"  ,\
-                               'SARCorrectionCode14' : "W_1ST_128" ,'SARCorrectionCode13' : "W_2ND_224" ,'SARCorrectionCode12' : "W_2ND_128",\
-                               'SARCorrectionCode11'   ,'SARCorrectionCode10' ,'SARCorrectionCode9'  ,'SARCorrectionCode8' }
-        """
-
+                               'SARCorrectionCode14' : "W_1ST_128" ,'SARCorrectionCode13' : "W_2ND_224" ,'SARCorrectionCode12' : "W_2ND_128"  ,\
+                               'SARCorrectionCode11' : "W_2ND_64"  ,'SARCorrectionCode10' : "W_2ND_32"  ,'SARCorrectionCode9'  : "W_2ND_24"   ,\
+                               'SARCorrectionCode8' : "W_2ND_16"   ,'SARCorrectionCode7'  : "W_2ND_10"  ,'SARCorrectionCode6'  : "W_2ND_6"}
+                               
+        sarCorrLengths      = {'SARCorrectionCode20' : 14,'SARCorrectionCode19' : 14,'SARCorrectionCode18' : 13 ,\
+                               'SARCorrectionCode17' : 12 ,'SARCorrectionCode16' : 11 ,'SARCorrectionCode15' : 11  ,\
+                               'SARCorrectionCode14' : 10 ,'SARCorrectionCode13' : 10 ,'SARCorrectionCode12' : 10  ,\
+                               'SARCorrectionCode11' : 9  ,'SARCorrectionCode10' : 8  ,'SARCorrectionCode9'  : 7   ,\
+                               'SARCorrectionCode8' : 7   ,'SARCorrectionCode7'  : 6  ,'SARCorrectionCode6'  : 5}
+        
+        for corr in mapSarCorrToWeights :
+          if corr not in self.GUI.chips[coluta][channelLabel] :
+            continue
+          weightLabel = mapSarCorrToWeights[corr]
+          if weightLabel not in chWeightResultDict :
+            continue
+          val = chWeightResultDict[weightLabel]
+          valNormed = val/chWeightResultDict["W_1ST_3584"]*3584*0.97
+          val4x = round(4*val)
+          if val4x > 16383 :
+            print("OVERFLOW")
+          valLength = sarCorrLengths[corr]
+          #binString = format(6,'014b')
+          binString = format(val4x,'0'+str(valLength)+'b')
+          #print( corr, self.GUI.chips[coluta][channelLabel][corr] , len(self.GUI.chips[coluta][channelLabel][corr]) ,"\t",val4x, binString )
+          #print( corr, len(self.GUI.chips[coluta][channelLabel][corr]) ,"\t",len(binString) )
+          self.GUI.chips[coluta].setConfiguration(channelLabel,corr,binString)
+          #print( corr, self.GUI.chips[coluta][channelLabel][corr] ,"\t",val4x, binString )
+          boxName = coluta + channelLabel + corr + "Box"
+          self.GUI.updateBox(boxName, binString)
+        self.GUI.sendUpdatedConfigurations()
         #look at current channel DDPU config
-        print(self.GUI.chips[coluta][channelLabel])
+        #print(self.GUI.chips[coluta][channelLabel])
         #print(chWeightResultDict)
         pass
 
