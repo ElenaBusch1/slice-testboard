@@ -192,6 +192,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         sarCalibModule = SARCALIBMODULE(self)
         start = time.time()
         #sarCalibModule.doSarCalib("coluta20","channel7")
+        sarCalibModule.testSarConstantWrite()
+        #sarCalibModule.testMdacCal()
         sarCalibModule.test()
         end = time.time()
         print("Calib time: ",end - start)

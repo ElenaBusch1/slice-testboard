@@ -17,7 +17,101 @@ class SARCALIBMODULE(object):
         self.testSingleWeight = False #debugging mode
 
     def test(self):
+        pass
+
+    def testWriteMdacCal(self):
+        coluta = "coluta20"
+        channel = "channel7"
+        channelLabel = "ch7"
+        mdacCorr = {'MDACCorrectionCode0': 70.93294117647065, 'MDACCorrectionCode1': 4163.7532085702705,\
+                    'MDACCorrectionCode2': 4162.98000336078, 'MDACCorrectionCode3': 4164.754957983194,\
+                    'MDACCorrectionCode4': 4162.9218487394955, 'MDACCorrectionCode5': 4163.0388126280595,\
+                    'MDACCorrectionCode6': 4164.028739495798, 'MDACCorrectionCode7': 4167.986220803226}
+        mdacCorrDdpu = {}
+        mdacCorrDdpu['MDACCorrectionCode0'] = mdacCorr['MDACCorrectionCode0']
+        mdacCorrDdpu['MDACCorrectionCode1'] = mdacCorrDdpu['MDACCorrectionCode0']+mdacCorr['MDACCorrectionCode1']
+        mdacCorrDdpu['MDACCorrectionCode2'] = mdacCorrDdpu['MDACCorrectionCode1']+mdacCorr['MDACCorrectionCode2']
+        mdacCorrDdpu['MDACCorrectionCode3'] = mdacCorrDdpu['MDACCorrectionCode2']+mdacCorr['MDACCorrectionCode3']
+        mdacCorrDdpu['MDACCorrectionCode4'] = mdacCorrDdpu['MDACCorrectionCode3']+mdacCorr['MDACCorrectionCode4']
+        mdacCorrDdpu['MDACCorrectionCode5'] = mdacCorrDdpu['MDACCorrectionCode4']+mdacCorr['MDACCorrectionCode5']
+        mdacCorrDdpu['MDACCorrectionCode6'] = mdacCorrDdpu['MDACCorrectionCode5']+mdacCorr['MDACCorrectionCode6']
+        mdacCorrDdpu['MDACCorrectionCode7'] = mdacCorrDdpu['MDACCorrectionCode6']+mdacCorr['MDACCorrectionCode7']
+
+        for corr in mdacCorrDdpu :
+          if corr not in self.GUI.chips[coluta][channelLabel] :
+            continue
+          val = mdacCorrDdpu[corr]
+          val4x = round(4*val)
+          valLength = 17
+          binString = format(val4x,'0'+str(valLength)+'b')
+          self.GUI.chips[coluta].setConfiguration(channelLabel,corr,binString)
+          boxName = coluta + channelLabel + corr + "Box"
+          self.GUI.updateBox(boxName, binString)
+        self.GUI.sendUpdatedConfigurations()    
+
+
+    def testMdacCal(self):
         #generic module test function
+        coluta = "coluta20"
+        channel = "channel7"
+        channelLabel = "ch7"
+
+        #'MDACCALEN', 'CALFLASH', 'CALMDAC' , FLAGEN, MDACCorrectionCode0
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"FLAGEN", str(0) )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCALEN",str(1) )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode0",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode1",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode2",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode3",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode4",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode5",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode6",'00000000000000000' )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCorrectionCode7",'00000000000000000' )
+        self.GUI.sendUpdatedConfigurations()
+
+        mdacCalList = [128,128,64 ,64 ,32 ,32 ,16 ,16 ,8  ,8  ,4  ,4  ,2  ,2  ,1  ,1  ]
+        flashList =   [0  ,1  ,1  ,3  ,3  ,7  ,7  ,15 ,15 ,31 ,31 ,63 ,63 ,127,127,255]
+        stepMeas = {}
+        for stepNum in range(0,16,1):
+          mdacCalVal = str( format(mdacCalList[stepNum],'08b')  )
+          flashVal = str(   format(flashList[stepNum],'08b') )
+          self.GUI.chips[coluta].setConfiguration(channelLabel,"CALMDAC",str(mdacCalVal) )
+          self.GUI.chips[coluta].setConfiguration(channelLabel,"CALFLASH",str(flashVal)  )
+          self.GUI.sendUpdatedConfigurations()
+          time.sleep(0.1)
+          self.takeData()
+          #print( self.dataMap[coluta][channel][0:4] )
+          decArray = self.convert_to_dec(self.dataMap[coluta][channel] )
+          print( stepNum, np.mean(decArray),np.std(decArray))
+          stepMeas[stepNum] = np.mean(decArray)
+ 
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"CALMDAC", str(format(0,'08b')) )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"CALFLASH",str(format(0,'08b'))  )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"FLAGEN", str(1) )
+        self.GUI.chips[coluta].setConfiguration(channelLabel,"MDACCALEN",str(0) )
+        self.GUI.sendUpdatedConfigurations()      
+
+        mdacCorr = {}
+        mdacCorr["MDACCorrectionCode0"] = stepMeas[0] - stepMeas[1]
+        mdacCorr["MDACCorrectionCode1"] = stepMeas[2] - stepMeas[3]
+        mdacCorr["MDACCorrectionCode2"] = stepMeas[4] - stepMeas[5]
+        mdacCorr["MDACCorrectionCode3"] = stepMeas[6] - stepMeas[7]
+        mdacCorr["MDACCorrectionCode4"] = stepMeas[8] - stepMeas[9]
+        mdacCorr["MDACCorrectionCode5"] = stepMeas[10] - stepMeas[11]
+        mdacCorr["MDACCorrectionCode6"] = stepMeas[12] - stepMeas[13]
+        mdacCorr["MDACCorrectionCode7"] = stepMeas[14] - stepMeas[15]
+        print(mdacCorr)
+
+        return
+
+    def convert_to_dec(self,binArray):
+        decArray = []
+        for num in binArray :
+          dec  = int(''.join([str(x) for x in num]),2)
+          decArray.append(dec)
+        return decArray
+
+    def testSarConstantWrite(self):
         coluta = "coluta20"
         channel = "channel7"
         channelLabel = "ch7"
@@ -54,7 +148,7 @@ class SARCALIBMODULE(object):
             continue
           val = chWeightResultDict[weightLabel]
           valNormed = val/chWeightResultDict["W_1ST_3584"]*3584*0.97
-          val4x = round(4*val)
+          val4x = round(4*valNormed)
           if val4x > 16383 :
             print("OVERFLOW")
           valLength = sarCorrLengths[corr]
