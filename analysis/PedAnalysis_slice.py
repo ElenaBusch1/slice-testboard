@@ -1,11 +1,11 @@
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 #from matplotlib import pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 import csv
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from pylab import MaxNLocator     
 from matplotlib.font_manager import FontProperties
@@ -27,8 +27,8 @@ MDAC_CHS_RIGHT = [66, 67, 70, 71, 74, 75, 78, 79] #MDAC channels on right side o
 DRE_CHS_LEFT =   [48, 49, 52, 53, 56, 57, 60, 61] #MDAC channels on left side of board
 DRE_CHS_RIGHT =  [64, 65, 68, 69, 72, 73, 76, 77] #MDAC channels on right side of board
 
-ALL_CHS_LEFT  = [48,49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
-ALL_CHS_RIGHT = [64,65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
+ALL_CHS_LEFT  = [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+ALL_CHS_RIGHT = [64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79]
 
 
 def gauss(x, b, c, a):
@@ -195,7 +195,7 @@ class AnalyzePed(object):
 
 
 
-    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
+    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True, nchan = 0):
 
 
 
@@ -210,7 +210,6 @@ class AnalyzePed(object):
             n, bins, _ = ax.hist(data,bins = bins,edgecolor ='black',zorder = 1,label= "RMS = " +str(round(np.std(data),2)) )
             #else: n, bins, _ i      = ax.hist(data,bins = bins,density = 1,edgecolor ='black',zorder = 1,label= "RMS:"+str(round(np.std(data),2)) )
              
-
 
             y_max = max(n)
       
@@ -235,7 +234,7 @@ class AnalyzePed(object):
             #ax.plot(fit_points, gauss(fit_points,*pars), 'k-',linewidth = 1, label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))   
                  ax.plot(fit_points, gauss(fit_points,*pars), 'r-',linewidth = 2,label='$\mu=${:.1f}$\pm${:.1f}, $\sigma=${:.1f}$\pm${:.1f}'.format(mu,dmu,sigma,dsigma))        
 
-              ax.legend()
+              ax.legend(loc = 'upper left')
               ax.set_xlabel("Sample Value [ADC Counts]")
               ax.set_ylabel("Events")
               #ax.set_ylabel("Normalized Frequency")
@@ -247,12 +246,24 @@ class AnalyzePed(object):
               ax.set_ylim(0,y_max*(1 + .3))
               ax.grid(zorder = 0)
               #ax.set_xlim(42900,43100)
-              if coherent: 
+              if coherent:
+                  av_sig = coherent[2] ; av_dsig = coherent[3]; 
                   #ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
                   formula = "\sqrt{ \Sigma (\sigma_i)^2}" 
-                  ax.text(.6,.75,"${}= {:.1f}\pm{:.1f} $".format(formula,coherent[0],coherent[1]),transform = ax.transAxes)
-
+                  ax.text(.55,.95,"${}= {:.1f}\pm{:.1f} $".format(formula,coherent[0],coherent[1]),transform = ax.transAxes)
+            
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
+                  if sigma > coherent[0]:
+                      diff = (sigma**2-coherent[0]**2)**0.5/nchan
+                      diff_err = np.sqrt( ((sigma*dsigma)**2 + (coherent[0]*coherent[1])**2) /(sigma**2 - coherent[0]**2) )/nchan
+                      ax.text(.55,.9, "Av. noise/ch $= {:.1f}\pm{:.1f}$".format(av_sig, av_dsig), transform = ax.transAxes)
+                      ax.text(.55,.85, "Coh. noise/chan $= {:.1f}\pm{:.1f}$".format(diff, diff_err), transform = ax.transAxes)
+                      ax.text(.55,.8, "[%] Coh. noise $= {:.1f}\pm{:.1f}$".format((diff/av_sig)*100, ((diff/av_sig)*100) * np.sqrt((diff_err/diff)**2 + (av_dsig/av_sig)**2)), transform = ax.transAxes)
+                      print(diff,nchan)
+                   
+                  else:
+                      ax.text(.55,.9, "Av. noise/ch $= {:.1f}\pm{:.1f}$".format(av_sig, av_dsig), transform = ax.transAxes)
+                      ax.text(.55,.85, "Coh. noise/ch = N/A", transform = ax.transAxes)
 
               print(("Plotting Baseline hist for " + channel + " " + gain + " gain..."))
               #plt.show()
@@ -279,6 +290,7 @@ class AnalyzePed(object):
         print("Gains to plot: ",gains_to_plot)
         print("")
         #print("mdac channels: ",mdacChannels)
+
 
         mdac_hi = []
         mdac_lo = []
@@ -477,6 +489,8 @@ class AnalyzePed(object):
             for meas in meas_to_plot:
 
                 ped_tot = np.zeros(np.shape(self.Samples)[-1])
+                av_sig = 0
+                av_dsig = 0
                 sig_2_tot = 0
                 dsig_2_tot = 0
                 for channel in chs:
@@ -495,6 +509,8 @@ class AnalyzePed(object):
                         mu_i,sig_i,dsig_i, _ = self.makeFittedHist(ped_i,plot_dir,"",channel, gain, coherent = 1, plot = False)
                         print("\tMu: {mu_i}; Sigma: {sig_i}; dSigma: {dsig_i}\n".format(mu_i = mu_i, sig_i = sig_i, dsig_i = dsig_i))
                              
+                        av_sig += sig_i
+                        av_dsig += dsig_i
                         sig_2_tot += sig_i**2
                         dsig_2_tot += (sig_i**2)*(dsig_i**2)
                         ped_tot += ped_i
@@ -503,8 +519,10 @@ class AnalyzePed(object):
 
                 gain_str = "HG"
                 if gain == "lo":gain_str = "LG"
-
-                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
+                av_sig /= Nchan
+                av_dsig /= Nchan
+                print("Number of Channels: ",Nchan)
+                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot),av_sig,av_dsig], nchan = Nchan)
 
 
 #-------------------------------------------------------------------------------------
@@ -543,12 +561,13 @@ def main():
     #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
   
     ### the following lines can be used to set relevant channels for Coherent Noise and Pariwise Correlation plots 
-    # chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
-    # chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
+    chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
+    chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
     # chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
 
     chs_to_plot = [("channel0" + str(no)) for no in MDAC_CHS_LEFT + MDAC_CHS_RIGHT]
     #PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
+    #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = chs_to_plot) #make fitted baseline histogram plot + summary mean/RMS plots
     PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
     PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = MDAC_CHS_LEFT,chs_r  = MDAC_CHS_RIGHT) #plot pairwise noise corelation for hi gain only
     PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT)
