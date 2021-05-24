@@ -1,11 +1,11 @@
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 #from matplotlib import pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 import csv
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 from pylab import MaxNLocator     
 from matplotlib.font_manager import FontProperties
@@ -195,7 +195,7 @@ class AnalyzePed(object):
 
 
 
-    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True):
+    def makeFittedHist(self, data, plot_dir, title, channel,gain,coherent = 0,plot = True, nchan = 0):
 
 
 
@@ -251,8 +251,15 @@ class AnalyzePed(object):
                   #ax.text(.6,.8,"$E[\sigma] = "  + str(round(coherent,3)) + "$",transform = ax.transAxes)
                   formula = "\sqrt{ \Sigma (\sigma_i)^2}" 
                   ax.text(.6,.75,"${}= {:.1f}\pm{:.1f} $".format(formula,coherent[0],coherent[1]),transform = ax.transAxes)
-
+            
                   #ax.text(.6,.8,"$E[\sigma] = {:.1f}\pm{:.1f} $".format(coherent[0],coherent[1]),transform = ax.transAxes)
+                  if sigma > coherent[0]:
+                      diff = (sigma**2-coherent[0]**2)**0.5/nchan
+                      ax.text(.6,.7, "Cor. noise per chan. = {:.2f}".format(diff), transform = ax.transAxes)
+                      print(diff)
+                   
+                  else:
+                      ax.text(.6,.7, "Cor. noise per chan. = N/A", transform = ax.transAxes)
 
               print(("Plotting Baseline hist for " + channel + " " + gain + " gain..."))
               #plt.show()
@@ -504,7 +511,7 @@ class AnalyzePed(object):
                 gain_str = "HG"
                 if gain == "lo":gain_str = "LG"
 
-                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)])
+                self.makeFittedHist(ped_tot,plot_dir,"Sum over {} {} channels".format(Nchan,gain_str),"coherence_all",gain, coherent = [np.sqrt(sig_2_tot),np.sqrt(dsig_2_tot)], nchan = Nchan)
 
 
 #-------------------------------------------------------------------------------------
@@ -537,18 +544,18 @@ def main():
     #PedData.Channels = ["channel018","channel019","channel014","channel015","channel030","channel031"]
     #PedData.Gains = ["lo"]
 
-    chans_to_plot = self.Channels
+
     PedData.PlotRaw(plot_dir)#,chans_to_plot = ["channel079"]) #plot raw baseline samples, can specify channel or gain
-    PedData.AnalyzeBaseline(plot_dir, runName, chans_to_plot = chans_to_plot) #make fitted baseline histogram plot + summary mean/RMS plots
+    PedData.AnalyzeBaseline(plot_dir, runName) #make fitted baseline histogram plot + summary mean/RMS plots
     #PedData.AnalyzeBaseline(plot_dir, runName,chans_to_plot = ["channel050","channel051","channel078","channel079"] ) #example specifying certain channels to analyze
   
     ### the following lines can be used to set relevant channels for Coherent Noise and Pariwise Correlation plots 
-    # chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
-    # chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
+    chs_l = [50,51,54,55,58,59,62,63] #MDAC channels on left side of board 
+    chs_r = [66,67,70,71,74,75,78,79] #MDAC channels on right side of board
     # chs_to_plot = [("channel0" + str(no)) for no in chs_l + chs_r]
 
-    # chs_to_plot = [("channel0" + str(no)) for no in MDAC_CHS_LEFT + MDAC_CHS_RIGHT]
-    #PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
+    chs_to_plot = [("channel0" + str(no)) for no in MDAC_CHS_LEFT + MDAC_CHS_RIGHT]
+    PedData.PlotPairwiseCorr(plot_dir, 'hilo', chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT) #plot pairwise noise correlation for hi and lo gain
     PedData.PlotCoherentNoise(plot_dir,chs = chs_to_plot) #make coherent noise histogram
     PedData.PlotPairwiseCorr(plot_dir, 'hi',chs_l = MDAC_CHS_LEFT,chs_r  = MDAC_CHS_RIGHT) #plot pairwise noise corelation for hi gain only
     PedData.PlotPairwiseCorr(plot_dir, 'lo',chs_l = MDAC_CHS_LEFT, chs_r = MDAC_CHS_RIGHT)
