@@ -1,6 +1,6 @@
 #!/bin/bash
 #currently only works for trigger data; might not work for single adc 
-echo "make sure to 1) change the user variable within the bash script 2) run the command - conda activate coluta -  before running it 3)if you don't already have sshpass installed in your conda environment, run these commands after conda activate coluta command is run, so that you are in conda environment - a) echo $CONDA_PREFIX and then b) conda install -p /nevis/kolya/home/[insert your user name here]/miniconda3/envs/coluta sshpass"
+echo "make sure to 1) change the user variable within the bash script 2) run the command - conda activate coluta -  before running it 3)if you don't already have sshpass installed in your conda environment, run these commands after conda activate coluta command is run, so that you are in conda environment - a) echo $CONDA_PREFIX -> this will print out your conda environment and then b) conda install -p [your/conda/env/path] sshpass e.g. conda install -p /nevis/kolya/home/[your/username]/miniconda3/envs/coluta sshpass"
 user=kpark
 ana=/nevis/kolya/home/$user/slice-testboard/analysis
 raw=/nevis/kolya/home/$user/slice-testboard/data/Raw
