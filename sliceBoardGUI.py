@@ -22,6 +22,7 @@ from flxMod import icWriteToLpGBT as writeToLpGBT
 from flxMod import icReadLpGBT as readFromLpGBT
 from flxMod import ecReadLpGBT as ecReadFromLpGBT
 from flxMod import icWriteToLpGBT, ecWriteToLpGBT
+from flxMod import takeManagerData
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
@@ -116,7 +117,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+        self.test2Button.clicked.connect(takeManagerData)
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
