@@ -363,16 +363,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
         print("Checking Write")
-        outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
-        if outcome == 'reset':
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-            outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
-            if outcome == 'reset': print("Failed after reset")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+        #outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+        #if outcome == 'reset':
+        #    writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        #    writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        #    writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        #    writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        #    writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+        #    writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        #    outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+        #    if outcome == 'reset': print("Failed after reset")
 
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
@@ -578,9 +579,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 i2cTransactionFinished = True
                 continue
             elif bit[0] == 8:
-                self.lpgbtReset(lpgbt)
+                #self.lpgbtReset(lpgbt)
                 print('bit:', bit[0])
-                return 'reset' 
+                return 'Bad state' 
             print('bit:', bit[0])
             counter += 1
             time.sleep(0.1)
