@@ -142,7 +142,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
         self.configureAllButton.clicked.connect(self.configureAll)
         self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
-        self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
+        self.lpgbtConfigureButton.clicked.connect(lambda: self.sendFullLPGBTConfigs("box"))
         self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
         self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
@@ -710,9 +710,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("Done Configuring") 
 
-    def sendFullLPGBTConfigs(self):
+    def sendFullLPGBTConfigs(self, lpgbtName):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
-        lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        if lpgbtName == 'box':
+            lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        else:
+            lpgbt = lpgbtName
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.sendFullControlLPGBTConfigs(lpgbt)
         else:
@@ -1322,12 +1325,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.singleADCMode_ADC = 'trigger'
 
         # Establish output file
-        if not os.path.exists("Runs"):
-            os.makedirs("Runs")
+        if not os.path.exists("/home/dawillia/FLX/slice-testboard/Runs"):
+            print("Make a run directory")
+            return
+            #os.makedirs("Runs")
         if self.opened:
             self.incrementRunNumber()
             self.opened = False  
-        outputDirectory = 'Runs'
+        outputDirectory = '/home/dawillia/FLX/slice-testboard/Runs'
         outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
         stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
@@ -1348,11 +1353,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def incrementRunNumber(self):
         self.runNumber += 1
         print("Run Number", self.runNumber)
-        with open('config/metadata.txt','r') as f:
+        with open('/home/dawillia/FLX/slice-testboard/metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
 
-        with open('config/metadata.txt','w') as f:
+        with open('/home/dawillia/FLX/slice-testboard/metadata.txt','w') as f:
             json.dump(temp,f)
 
     def makeMetadataJSON(self):
@@ -1380,13 +1385,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
         metadata["allCOLUTAs"] = colutas
         metadata["allLAUROCs"] = laurocs
-        with open('config/metadata.txt', 'w') as outfile:
+        with open('/home/dawillia/FLX/slice-testboard/metadata.txt', 'w') as outfile:
             json.dump(metadata, outfile)
 
     def getMetadataFromJSON(self):
-        if not os.path.exists('config/metadata.txt'):
+        if not os.path.exists('/home/dawillia/FLX/slice-testboard/metadata.txt'):
             self.makeMetadataJSON()
-        with open('config/metadata.txt') as json_file:
+        with open('/home/dawillia/FLX/slice-testboard/metadata.txt') as json_file:
             metadata = json.load(json_file)
             self.runNumber = metadata["runNumber"]   
             self.boardID = metadata["boardID"]

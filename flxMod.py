@@ -531,9 +531,11 @@ def takeManagerData():
 def reg_read64b(addr):
     return  "%16lx"%(manager.ReadFEB2Register(addr))
 
-
 def reg_write64b(addr,data):
-    return_value = manager.WriteFEB2Register(addr,data)
+    addr_str = str(hex(addr))
+    data_str = str(hex(data))
+    cmd = "fpepo " + addr_str + " "+ data_str
+    return_value = os.popen(cmd).readlines()[0][6:22]
     # print(return_value)
 
 
