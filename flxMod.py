@@ -508,20 +508,20 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
 
 
 ################################################################
-def takeManagerData():
+def takeManagerData(tempdir, basename, mode, ADC):
     #Once the board is configured, we can use the manager to trigger data acquisition 
-    duration_ms = 3500 # 3500ms acquisition
-    max_file_size_mb = 64 # 64Mb per file 
-    tempdir = "tmp" # folder to write data 
-    basename = "testdata" # base name for data files , a number is appended for each new file 
+    duration_ms = 2000 # 3500ms acquisition
+    max_file_size_mb = 200 # 64Mb per file 
     trigger_delay=0 # delay between trigger and sample acquisition start
     trigger_rate = 4 # 40MHz/2**13 (choice from 0 to 4, see documentation)
     window = 128 # 128 samples in triggered event 
-    doConversion = True # Do converstion of acquired binary data to human readable format on-the-fly
+    doConversion = False # Do converstion of acquired binary data to human readable format on-the-fly
     
     # We trigger the data acquisition in triggered mode, for 3.5 seconds, and convert the data to text files 
-    manager.DataAcquisitionTriggerMode(duration_ms,max_file_size_mb,tempdir,basename,trigger_delay,trigger_rate,window,doConversion);
-    
+    if mode == 'trigger':
+        manager.DataAcquisitionTriggerMode(duration_ms,max_file_size_mb,tempdir,basename,trigger_delay,trigger_rate,window,doConversion);
+    if mode == 'singleADC':
+        manager.DataAcquisitionFreeRunningMode(duration_ms,max_file_size_mb,tempdir,basename,ADC,doConversion); 
     # We can also take data in freerunning mode for a few seconds before buffer fills 
     #ADC = 0; // We select which ADC to acquire from 
     #manager.DataAcquisitionFreeRunningMode(duration_ms,max_file_size_mb,tempdir,basename,ADC,doConversion);
@@ -532,10 +532,7 @@ def reg_read64b(addr):
     return  "%16lx"%(manager.ReadFEB2Register(addr))
 
 def reg_write64b(addr,data):
-    addr_str = str(hex(addr))
-    data_str = str(hex(data))
-    cmd = "fpepo " + addr_str + " "+ data_str
-    return_value = os.popen(cmd).readlines()[0][6:22]
+    return_value = manager.WriteFEB2Register(addr,data)
     # print(return_value)
 
 

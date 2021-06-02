@@ -1338,7 +1338,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         outputPath = outputDirectory+"/"+outputFile
         outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
-        subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
+        takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+        #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
         time.sleep(5)
         parseDataMod.main(self, outputPathStamped)
