@@ -1,21 +1,18 @@
 #!/bin/bash
-#copy runs to a designated directory
-#raw=/nevis/kolya/home/kpark/slice-testboard/data/Raw
-#CHANGE $user
 #currently only works for trigger data; might not work for single adc 
-echo "make sure to 1) change the user variable within the bash script 2) run the command - conda activate coluta before running it"
+echo "make sure to 1) change the user variable within the bash script 2) run the command - conda activate coluta -  before running it 3)if you don't already have sshpass installed in your conda environment, run these commands after conda activate coluta command is run, so that you are in conda environment - a) echo $CONDA_PREFIX -> this will print out your conda environment and then b) conda install -p [your/conda/env/path] sshpass e.g. conda install -p /nevis/kolya/home/[your/username]/miniconda3/envs/coluta sshpass"
 user=elw2154
-echo $1
-if [ $1 == "-y" ]; then ped_bool=true
-elif [ $1 == "-n" ];then ped_bool=false 
-else echo "ERROR: type in -y for running PedAnalysis again or -n for not running it ex) bash ./bash_file_name.sh -y" &&exit #whether to run PedAnalysis_slice.py again 
-fi
-echo ped_bool
 ana=/nevis/kolya/home/$user/slice-testboard/analysis
 raw=/nevis/kolya/home/$user/slice-testboard/data/Raw
 pro=/nevis/kolya/home/$user/slice-testboard/data/Processed
 www=/nevis/kolya/home/$user/WWW/TestBoard/NoiseResults
 
+if [ $1 == "-y" ]; then ped_bool=true
+elif [ $1 == "-n" ];then ped_bool=false
+else echo "ERROR: type in -y for running PedAnalysis again or -n for not running it ex) bash ./bash_file_name.sh -y" &&exit #whether to run PedAnalysis_slice.py again 
+fi
+
+echo $1
 run_temp=0000
 html_temp_sum=/nevis/kolya/home/acs2325/WWW/TestBoard/NoiseResults/run${run_temp}_summary.html
 html_temp_cha=/nevis/kolya/home/acs2325/WWW/TestBoard/NoiseResults/run${run_temp}_all.html
@@ -23,15 +20,12 @@ html_temp_cha=/nevis/kolya/home/acs2325/WWW/TestBoard/NoiseResults/run${run_temp
 read -r -p "Enter run numbers (write in 4 digits ex) 0558 instead of 558). " -a runs
 #-n for not overwriting files
 for run in "${runs[@]}";do
-	cp -n /nevis/xenia2/data/users/jgonski/FLX/slice-testboard/Runs/run${run}.hdf5 ${raw}
-	
+	cp -n /nevis/xenia2/data/users/jgonski/FLX/slice-testboard/Runs/run${run}.hdf5 ${raw} || { sshpass -p 'coluta' scp dawillia@flx-srv-atlas:/home/dawillia/FLX/slice-testboard/Runs/run${run}.hdf5 ${raw} && echo "copying from FLX" ; }	
 done
 
 #run convert.py and PedAnalysis_slice.py
 #note you have to ensure that channels are in decimal with '10#' even if it might have a zero in front of it ex) 010 = 10 not 8 in octal
 cp -n /nevis/kolya/home/acs2325/WWW/mystyle.css $www/../../
-echo $www/../../
-#conda activate coluta
  
 
 #checks if processed files exist 
