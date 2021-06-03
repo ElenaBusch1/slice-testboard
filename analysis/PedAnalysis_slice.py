@@ -357,10 +357,12 @@ class AnalyzePed(object):
             names = [name[:2] + name[7:] for name in names] # very janky method to change 'channelxxx' --> 'chxxx' in bar labels
             ax2.grid(b = True,zorder = 0)
             plt.xticks(rotation = 70)
-            ax2.bar(names,stds,fill = False,ec = col, label = title, zorder = 3) 
+            mean = np.mean(stds)
+            ax2.bar(names,stds,fill = False,ec = col, label = "{} mean = {:.2f}".format(title,mean), zorder = 3) 
             ax2.set_title(chtype + " Pedestal RMS")
             ax2.set_ylabel("ADC Counts")
             ax2.set_ylim(0,max(stds) + max(stds)/4)
+            mylabs = []
             ax2.legend()
             fig2.savefig(r'{plot_dir}/{chtype}_rms_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
 
