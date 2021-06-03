@@ -1322,12 +1322,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.singleADCMode_ADC = 'trigger'
 
         # Establish output file
-        if not os.path.exists("Runs"):
-            os.makedirs("Runs")
+        if not os.path.exists("../Runs"):
+            os.makedirs("../Runs")
         if self.opened:
             self.incrementRunNumber()
             self.opened = False  
-        outputDirectory = 'Runs'
+        outputDirectory = '../Runs'
         outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
         stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
@@ -1348,11 +1348,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def incrementRunNumber(self):
         self.runNumber += 1
         print("Run Number", self.runNumber)
-        with open('config/metadata.txt','r') as f:
+        with open('../metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
 
-        with open('config/metadata.txt','w') as f:
+        with open('../metadata.txt','w') as f:
             json.dump(temp,f)
 
     def makeMetadataJSON(self):
@@ -1380,13 +1380,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
         metadata["allCOLUTAs"] = colutas
         metadata["allLAUROCs"] = laurocs
-        with open('config/metadata.txt', 'w') as outfile:
+        with open('../metadata.txt', 'w') as outfile:
             json.dump(metadata, outfile)
 
     def getMetadataFromJSON(self):
-        if not os.path.exists('config/metadata.txt'):
+        if not os.path.exists('../metadata.txt'):
             self.makeMetadataJSON()
-        with open('config/metadata.txt') as json_file:
+        with open('../metadata.txt') as json_file:
             metadata = json.load(json_file)
             self.runNumber = metadata["runNumber"]   
             self.boardID = metadata["boardID"]

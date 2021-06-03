@@ -32,7 +32,7 @@ def makeHistograms(chanData, runNumber):
   #plotDir = "Runs/Run_"+str(runNumber).zfill(4)+"/plots"
   #if not os.path.exists(plotDir):
   #  os.makedirs(plotDir)
-  saveDir = "Runs/plots/Run_"+str(runNumber).zfill(4)+"/"
+  saveDir = "../Runs/plots/Run_"+str(runNumber).zfill(4)+"/"
   if not os.path.exists(saveDir):
     os.makedirs(saveDir)
 
