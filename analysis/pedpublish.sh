@@ -6,7 +6,8 @@ ana=/nevis/kolya/home/$user/slice-testboard/analysis
 raw=/nevis/kolya/home/$user/slice-testboard/data/Raw
 pro=/nevis/kolya/home/$user/slice-testboard/data/Processed
 www=/nevis/kolya/home/$user/WWW/TestBoard/NoiseResults
-
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate coluta
 if [ $1 == "-y" ]; then ped_bool=true
 elif [ $1 == "-n" ];then ped_bool=false
 else echo "ERROR: type in -y for running PedAnalysis again or -n for not running it ex) bash ./bash_file_name.sh -y" &&exit #whether to run PedAnalysis_slice.py again 

@@ -244,7 +244,7 @@ class AnalyzePed(object):
               ax.xaxis.set_major_locator(MaxNLocator(integer=True))
               #ax.xaxis.set_tick_params(rotation=45)
               ax.set_ylim(0,y_max*(1 + .3))
-              ax.grid(zorder = 0)
+              ax.grid(b = True,zorder = 0)
               #ax.set_xlim(42900,43100)
               if coherent:
                   av_sig = coherent[2] ; av_dsig = coherent[3]; 
@@ -338,12 +338,14 @@ class AnalyzePed(object):
     def PlotSummary(self,data_lo,data_hi,chtype, plot_dir):
 
         fig, ax = plt.subplots(1)                
-        plt.xticks(rotation = 45)
+        plt.xticks(rotation = 70)
         fig2, ax2 = plt.subplots(1)                
         for col,title,data in [('b',"LG",data_lo), ('r',"HG",data_hi)] :
 
             names, mus, stds = zip(*data)
-            ax.grid(zorder = 0)
+
+            names = [name[:2] + name[7:] for name in names] # very janky method to change 'channelxxx' --> 'chxxx' in bar labels
+            ax.grid(b = True,zorder = 0)
             ax.bar(names,mus,fill = False,ec = col, label = title, zorder = 3) 
             ax.set_title(chtype + " Mean Pedestal Value")
             ax.set_ylabel("ADC Counts")
@@ -352,12 +354,15 @@ class AnalyzePed(object):
             fig.savefig(r'{plot_dir}/{chtype}_mu_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
             
             names, mus, stds = zip(*data)
-            ax2.grid(zorder = 0)
-            plt.xticks(rotation = 45)
-            ax2.bar(names,stds,fill = False,ec = col, label = title, zorder = 3) 
+            names = [name[:2] + name[7:] for name in names] # very janky method to change 'channelxxx' --> 'chxxx' in bar labels
+            ax2.grid(b = True,zorder = 0)
+            plt.xticks(rotation = 70)
+            mean = np.mean(stds)
+            ax2.bar(names,stds,fill = False,ec = col, label = "{} mean = {:.2f}".format(title,mean), zorder = 3) 
             ax2.set_title(chtype + " Pedestal RMS")
             ax2.set_ylabel("ADC Counts")
             ax2.set_ylim(0,max(stds) + max(stds)/4)
+            mylabs = []
             ax2.legend()
             fig2.savefig(r'{plot_dir}/{chtype}_rms_summary.png'.format(plot_dir = plot_dir,chtype = chtype) )
 
@@ -459,7 +464,7 @@ class AnalyzePed(object):
           ax.set_title("Run {name} Pairwise Noise Correlation [%], {gain} gain".format(name = self.runNo,gain = str(gain)))
           ax.set_xticks(np.arange(len(channels)+1)-.5, minor=True)
           ax.set_yticks(np.arange(len(channels)+1)-.5, minor=True)
-          ax.grid(which = "minor", color="w", linestyle='-', linewidth=3)
+          ax.grid(b = True,which = "minor", color="w", linestyle='-', linewidth=3)
           #fig.tight_layout()
           #plt.show()
           figure = plt.gcf()
