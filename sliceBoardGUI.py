@@ -663,6 +663,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     ########################## Functions to Send Full Configurations ##########################
     def configureAll(self):
+        self.configResults = {}
         """ Configures LPGBT9-16, COLUTA13-20 and LAUROC13-20 """
         colutas = self.allCOLUTAs
         laurocs = self.allLAUROCs
@@ -708,7 +709,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
 
-        print("Done Configuring") 
+        print("Done Configuring")
+        print("Configuration results")
+        for chip in self.configResults :
+          print(chip,"",self.configResults[chip])
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
@@ -751,6 +755,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 else:
                     print("Readback does not agree with what was written")     
 
+        self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
@@ -784,6 +789,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
+        self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
 
     def sendFullLAUROCConfigs(self, laurocName):
@@ -822,6 +828,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
+        self.configResults[lauroc] = readbackSuccess
         print("Done configuring", lauroc, ", success =", readbackSuccess)
 
     def sendFullCOLUTAConfig(self, colutaName):
@@ -844,6 +851,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         globalSuccess = self.writeToCOLUTAGlobal(coluta)
         readbackSuccess = readbackSuccess & globalSuccess
+        self.configResults[coluta] = readbackSuccess
         print("Done configuring", coluta, ", success =", readbackSuccess)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
