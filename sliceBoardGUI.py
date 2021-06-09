@@ -1334,14 +1334,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if not os.path.exists("../Runs"):
             os.makedirs("../Runs")
         if self.opened:
+            # increment run number automatically when GUI opens
             self.incrementRunNumber()
-            self.opened = False  
         outputDirectory = '../Runs'
         outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
         stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
         outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
+        if self.opened:
+            # Take dummy data - first data always bad
+            takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+            self.opened = False  
         takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
         #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
