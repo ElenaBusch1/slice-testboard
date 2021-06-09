@@ -109,6 +109,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Fill internal dictionaries with configurations from .cfg files
         self.setupConfigurations()
+        self.configResults = {} #config status dict
 
         # Establish link between GUI buttons and internal configuration dictionaries
         self.connectButtons()
