@@ -129,7 +129,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
         self.saveHDF5 = True
-        self.saveHDF5CheckBox.stateChanged.connect(self.saveHDF5)
+        self.saveHDF5CheckBox.setChecked(self.saveHDF5)
+        self.saveHDF5CheckBox.stateChanged.connect(self.updateSaveHDF5)
 
 
         self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
@@ -1479,6 +1480,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def updateReadback(self):
         self.READBACK = self.readbackConfigCheckBox.isChecked()
+    
+    def updateSaveHDF5(self):
+        self.saveHDF5 = self.saveHDF5CheckBox.isChecked()
 
     def copyConfigurations(self, sourceChipName, sourceSectionName = None, targetChipNames = None, targetSectionNames = None):
         """Copy configuration bits from one chip/channel to other chip(s)/channel(s)"""
