@@ -523,7 +523,7 @@ def takeManagerData(tempdir, basename, mode, ADC):
     if mode == 'singleADC':
         manager.DataAcquisitionFreeRunningMode(duration_ms,max_file_size_mb,tempdir,basename,ADC,doConversion); 
     # We can also take data in freerunning mode for a few seconds before buffer fills 
-    #ADC = 0; // We select which ADC to acquire from 
+    #ADC = 0; // We select which ADC to acquire from  
     #manager.DataAcquisitionFreeRunningMode(duration_ms,max_file_size_mb,tempdir,basename,ADC,doConversion);
 
 

@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-import pyjson5
+import json5
 
 def sendInversionBits(GUI, clock640, colutaName):
     binary = f'{clock640:04b}'
@@ -102,7 +102,7 @@ def scanClocks(GUI,colutas):
                         GUI.writeToLPGBT(lpgbt, reg, [value], True)
             GUI.takeTriggerData('clockScan')
             print("Opening run", str(GUI.runNumber).zfill(4))
-            datafile = h5py.File('Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')
+            datafile = h5py.File('../Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')
             m = str(len(datafile.keys())-1).zfill(3)
             print(m)
             d = datafile.get('Measurement_'+m)
