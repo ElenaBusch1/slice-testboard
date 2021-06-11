@@ -340,7 +340,8 @@ class t3awg3252(Device):
         # CH1_Frequency = 0.078288
         # CH1_Frequency = 0.083507
         # CH1_Frequency = 1.251303
-        CH1_Frequency = 0.6253257
+        #CH1_Frequency = 0.6253257
+        CH1_Frequency = 0.0800053337 #correct frequency for 12500ns - 1 AWG tick long pulse shape
         # CH1_Frequency = self.getSetting('ramp_frequency')
         #CH1_Amplitude = self.getSetting('pulse_amplitude')
         CH1_Amplitude = str(self.coluta.pulse_amplitudeBox.toPlainText())
@@ -355,7 +356,8 @@ class t3awg3252(Device):
         # self.device.write(bursts)
         # self.device.write("AFGControl:RMODe BURSt")
 
-        self.device.write_binary_values('TRACE1:DATA ', byteSamples2, datatype='B', is_big_endian=False)
+        #need to fix write_binary_values on Linux with pyvisa backend
+        #self.device.write_binary_values('TRACE1:DATA ', byteSamples2, datatype='B', is_big_endian=False)
         self.device.write("SOURce1:BURSt:STATe ON")
         self.device.write("SOURce1:BURSt:MODE TRIGgered")
         self.device.write("SOURCE1:BURSt:NCYCles " + N_Pulses)
