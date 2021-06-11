@@ -441,7 +441,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
             readback = self.readFromCOLUTAChannel(coluta, word)
-            if readback[:6] != dataBits8[:6]: readbackSuccess = False
+            if readback[:6] != dataBits8[:6]:
+                readbackSuccess = False
+                print("Writing", [hex(x) for x in dataBits8[:6]])
+                print("Reading", [hex(x) for x in readback])
+                print("Readback does not agree with what was written")     
             if READBACK:
                 print("Writing", [hex(x) for x in dataBits8[:6]])
                 print("Reading", [hex(x) for x in readback])
@@ -525,7 +529,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         readback = self.readFromCOLUTAGlobal(coluta)
         readbackSuccess = True
-        if full_write != readback: readbackSuccess = False
+        if full_write != readback:
+            readbackSuccess = False
+            print("Failed configuring coluta global")
         return readbackSuccess
 
     def readFromCOLUTAGlobal(self, coluta):
@@ -792,7 +798,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         for (register, dataBits) in dataBits14.items():
             self.writeToDataLPGBT(lpgbt, register, dataBits)
             readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
-            if readback[:len(dataBits)] != dataBits: readbackSuccess = False
+            if readback[:len(dataBits)] != dataBits:
+                readbackSuccess = False
+                print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
+                print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
+                print("Readback does not agree with what was written")     
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
@@ -831,7 +841,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             data = sectionChunks[startReg]
             self.writeToLAUROC(lauroc, startReg, data)
             readback = self.readFromLAUROC(lauroc, startReg)
-            if readback[0] != data: readbackSuccess = False
+            if readback[0] != data:
+                readbackSuccess = False
+                print("Writing", lauroc, hex(startReg), ":", hex(data))
+                print("Reading", lauroc, hex(startReg), ":", hex(readback[0]))
+                print("Readback does not agree with what was written")     
             if self.READBACK:
                 print("Writing", lauroc, hex(startReg), ":", hex(data))
                 print("Reading", lauroc, hex(startReg), ":", hex(readback[0]))
