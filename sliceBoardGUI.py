@@ -740,6 +740,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 sectionChunks[startReg].append(bits)
 
         readbackSuccess = True
+        ## Set all configs once without reading back to enable readbacks
+        for (register, dataBits) in sectionChunks.items():
+            self.writeToControlLPGBT(lpgbt, register, dataBits)
+
+        ## Configure again and check configurations
         for (register, dataBits) in sectionChunks.items():
             self.writeToControlLPGBT(lpgbt, register, dataBits)
             readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
