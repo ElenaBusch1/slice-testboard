@@ -128,6 +128,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
         self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
+        self.saveHDF5 = True
+        self.saveHDF5CheckBox.stateChanged.connect(self.saveHDF5)
+
 
         self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
         #self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ["coluta20"]))
@@ -1351,7 +1354,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
         time.sleep(5)
-        parseDataMod.main(self, outputPathStamped)
+        saveHDF5 = self.saveHDF5CheckBox.isChecked() 
+        chanData = parseDataMod.main(self, outputPathStamped)
         #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
         saveBin = self.saveBinaryCheckBox.isChecked() 
         if not saveBin:
@@ -1359,6 +1363,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             subprocess.call("rm "+outputPathStamped, shell=True)
             #subprocess.call("rm test.txt")
         # subprocess.call("python ")        
+        return chanData
 
     def incrementRunNumber(self):
         self.runNumber += 1

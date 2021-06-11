@@ -366,7 +366,8 @@ def main(GUI, fileName):
   #makePlots(chanData)
   if False and saveHists:
       makeHistograms(chanData, runNumber)
-  writeToHDF5(chanData,fileName,attributes)
+  if GUI.saveHDF5:
+      writeToHDF5(chanData,fileName,attributes)
   print('runtime: ',datetime.now() - startTime)
-  return None
+  return chanData
 
