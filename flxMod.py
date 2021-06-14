@@ -32,14 +32,18 @@ import subprocess
 from typing import List
 import numpy as np
 from time import  sleep
-from pyFlxlpGBT import  * 
+#ELENA'S FIX -- IF NOT CONNECTED TO FELIX
+if False:
+	from pyFlxlpGBT import  * 
 
 # First, instantiate a lpGBTManager to handle communication with the FLX Card 
 # For example, card 0 , setting verbosity level to INFO 
 
-manager = lpGBTManager(cardnr=0,verbose="INFO")
-manager.ReadFEB2Registers()
-manager.InitializeFEB2()
+	manager = lpGBTManager(cardnr=0,verbose="INFO")
+	manager.ReadFEB2Registers()
+	manager.InitializeFEB2()
+else: manager = None
+
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_DEPACKING
 
