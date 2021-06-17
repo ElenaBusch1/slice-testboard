@@ -790,8 +790,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 sectionChunks[startReg].append(bits)
 
         for (register, dataBits) in sectionChunks.items():
-            if self.lpgbt12Only and lpgbt == 'lpgbt13': self.redundantWriteToControlLPGBT(lpgbt, register, dataBits)
-            elif self.lpgbt13Only and lpgbt == 'lpgbt12': self.redundantWriteToControlLPGBT(lpgbt, register, dataBits) 
+            if self.lpgbt12Only and lpgbt in ['lpgbt13', 'lpgbt14']: self.redundantWriteToControlLPGBT(lpgbt, register, dataBits)
+            elif self.lpgbt13Only and lpgbt in ['lpgbt12', 'lpgbt11']: self.redundantWriteToControlLPGBT(lpgbt, register, dataBits) 
             else: self.writeToControlLPGBT(lpgbt, register, dataBits)
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
