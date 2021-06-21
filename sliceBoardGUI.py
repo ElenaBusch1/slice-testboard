@@ -55,7 +55,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stopbits = 1
         self.bytesize = 8
         self.timeout = 2
-
+        
+        # Error configuration Box items
+        self.failedConfigurations = []
+        
         # Some version-dependent parameters/values
 
         #self.nSamples = 1000000  # default number of samples to parse from standard readout
@@ -712,16 +715,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("Done Configuring")
         print("Configuration results")
-        failed_configurations = []
         for chip in self.configResults :
           if self.configResults[chip] == False:
-            failed_configurations.append(chip)
+            self.failedConfigurations.append(chip)
           print(chip,"",self.configResults[chip])
-        if len(failed_configurations) == 0:
+        if len(self.failedConfigurations) == 0:
           self.configurationStatus.setText("Successful Configuration")
           self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
         else:
-          self.configurationStatus.setText(f"Unsuccessful Configuration == {failed_configurations}")
+          self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
           self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black") 
           
 
@@ -869,6 +871,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         readbackSuccess = readbackSuccess & globalSuccess
         self.configResults[coluta] = readbackSuccess
         print("Done configuring", coluta, ", success =", readbackSuccess)
+        if readbackSuccess == True:
+            if coluta in self.failedConfigurations:
+                self.failedConfigurations.remove(coluta)
+            #If readbackSuccess is False, we do not update the error configuration box
+          
+                if len(self.failedConfigurations) == 0:
+                    self.configurationStatus.setText("Successful Configuration")
+                    self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
+                else:
+                    self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
+                    self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
