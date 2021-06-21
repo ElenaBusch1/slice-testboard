@@ -363,7 +363,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Checking Write")
+        #print("Checking Write")
         outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
         if outcome == 'reset':
             writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
@@ -374,6 +374,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
             outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
             if outcome == 'reset': print("Failed after reset")
+
+        readback = self.readFromLAUROC(lauroc, register)
+        if readback[0] != data:
+            readbackSuccess = False
+            print("Writing ", lauroc, register, " failed")
+        if self.READBACK:
+            print("Writing", lauroc, hex(register), ":", hex(data))
+            print("Reading", lauroc, hex(register), ":", hex(readback[0]))
+            if readback[0] == data:
+                print("Successfully readback what was written!")
+            else:
+                print("Readback does not agree with what was written")
 
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
@@ -396,7 +408,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Checking Read")
+        #print("Checking Read")
         self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
