@@ -712,8 +712,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         print("Done Configuring")
         print("Configuration results")
+        failed_configurations = []
         for chip in self.configResults :
+          if self.configResults[chip] == False:
+            failed_configurations.append(chip)
           print(chip,"",self.configResults[chip])
+        if len(failed_configurations) == 0:
+          self.configurationStatus.setText("Successful Configuration")
+          self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
+        else:
+          self.configurationStatus.setText(f"Unsuccessful Configuration == {failed_configurations}")
+          self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black") 
+          
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
