@@ -128,7 +128,7 @@ def scanClocks(GUI,colutas):
 
                 for ch in channels:
                     #frame_list = [chunk[64:80] for chunk in repeats]
-                    binary_list = [''.join([str(x) for x in samples[ch].tolist()[i]]) for i in range(0,samples[ch].shape[0])]
+                    binary_list = [str(bin(x))[2:].zfill(16) for x in samples[ch]]
                     isStable = (len(set(binary_list)) == 1)  # test if data is stable
                     isStable_list[coluta][ch].append(isStable)
                     isValid = set(binary_list).issubset(valid[coluta][ch]) # test if data is a valid serializer pattern
