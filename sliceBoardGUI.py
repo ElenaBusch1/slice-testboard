@@ -13,8 +13,10 @@ import serialMod
 import powerMod
 import parseDataMod
 import instrumentControlMod
+import itertools
 import status
 import subprocess
+import threading
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
