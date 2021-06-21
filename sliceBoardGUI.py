@@ -174,7 +174,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
         allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-
+    
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.document().setPlainText(str(self.nSamples))
@@ -719,12 +719,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
           if self.configResults[chip] == False:
             self.failedConfigurations.append(chip)
           print(chip,"",self.configResults[chip])
-        if len(self.failedConfigurations) == 0:
-          self.configurationStatus.setText("Successful Configuration")
-          self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
-        else:
-          self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
-          self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black") 
+        self.updateErrorConfiguration()
           
 
     def sendFullLPGBTConfigs(self):
@@ -775,6 +770,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lpgbt)
+
+
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -809,6 +807,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Readback does not agree with what was written")
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lpgbt)
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -848,6 +847,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Readback does not agree with what was written")
         self.configResults[lauroc] = readbackSuccess
         print("Done configuring", lauroc, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -871,17 +871,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         readbackSuccess = readbackSuccess & globalSuccess
         self.configResults[coluta] = readbackSuccess
         print("Done configuring", coluta, ", success =", readbackSuccess)
-        if readbackSuccess == True:
-            if coluta in self.failedConfigurations:
-                self.failedConfigurations.remove(coluta)
-            #If readbackSuccess is False, we do not update the error configuration box
-          
-                if len(self.failedConfigurations) == 0:
-                    self.configurationStatus.setText("Successful Configuration")
-                    self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
-                else:
-                    self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
-                    self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
+        self.updateErrorConfigurationList(readbackSuccess, coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -1591,6 +1581,28 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             channel = coluta[f"ch{i}"]
             boxName = colutaName + f"ch{i}" + "SerializerTestModeBox"
             self.updateBox(boxName, setting)
+
+
+    def updateErrorConfigurationList(self, readback, chip):
+        print("performed test for", chip)
+        if readback == True:
+            if chip in self.failedConfigurations:
+                self.failedConfigurations.remove(chip)
+                self.updateErrorConfiguration()
+        else:
+            if chip not in self.failedConfigurations:
+                self.failedConfigurations.append(chip)
+                self.updateErrorConfiguration()
+
+    def updateErrorConfiguration(self):
+        #The line of code below removes any duplicate entries
+        self.failedConfigurations = list(dict.fromkeys(self.failedConfigurations))
+        if len(self.failedConfigurations) == 0:
+            self.configurationStatus.setText("Successful Configuration")
+            self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
+        else:
+            self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
+            self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
 
 
 ## Helper functions
