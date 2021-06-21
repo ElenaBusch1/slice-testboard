@@ -1,4 +1,5 @@
 old/
+.DS_Store
 *.txt
 configBoard633/
 configBoard634*
