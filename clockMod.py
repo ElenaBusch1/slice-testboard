@@ -96,12 +96,20 @@ def scanClocks(GUI,colutas):
 
         for lpgbt_idx in range(0,upper):
             value = (lpgbt_idx<<4)+2
+            # lpgt_idx = 1100 (XPhaseSelect)
+            # register where we want to write this 0xce, and it expected 8 bits
+            # 0xce: XPhaseSelect (4bit), XA(1), XI(1), XT(1), XE (1) 
+            # if we just wriute 1100 to 0xce, then we will be writing XA, XT, XI, XE 
+            # we need to write 1100<><><XT><XE>
+            # 1100<<4 = 1100 0000
+            # 1100<<4 + 2 = 1100 0010 (which is the default config)
             for coluta in colutas:
                 for lpgbt in mapping[coluta].keys():
                     registers = mapping[coluta][lpgbt]
                     print(lpgbt, registers)
                     for reg in registers:
                         GUI.writeToLPGBT(lpgbt, reg, [value], True)
+                        ## Add readback
             GUI.takeTriggerData('clockScan')
             print("Opening run", str(GUI.runNumber).zfill(4))
             datafile = h5py.File('../Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')
