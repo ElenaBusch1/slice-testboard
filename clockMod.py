@@ -12,6 +12,7 @@ def sendInversionBits(GUI, clock640, colutaName):
     print(f"Updated {colutaName} global, DELAY640: {delay640}")
 
     GUI.writeToCOLUTAGlobal(colutaName)
+#Add read back
 
 def writeToHDF5(tables):
 
@@ -30,6 +31,7 @@ def writeToHDF5(tables):
 def putInSerializerMode(GUI, colutas):
     for coluta in colutas:
         GUI.serializerTestMode(coluta, "1")
+   #Add read back 
 
 def setLPGBTPhaseToZero(GUI, colutas):
     for coluta in colutas:
