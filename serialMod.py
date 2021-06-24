@@ -39,7 +39,8 @@ def findPorts(GUI):
         # OS X and Linux see the description of the USB, so we can grep for the
         # ports that match. If the ports' names end in 'A' and 'B', we add them.
         # If they end in '0' and '1', we change them to 'A' and 'B', respectively.
-        ports = LP.grep(description)
+        #ports = LP.grep(description)
+        ports = LP.comports()
         # If no ports found, then show the error and exit the script
         if ports is None:
             print('No ports found, exiting...')
@@ -47,6 +48,8 @@ def findPorts(GUI):
 
         for port in ports:
             if port is None: continue
+            if description != "SLICEBOARDAB" : continue
+            print("HERE2", port , "\t", description)
             device = port.device
             description = port.description
             channel = description[-3:] # Configure a channel name
@@ -62,6 +65,7 @@ def findPorts(GUI):
     if nDevice > 2:
         GUI.showError(f"{nDevice} USB ports found matching {description}")
     # Finally, return the names of the ports
+    print( deviceDict )
     return deviceDict
 
 

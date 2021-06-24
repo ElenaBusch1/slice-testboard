@@ -693,7 +693,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             # Find the ports and store the names
             portDict = serialMod.findPorts(self)
             # self.port36, self.port45 = portDict['AB46BJOXA'], portDict['AB470WYIA']
-            self.port45 = portDict['AB46BJOXA']
+            #self.port45 = portDict['AB46BJOXA']
+            self.port45 = portDict['ice']
             # Set up the serial connection to each port, pause, and test
             # self.serial36, self.serial45 = serialMod.setupSerials(self)
             self.serial45 = serialMod.setupSerials(self)

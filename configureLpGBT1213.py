@@ -18,7 +18,9 @@ def findPort():
             sys.exit(1)
 
     elif platform == 'Darwin' or platform == 'Linux':
-        ports = LP.grep(description)
+        #ports = LP.grep(description)
+        ports = LP.comports()
+        #print( ports)
         if ports is None:
             print('No USB found for clock chip')
             sys.exit(1)
@@ -28,8 +30,10 @@ def findPort():
         sys.exit(1)
 
     for port in ports:
+        print(port)
         if port is None: continue
         if port.manufacturer == 'FTDI': continue
+        print( "HERE" , port.manufacturer )
         if port.manufacturer == manufacturer:
             device = port.device
 
