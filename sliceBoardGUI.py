@@ -875,9 +875,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             else: self.writeToControlLPGBT(lpgbt, register, dataBits)
 
         ## Configure again and check configurations
+        print(self.lpgbt12Only)
         for (register, dataBits) in sectionChunks.items():
-            self.writeToControlLPGBT(lpgbt, register, dataBits)
-            readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+            if self.lpgbt12Only and lpgbt in ['lpgbt13', 'lpgbt14']: self.redundantWriteToControlLPGBT(lpgbt, register, dataBits)
+            elif self.lpgbt13Only and lpgbt in ['lpgbt12', 'lpgbt11']: self.redundantWriteToControlLPGBT(lpgbt, register, dataBits) 
+            else: self.writeToControlLPGBT(lpgbt, register, dataBits)
+            if self.lpgbt12Only and lpgbt in ['lpgbt13', 'lpgbt14']: readback = self.redundantReadFromControlLPGBT(lpgbt, register, len(dataBits))
+            elif self.lpgbt13Only and lpgbt in ['lpgbt12', 'lpgbt11']: readback = self.redundantReadFromControlLPGBT(lpgbt, register, len(dataBits)) 
+            else: readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
             if readback[:len(dataBits)] != dataBits: 
                 readbackSuccess = False
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
