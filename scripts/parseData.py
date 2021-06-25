@@ -20,7 +20,7 @@ def convert_to_bin(num):
 #-------------------------------------------------------------------------
 def makeHistograms(chanData):
   print('Making histograms... ')
-  saveDir = "Runs/Run_"
+  saveDir = "../Runs/Run_"
 
   adc = 0
   for chan in range(len(chanData)): 

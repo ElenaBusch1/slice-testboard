@@ -13,8 +13,10 @@ import serialMod
 import powerMod
 import parseDataMod
 import instrumentControlMod
+import itertools
 import status
 import subprocess
+import threading
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
@@ -22,6 +24,7 @@ from flxMod import icWriteToLpGBT as writeToLpGBT
 from flxMod import icReadLpGBT as readFromLpGBT
 from flxMod import ecReadLpGBT as ecReadFromLpGBT
 from flxMod import icWriteToLpGBT, ecWriteToLpGBT
+from flxMod import takeManagerData
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
@@ -54,7 +57,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stopbits = 1
         self.bytesize = 8
         self.timeout = 2
-
+        
+        # Error configuration Box items
+        self.failedConfigurations = []
+        
         # Some version-dependent parameters/values
 
         #self.nSamples = 1000000  # default number of samples to parse from standard readout
@@ -111,6 +117,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Fill internal dictionaries with configurations from .cfg files
         self.setupConfigurations()
+        self.configResults = {} #config status dict
 
         # Establish link between GUI buttons and internal configuration dictionaries
         self.connectButtons()
@@ -135,6 +142,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
         self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+        #self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ["coluta20"]))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
@@ -175,7 +183,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
         allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-
+    
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.document().setPlainText(str(self.nSamples))
@@ -399,18 +407,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
         
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        # i2cTransactionFinished = False
-        # counter = 0
-        # while not i2cTransactionFinished:
-        #     bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
-        #     print("bit: ", bit)
-        #     if bit[0] == 4:
-        #         i2cTransactionFinished = True
-        #     time.sleep(0.1)
-        #     if counter == 10:
-        #         print("I2C Transaction Failed after 1s")
-        #         break
-        #     counter += 1
+        print("Writing")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
     def readFromDataLPGBT(self, lpgbt, register, nBytes):
         """ Reads nBytes back from the lpgbt, starting at the given register """
@@ -441,6 +439,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
         # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
+        
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        print("Reading")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+
         ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
         #print("Read: ", [hex(val) for val in ReverseReadback[::-1]])
         return ReverseReadback[::-1]
@@ -465,6 +468,31 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
 
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        #print("Checking Write")
+        outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+        if outcome == 'reset':
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
+            writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+            outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+            if outcome == 'reset': print("Failed after reset")
+
+        readback = self.readFromLAUROC(lauroc, register)
+        if readback[0] != data:
+            readbackSuccess = False
+            print("Writing ", lauroc, register, " failed")
+        if self.READBACK:
+            print("Writing", lauroc, hex(register), ":", hex(data))
+            print("Reading", lauroc, hex(register), ":", hex(readback[0]))
+            if readback[0] == data:
+                print("Successfully readback what was written!")
+            else:
+                print("Readback does not agree with what was written")
+
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
         lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
@@ -484,6 +512,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
+
+        # Check to see if the i2c Bus Transaction is finished before proceeding
+        #print("Checking Read")
+        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
         return readback
 
@@ -505,6 +538,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
 
+        readbackSuccess = True
         for word in dataBits64:
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
             #print("0x0f9:", [hex(x) for x in [0b00100000, 0x00, 0x00, 0x00, 0x0]])
@@ -519,14 +553,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            readback = self.readFromCOLUTAChannel(coluta, word)
+            if readback[:6] != dataBits8[:6]: readbackSuccess = False
             if READBACK:
                 print("Writing", [hex(x) for x in dataBits8[:6]])
-                readback = self.readFromCOLUTAChannel(coluta, word)
                 print("Reading", [hex(x) for x in readback])
                 if readback[:6] == dataBits8[:6]:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
+        return readbackSuccess 
 
     def readFromCOLUTAChannel(self, coluta, word):
         """ Readback from region defined by word (refer to colutaI2CWriteControl for definition of word) """
@@ -581,10 +617,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]       
        
         counter = 1
+        full_write = []
         for word in dataBitsGlobal64[::-1]:
             addrModification = counter*8
             dataBits8 = [i for i in range(1,9)]
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+            for x in dataBits8:
+                full_write.append(x)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -596,6 +635,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             counter += 1
             if self.READBACK:
                 print("Writing Global: ", [hex(x) for x in dataBits8])
+
+        readback = self.readFromCOLUTAGlobal(coluta)
+        readbackSuccess = True
+        if full_write != readback: readbackSuccess = False
+        return readbackSuccess
 
     def readFromCOLUTAGlobal(self, coluta):
         """ Read all COLUTA global bits """
@@ -614,13 +658,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
 
         counter = 1
+        full_readback = []
         for _ in range(2):
             addrModification = counter*8
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
             readback = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189-8, 8, ICEC_CHANNEL=ICEC_CHANNEL)
-            print("Reading Global: ", [hex(x) for x in readback])
+            for x in readback:
+                full_readback.append(x)
+            if self.READBACK:
+                print("Reading Global: ", [hex(x) for x in readback])
             counter += 1   
+        return full_readback
 
     def lpgbtReset(self, lpgbt):
         print("Resetting", lpgbt, "master")
@@ -643,6 +692,27 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
             writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
 
+    def i2cTransactionCheck(self, lpgbtI2CAddr, ICEC_CHANNEL):
+        lpgbt = 'lpgbt13'
+        if lpgbtI2CAddr == 114: lpgbt = 'lpgbt12' 
+        i2cTransactionFinished = False
+        counter = 0
+        while not i2cTransactionFinished:
+            bit = readFromLpGBT(lpgbtI2CAddr, 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+            if bit[0] == 4:
+                i2cTransactionFinished = True
+                continue
+            elif bit[0] == 8:
+                self.lpgbtReset(lpgbt)
+                print('bit:', bit[0])
+                return 'reset' 
+            print('bit:', bit[0])
+            counter += 1
+            time.sleep(0.1)
+            if counter == 5:
+                print("I2C Transaction Failed after 0.5s")
+                break
+        return 'none'
 
     ########################## Functions to Write/Read from GUI Interface ##########################
 
@@ -718,6 +788,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     ########################## Functions to Send Full Configurations ##########################
     def configureAll(self):
+        self.configResults = {}
         """ Configures LPGBT9-16, COLUTA13-20 and LAUROC13-20 """
         colutas = self.allCOLUTAs
         laurocs = self.allLAUROCs
@@ -763,7 +834,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
 
-        print("Done Configuring") 
+        print("Done Configuring")
+        print("Configuration results")
+        for chip in self.configResults :
+          if self.configResults[chip] == False:
+            self.failedConfigurations.append(chip)
+          print(chip,"",self.configResults[chip])
+        self.updateErrorConfiguration()
+          
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
@@ -789,19 +867,35 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     bits = 0
                 sectionChunks[startReg].append(bits)
 
+        readbackSuccess = True
+        ## Set all configs once without reading back to enable readbacks
         for (register, dataBits) in sectionChunks.items():
             if self.lpgbt12Only and lpgbt in ['lpgbt13', 'lpgbt14']: self.redundantWriteToControlLPGBT(lpgbt, register, dataBits)
             elif self.lpgbt13Only and lpgbt in ['lpgbt12', 'lpgbt11']: self.redundantWriteToControlLPGBT(lpgbt, register, dataBits) 
             else: self.writeToControlLPGBT(lpgbt, register, dataBits)
+
+        ## Configure again and check configurations
+        for (register, dataBits) in sectionChunks.items():
+            self.writeToControlLPGBT(lpgbt, register, dataBits)
+            readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+            if readback[:len(dataBits)] != dataBits: 
+                readbackSuccess = False
+                print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
+                print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
+                print("Readback does not agree with what was written")     
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
-                readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
                 if readback[:len(dataBits)] == dataBits:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
-        print("Done configuring", lpgbt)
+
+        self.configResults[lpgbt] = readbackSuccess
+        print("Done configuring", lpgbt, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lpgbt)
+
+
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -813,28 +907,32 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         chip = self.chips[lpgbt]
         chipList = list(chip.values())
         dataBits14 = defaultdict(list)
-        for iSection in range(0, len(chip), 14):
+        for iSection in range(0, len(chip), 6):
             startReg = int(chipList[iSection].address, 0)
-            for i in range(14):
+            for i in range(6):
                 try:
                     bits = int(chipList[iSection+i].bits, 2)
                 except IndexError:
                     bits = 0
                 dataBits14[startReg].append(bits)
-       
+
+        readbackSuccess = True
         for (register, dataBits) in dataBits14.items():
             if self.lpgbt12Only and lpgbt in ['lpgbt15','lpgbt16']: self.redundantWriteToDataLPGBT(lpgbt, register, dataBits)
             elif self.lpgbt13Only and lpgbt in ['lpgbt9', 'lpgbt10']: self.redundantWriteToDataLPGBT(lpgbt, register, dataBits)
             else: self.writeToDataLPGBT(lpgbt, register, dataBits)
+            readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
+            if readback[:len(dataBits)] != dataBits: readbackSuccess = False
             if self.READBACK:
                 print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
-                readback = self.readFromDataLPGBT(lpgbt, register, len(dataBits))
                 print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
-                if readback[:len(dataBits)] == dataBits:
+                if readback[:6] == dataBits[0:6]:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
-        print("Done configuring", lpgbt)
+        self.configResults[lpgbt] = readbackSuccess
+        print("Done configuring", lpgbt, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lpgbt)
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -858,19 +956,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 bits = 0
             sectionChunks[startReg] = bits
 
+        readbackSuccess = True
         for iSection in range(0, len(chip)):
             startReg = int(chipList[iSection].address, 0)
             data = sectionChunks[startReg]
             self.writeToLAUROC(lauroc, startReg, data)
+            readback = self.readFromLAUROC(lauroc, startReg)
+            if readback[0] != data: readbackSuccess = False
             if self.READBACK:
                 print("Writing", lauroc, hex(startReg), ":", hex(data))
-                readback = self.readFromLAUROC(lauroc, startReg)
                 print("Reading", lauroc, hex(startReg), ":", hex(readback[0]))
                 if readback[0] == data:
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
-        print("Done configuring", lauroc)
+        self.configResults[lauroc] = readbackSuccess
+        print("Done configuring", lauroc, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -884,14 +986,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpgbtReset(lpgbtMaster)
 
         channels = ["ch"+str(i) for i in range(1,9)]
+        readbackSuccess = True
         for ch in channels:
             print("Configuring ", ch, coluta)
-            self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+            readbackChSucess = self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+            readbackSuccess = readbackSuccess & readbackChSucess
 
-        self.writeToCOLUTAGlobal(coluta)
-        if self.READBACK:
-            self.readFromCOLUTAGlobal(coluta)
-        print("Done configuring", coluta)
+        globalSuccess = self.writeToCOLUTAGlobal(coluta)
+        readbackSuccess = readbackSuccess & globalSuccess
+        self.configResults[coluta] = readbackSuccess
+        print("Done configuring", coluta, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -1258,7 +1363,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
         self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
 
-
+        # Connect lauroc 25/50 ohm mode buttons
+        for mode in ["25", "50"]:
+            for lauroc in self.allLAUROCs:
+                buttonName = lauroc+"_"+mode+"OhmModeButton"
+                try:
+                    button = getattr(self, buttonName)
+                except AttributeError:
+                    print("Bad button name", buttonName)
+                    continue
+                button.clicked.connect(partial(self.LAUROC_25_50_OhmMode, lauroc, mode))
+                          
     def connectButtons(self):
         """Create a signal response for each configuration box"""
         for (chipName, chipConfig) in self.chips.items():
@@ -1400,18 +1515,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.singleADCMode_ADC = 'trigger'
 
         # Establish output file
-        if not os.path.exists("Runs"):
-            os.makedirs("Runs")
+        if not os.path.exists("../Runs"):
+            os.makedirs("../Runs")
         if self.opened:
+            # increment run number automatically when GUI opens
             self.incrementRunNumber()
-            self.opened = False  
-        outputDirectory = 'Runs'
+        outputDirectory = '../Runs'
         outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
         stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
         outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
-        subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
+        if self.opened:
+            # Take dummy data - first data always bad
+            takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+            self.opened = False  
+        takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+        #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
         time.sleep(5)
         parseDataMod.main(self, outputPathStamped)
@@ -1601,6 +1721,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         try:
             box = getattr(self, boxName)
         except AttributeError:
+            print("Attribute Error in updateBox for ", boxName)
             return
         if isinstance(box, QtWidgets.QPlainTextEdit):
             decimalString = str(sliceMod.binaryStringToDecimal(settingValue))
@@ -1627,6 +1748,70 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             channel = coluta[f"ch{i}"]
             boxName = colutaName + f"ch{i}" + "SerializerTestModeBox"
             self.updateBox(boxName, setting)
+
+    def LAUROC_25_50_OhmMode(self, laurocName, mode):
+        ## Sets 25 Ohm mode or 50 ohm mode. See LAUROC2 data sheet, page 28
+        lauroc = self.chips[laurocName]
+
+        #25 Ohm Setting, 50 Ohm Setting
+        settings = {
+            "datain2sw_DC_g20": ['1', '1'],
+            "datain2sw_ibo_g20": ['0','0'],
+            "datain2dac_g20": [f'{63:b}'.zfill(6),f'{63:b}'.zfill(6)],
+            "datain3sw_ibi_25": ['1','1'],
+            "datain3sw_ibo": ['0','0'], 
+            "datain3sw_R025_10mA": ['1', '0'],
+            "datain3sw_R025_5mA": ['0','0'],
+            "datain4cr_hg_s1": [f'{0:b}'.zfill(3),f'{0:b}'.zfill(3)],
+            "datain4rc_hg_s1": [f'{9:b}'.zfill(4),f'{10:b}'.zfill(4)],
+            "datain5rc_hg_s2": [f'{8:b}'.zfill(4),f'{8:b}'.zfill(4)],
+            "datain5rc_lg_s2": [f'{9:b}'.zfill(4),f'{11:b}'.zfill(4)],
+            "datain6cr_lg_s1": [f'{3:b}'.zfill(3),f'{0:b}'.zfill(3)],
+            "datain6rc_lg_s1": [f'{9:b}'.zfill(4),f'{11:b}'.zfill(4)],
+            "datain8c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain12c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain16c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain20c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain9dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain13dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain17dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain21dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain11dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)], 
+            "datain15dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain19dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain23dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain26dacb_VDC_sum": [f'{20:b}'.zfill(6),f'{48:b}'.zfill(6)]
+        }
+        if mode == "25": idx = 0
+        elif mode == "50": idx = 1
+        for setting, values in settings.items():
+            boxName =  laurocName + setting + "Box"
+            self.updateBox(boxName, values[idx])
+
+        ## cmd_gain_sum not implemented as button in GUI
+        lauroc.setConfiguration("datain27", "cmd_gain_sum", '000')
+        print(f"Updated {laurocName} datain27, cmd_gain_sum: 000")
+
+    def updateErrorConfigurationList(self, readback, chip):
+        print("performed test for", chip)
+        if readback == True:
+            if chip in self.failedConfigurations:
+                self.failedConfigurations.remove(chip)
+                self.updateErrorConfiguration()
+        else:
+            if chip not in self.failedConfigurations:
+                self.failedConfigurations.append(chip)
+                self.updateErrorConfiguration()
+
+    def updateErrorConfiguration(self):
+        #The line of code below removes any duplicate entries
+        self.failedConfigurations = list(dict.fromkeys(self.failedConfigurations))
+        if len(self.failedConfigurations) == 0:
+            self.configurationStatus.setText("Successful Configuration")
+            self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
+        else:
+            self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
+            self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
 
 
 ## Helper functions
