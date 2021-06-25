@@ -1630,14 +1630,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             "datain12c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
             "datain16c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
             "datain20c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
-            "datain9dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
-            "datain13dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
-            "datain17dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
-            "datain21dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
-            "datain11dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)], 
-            "datain15dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
-            "datain19dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
-            "datain23dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain9dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain13dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain17dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain21dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain11dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)], 
+            "datain15dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain19dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain23dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
             "datain26dacb_VDC_sum": [f'{20:b}'.zfill(6),f'{48:b}'.zfill(6)]
         }
         if mode == "25": idx = 0
