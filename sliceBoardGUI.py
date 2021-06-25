@@ -368,7 +368,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Checking Write")
+        #print("Checking Write")
         outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
         if outcome == 'reset':
             writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
@@ -379,6 +379,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
             outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
             if outcome == 'reset': print("Failed after reset")
+
+        readback = self.readFromLAUROC(lauroc, register)
+        if readback[0] != data:
+            readbackSuccess = False
+            print("Writing ", lauroc, register, " failed")
+        if self.READBACK:
+            print("Writing", lauroc, hex(register), ":", hex(data))
+            print("Reading", lauroc, hex(register), ":", hex(readback[0]))
+            if readback[0] == data:
+                print("Successfully readback what was written!")
+            else:
+                print("Readback does not agree with what was written")
 
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
@@ -401,7 +413,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Checking Read")
+        #print("Checking Read")
         self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
@@ -1237,7 +1249,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
         self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
 
-
+        # Connect lauroc 25/50 ohm mode buttons
+        for mode in ["25", "50"]:
+            for lauroc in self.allLAUROCs:
+                buttonName = lauroc+"_"+mode+"OhmModeButton"
+                try:
+                    button = getattr(self, buttonName)
+                except AttributeError:
+                    print("Bad button name", buttonName)
+                    continue
+                button.clicked.connect(partial(self.LAUROC_25_50_OhmMode, lauroc, mode))
+                          
     def connectButtons(self):
         """Create a signal response for each configuration box"""
         for (chipName, chipConfig) in self.chips.items():
@@ -1557,6 +1579,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         try:
             box = getattr(self, boxName)
         except AttributeError:
+            print("Attribute Error in updateBox for ", boxName)
             return
         if isinstance(box, QtWidgets.QPlainTextEdit):
             decimalString = str(sliceMod.binaryStringToDecimal(settingValue))
@@ -1584,6 +1607,48 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             boxName = colutaName + f"ch{i}" + "SerializerTestModeBox"
             self.updateBox(boxName, setting)
 
+    def LAUROC_25_50_OhmMode(self, laurocName, mode):
+        ## Sets 25 Ohm mode or 50 ohm mode. See LAUROC2 data sheet, page 28
+        lauroc = self.chips[laurocName]
+
+        #25 Ohm Setting, 50 Ohm Setting
+        settings = {
+            "datain2sw_DC_g20": ['1', '1'],
+            "datain2sw_ibo_g20": ['0','0'],
+            "datain2dac_g20": [f'{63:b}'.zfill(6),f'{63:b}'.zfill(6)],
+            "datain3sw_ibi_25": ['1','1'],
+            "datain3sw_ibo": ['0','0'], 
+            "datain3sw_R025_10mA": ['1', '0'],
+            "datain3sw_R025_5mA": ['0','0'],
+            "datain4cr_hg_s1": [f'{0:b}'.zfill(3),f'{0:b}'.zfill(3)],
+            "datain4rc_hg_s1": [f'{9:b}'.zfill(4),f'{10:b}'.zfill(4)],
+            "datain5rc_hg_s2": [f'{8:b}'.zfill(4),f'{8:b}'.zfill(4)],
+            "datain5rc_lg_s2": [f'{9:b}'.zfill(4),f'{11:b}'.zfill(4)],
+            "datain6cr_lg_s1": [f'{3:b}'.zfill(3),f'{0:b}'.zfill(3)],
+            "datain6rc_lg_s1": [f'{9:b}'.zfill(4),f'{11:b}'.zfill(4)],
+            "datain8c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain12c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain16c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain20c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain9dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain13dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain17dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain21dacb_VDC_hg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain11dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)], 
+            "datain15dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain19dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain23dacb_VDC_lg": [f'{28:b}'.zfill(6),f'{28:b}'.zfill(6)],
+            "datain26dacb_VDC_sum": [f'{20:b}'.zfill(6),f'{48:b}'.zfill(6)]
+        }
+        if mode == "25": idx = 0
+        elif mode == "50": idx = 1
+        for setting, values in settings.items():
+            boxName =  laurocName + setting + "Box"
+            self.updateBox(boxName, values[idx])
+
+        ## cmd_gain_sum not implemented as button in GUI
+        lauroc.setConfiguration("datain27", "cmd_gain_sum", '000')
+        print(f"Updated {laurocName} datain27, cmd_gain_sum: 000")
 
     def updateErrorConfigurationList(self, readback, chip):
         print("performed test for", chip)
