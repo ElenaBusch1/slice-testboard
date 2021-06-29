@@ -10,10 +10,10 @@ class STANDARDRUNS(object):
         self.pulseAmp = 0.
         self.freq = 0.
         self.measType = "default"
-        self.measChan = None
+        self.measChan = "channel79"
         self.testNum = 0
         self.measStep = 0
-        self.awgChan = 1 #default?
+        self.awgChan = "1" #default?
         self.doAwgControl = True
         self.updateGuiMetadata()
 

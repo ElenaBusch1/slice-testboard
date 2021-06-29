@@ -189,16 +189,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.dataGridLayout.addWidget(self.dataDisplay,0,0)
         #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
 
+        #Standard Runs
+        self.stdRuns = STANDARDRUNS(self)
+        self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
+
         self.isConnected = True
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
 
     def testFunc(self):
-        stdRuns = STANDARDRUNS(self)
-        stdRuns.awgChan = '1'
-        stdRuns.measChan = "channel79"
-        stdRuns.doPulseRun()
+        pass
 
     ########################## Basic read/write control for all chips ##########################
 
