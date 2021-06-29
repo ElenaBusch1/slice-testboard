@@ -17,6 +17,7 @@ class STANDARDRUNS(object):
         self.doAwgControl = True
         self.updateGuiMetadata()
 
+        instrumentControlMod.initializeInstrumentation(self.GUI)
         if self.GUI.function_generator == None :
           self.doAwgControl = False
 
@@ -36,15 +37,10 @@ class STANDARDRUNS(object):
 
     #interface to GUI initialization
     def initializeAwg(self):
+        if self.doAwgControl ==False :
+          return None
         if self.measType == "pulse" :
-          pass
-          #self.IC = instrumentControlMod.InstrumentControl(self,colutaMod.resourcePath('./config/instrumentConfig.cfg'))
-          #instrumentControlMod.initializeInstrumentation(self)
-          #self.function_generator = getattr(self.IC,'function_generator')
-          #self.function_generator.device.write("*RST")
-          #self.function_generator.applyTriggeredShapedPulse(awgChan)
-          #time.sleep(1.0)
-          #self.function_generator.trigger()        
+          self.GUI.function_generator.applyPhysicsPulse()     
         return None
 
     #reset AWG
@@ -94,8 +90,8 @@ class STANDARDRUNS(object):
           self.initializeAwg()
 
         #loop through amps, take data
-        standardAmps = ['0.005','0.01'] #debug amp list
-        #standardAmps = ['0.005','0.01','0.015','0.020','0.025','0.03','0.035','0.04','0.045','0.05','0.06','0.08','0.1','0.2','0.4','0.6','0.8','1.0','2.0','4.0','6.0']
+        #standardAmps = ['0.1','1.0'] #debug amp list
+        standardAmps = ['0.005','0.01','0.015','0.020','0.025','0.03','0.035','0.04','0.045','0.05','0.06','0.08','0.1','0.2','0.4','0.6','0.8','1.0','2.0','4.0','6.0']
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
             self.measStep = stepNum
