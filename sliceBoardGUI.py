@@ -28,7 +28,7 @@ from flxMod import takeManagerData
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
-
+from standardRunsModule import STANDARDRUNS
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -79,15 +79,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.att_val = '-99'
         self.awg_amp = '-99'
         self.awg_freq = '-99'
+        self.testNum = '-99'
         self.measStep = '-99'
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
+        self.measChan = "default"
 
         # Default attributes for hdf5 output, overwritten by instrument control
         self.runType = 'sine'
         self.sineFrequency = '1.00'
-        self.sineAmplitude = '0.50'
+        self.awgAmplitude = '0.50'
         self.awgFreq = 1200 # Sampling freq of external AWG
         self.pulseLength = 64 # Pulse length in bunch crossings
  
@@ -99,6 +101,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.IPaddress = self.ipAddressBox.toPlainText()
         #self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
         #self.function_generator = getattr(self.IC,'function_generator')
+        self.function_generator = None
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
@@ -123,7 +126,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(takeManagerData)
+        self.test2Button.clicked.connect(self.testFunc)
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -192,12 +195,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.sendConfigurationsFromLpGBT()
 
     def testFunc(self):
-        while True:
-          #print("Configuring LAUROC20")
-          #self.sendFullLAUROCConfigs("lauroc20")
-          print("Configuring COLUTA20")
-          self.sendFullCOLUTAConfig("coluta20")
-          time.sleep(0.5)
+        stdRuns = STANDARDRUNS(self)
+        stdRuns.awgChan = '1'
+        stdRuns.measChan = "channel79"
+        stdRuns.doPulseRun()
 
     ########################## Basic read/write control for all chips ##########################
 
