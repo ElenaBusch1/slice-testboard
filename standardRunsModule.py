@@ -51,7 +51,6 @@ class STANDARDRUNS(object):
     #function to interface with GUI pulse control
     def setPulserAmplitude(self,pulseAmp):
         self.pulseAmp = pulseAmp
-        self.GUI.awgAmplitude = pulseAmp
         if self.doAwgControl == True :
           self.GUI.pulse_amplitudeBox.setPlainText(str(self.pulseAmp)) #update GUI test for reference
           #self.function_generator.applyPhysicsPulse() #reinitializes everything
@@ -67,8 +66,9 @@ class STANDARDRUNS(object):
 
     #interface to GUI settings
     def setCommonGuiSettings(self):
-        self.GUI.nSamples = 100000       
+        self.GUI.nSamples = 10000000 #necessary for singleADC pulse measurements
         self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
+        getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
         return None
 
     def doPulseRun(self):
