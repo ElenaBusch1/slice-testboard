@@ -71,19 +71,46 @@ class STANDARDRUNS(object):
         getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
         return None
 
+    #interface to GUI
+    def getChId(self):
+        chToColutaDict = {"channel048":("COLUTA13",7),"channel049":("COLUTA13",7),"channel050":("COLUTA13",7),"channel051":("COLUTA13",7),\
+                          "channel052":("COLUTA14",6),"channel053":("COLUTA14",6),"channel054":("COLUTA14",6),"channel055":("COLUTA14",6),\
+                          "channel056":("COLUTA15",5),"channel057":("COLUTA15",5),"channel058":("COLUTA15",5),"channel059":("COLUTA15",5),\
+                          "channel060":("COLUTA16",4),"channel061":("COLUTA16",4),"channel062":("COLUTA16",4),"channel063":("COLUTA16",4),\
+                          "channel064":("COLUTA17",3),"channel065":("COLUTA17",3),"channel066":("COLUTA17",3),"channel067":("COLUTA17",3),\
+                          "channel068":("COLUTA18",2),"channel069":("COLUTA18",2),"channel070":("COLUTA18",2),"channel071":("COLUTA18",2),\
+                          "channel072":("COLUTA19",1),"channel073":("COLUTA19",1),"channel074":("COLUTA19",1),"channel075":("COLUTA19",1),\
+                          "channel076":("COLUTA20",0),"channel077":("COLUTA20",0),"channel078":("COLUTA20",0),"channel079":("COLUTA20",0)}
+        chBox = getattr(self.GUI, 'stdRunsChSelectBox')
+        chId = None
+        try:
+            chId = chBox.currentText()
+        except:
+            print("Invalid channelId")
+        if chId not in chToColutaDict :
+            print("Invalid channelId")
+        self.measChan = chId
+        adcIndex = chToColutaDict[chId][1]
+        #getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
+        getattr(self.GUI,'daqADCSelectBox').setCurrentIndex(adcIndex)
+        return None
+
     def doPulseRun(self):
         if self.awgChan != "1" and self.awgChan != "2": #Specific to LeCroy, should generalize
           print("Standard Pulse Data, must specify source channel, DONE")
           return
         print("Pulse Data Start")
 
+        #get channel of interest info from GUI
+        self.getChId()
+
+        #setup required settings for pulser data taking
+        self.setCommonGuiSettings()
+
         #set required metadata
         self.measType = "pulse"
         self.measStep = 0
         self.updateGuiMetadata()
-
-        #setup required settings for pulser data taking
-        self.setCommonGuiSettings()
 
         #initialize function generator for pulse output
         if self.doAwgControl :
