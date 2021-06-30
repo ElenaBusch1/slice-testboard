@@ -66,7 +66,7 @@ class STANDARDRUNS(object):
 
     #interface to GUI settings
     def setCommonGuiSettings(self):
-        self.GUI.nSamples = 10000000 #necessary for singleADC pulse measurements
+        self.GUI.nSamples = 3000000 #necessary for singleADC pulse measurements
         self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
         getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
         return None
@@ -118,7 +118,8 @@ class STANDARDRUNS(object):
 
         #loop through amps, take data
         #standardAmps = ['0.1','1.0'] #debug amp list
-        standardAmps = ['0.005','0.01','0.015','0.020','0.025','0.03','0.035','0.04','0.045','0.05','0.06','0.08','0.1','0.2','0.4','0.6','0.8','1.0','2.0','4.0','6.0']
+        #standardAmps = ['0.005','0.01','0.015','0.020','0.025','0.03','0.035','0.04','0.045','0.05','0.06','0.08','0.1','0.2','0.4','0.6','0.8','1.0','2.0','3.0','4.0','5.0','6.0']
+        standardAmps = ['0.01', '0.01125', '0.0125', '0.015', '0.02', '0.025', '0.05', '0.1', '0.15', '0.2', '0.25', '0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0', '2.25', '2.5'] #250Ohm case
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
             self.measStep = stepNum
