@@ -1245,10 +1245,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     elif isinstance(box, QtWidgets.QCheckBox):
                         # noinspection PyUnresolvedReferences
                         box.stateChanged.connect(partial(self.updateConfigurations, boxName, chipName, sectionName, settingName))
+                        print(boxName)
                     elif isinstance(box, QtWidgets.QLabel):
                         pass
                     else:
                         print(f"Could not find setting box {boxName}")
+                    #print(boxName)
 
     def connectPowerButtons(self):
         """Create a signal response for each power setting box"""
