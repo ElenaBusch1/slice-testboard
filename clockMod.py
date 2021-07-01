@@ -1,6 +1,6 @@
 import h5py
 import numpy as np
-import json5
+import pyjson5
 
 def sendInversionBits(GUI, clock640, colutaName):
     """ Change the clock register on the COLUTA """
@@ -12,7 +12,8 @@ def sendInversionBits(GUI, clock640, colutaName):
     GUI.chips[colutaName].setConfiguration("global", "DELAY640", delay640)
     print(f"Updated {colutaName} global, DELAY640: {delay640}")
 
-    GUI.writeToCOLUTAGlobal(colutaName) # send configuration
+    GUI.writeToCOLUTAGlobal(colutaName)
+#Add read back
 
 def writeToHDF5(tables):
   """ Saves clock scan results to an HDF5 """
@@ -32,6 +33,7 @@ def putInSerializerMode(GUI, colutas):
     """ put all channels in serializer mode """
     for coluta in colutas:
         GUI.serializerTestMode(coluta, "1")
+   #Add read back 
 
 def setLPGBTPhaseToZero(GUI, colutas):
     """ undo any previous clock settings """
@@ -100,13 +102,21 @@ def scanClocks(GUI,colutas):
             sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
 
         for lpgbt_idx in range(0,upper):
-            value = (lpgbt_idx<<4)+2  # lpgbt clock setting register value
+            value = (lpgbt_idx<<4)+2 # lpgbt clock setting register value
+            # lpgt_idx = 1100 (XPhaseSelect)
+            # register where we want to write this 0xce, and it expected 8 bits
+            # 0xce: XPhaseSelect (4bit), XA(1), XI(1), XT(1), XE (1) 
+            # if we just wriute 1100 to 0xce, then we will be writing XA, XT, XI, XE 
+            # we need to write 1100<><><XT><XE>
+            # 1100<<4 = 1100 0000
+            # 1100<<4 + 2 = 1100 0010 (which is the default config)
             for coluta in colutas:
                 for lpgbt in mapping[coluta].keys():
                     registers = mapping[coluta][lpgbt]
                     print(lpgbt, registers)
                     for reg in registers:
                         GUI.writeToLPGBT(lpgbt, reg, [value], True) # set the lpGBT clock setting
+                        ## Add readback
             GUI.takeTriggerData('clockScan') # take data
             print("Opening run", str(GUI.runNumber).zfill(4))
             datafile = h5py.File('../Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')  # open the data
