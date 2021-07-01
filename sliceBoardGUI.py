@@ -29,6 +29,7 @@ from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
 from standardRunsModule import STANDARDRUNS
+from sarCalibModule import SARCALIBMODULE
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -1356,6 +1357,47 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog = QtWidgets.QErrorMessage(self)
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
+
+    def takeTriggerData_noDataFile(self, measType):
+        """Runs takeTriggerData script"""
+        # Collect metadata
+        self.runType = measType
+        flxADCMapping = self.flxMapping
+        self.daqMode = getattr(self,'daqModeBox').currentText()
+        ADCSelect = getattr(self,'daqADCSelectBox').currentText()
+        try:
+            self.daqADCSelect = flxADCMapping[ADCSelect]
+        except:
+            print("Unknown FLX mapping for this COLUTA. \n Exiting ...")
+            return
+        if self.daqMode == "singleADC":
+            self.singleADCMode_ADC = ADCSelect
+        else:
+            self.singleADCMode_ADC = 'trigger'
+
+        # Establish output file
+        # using default file
+        outputDirectory = './'
+        outputFile = "test.dat"
+        stampedOutputFile = "test-1.dat"
+        outputPath = outputDirectory+"/"+outputFile
+        outputPathStamped = outputDirectory+"/"+stampedOutputFile
+
+        if self.opened:
+            # Take dummy data - first data always bad
+            takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+            self.opened = False  
+        takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+        #time.sleep(5) #this is unnecessary with takeManagerData
+
+        #parseDataMod parseData only uses "adc" attribute
+        attributes = {}
+        attributes['adc'] = self.singleADCMode_ADC
+        chanData = parseDataMod.parseData(outputPathStamped,self.daqMode, self.nSamples,attributes)
+
+        print("Removing "+outputPathStamped)
+        subprocess.call("rm "+outputPathStamped, shell=True)
+        return chanData
 
     def takeTriggerData(self, measType):
         """Runs takeTriggerData script"""
