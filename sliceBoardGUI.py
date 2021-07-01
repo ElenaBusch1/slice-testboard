@@ -194,6 +194,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stdRuns = STANDARDRUNS(self)
         self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
 
+        #Calibration runs
+        self.sarMdacCal = SARCALIBMODULE(self)
+        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
+        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+
         self.isConnected = True
         #self.startup()
         #self.lpgbt_i2c_read()

@@ -21,6 +21,9 @@ class SARCALIBMODULE(object):
         self.cv3tbVersion = False
         self.feb2Version = True
 
+        self.guiColutaId = None
+        self.guiColutaChId = None
+
         self.chLabelDict = { 'channel1': ('ch1','ch2','channel2'), 'channel2': ('ch2','ch1','channel1'), 'channel3': ('ch3','ch4','channel4'), 'channel4': ('ch4','ch3','channel3') , 'channel5': ('ch5','ch6','channel6'), 'channel6': ('ch6','ch5','channel5'), 'channel7': ('ch7','ch8','channel8'), 'channel8': ('ch8','ch7','channel7') }
 
     def test(self):
@@ -264,6 +267,37 @@ class SARCALIBMODULE(object):
         #    channelLabel = "channel" + str(chNum+1)
         #    print(colutaNum,chNum,colutaLabel,channelLabel,self.mapColutaChToFeb2Ch[colutaLabel][channelLabel])    
         return
+
+    def getSarMdacCalibChInFeb2GUI(self):
+        colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
+        colutaId = None
+        try:
+            colutaId = colutaBox.currentText()
+        except:
+            print("Invalid channelId")
+        chBox = getattr(self.GUI, 'stdRunsCalibColutaChSelectBox')
+        chId = None
+        try:
+            chId = chBox.currentText()
+        except:
+            print("Invalid channelId")
+
+        print(colutaId,chId)
+        self.guiColutaId = colutaId
+        self.guiColutaChId = chId
+        return None
+
+    def runSarCalibInFeb2Gui(self):
+        print("DO SAR CALIB")
+        self.getSarMdacCalibChInFeb2GUI()
+        self.doSarCalib(self.guiColutaId,self.guiColutaChId)
+        return None
+
+    def runMdacCalibInFeb2Gui(self):
+        print("DO MDAC CALIB")
+        self.getSarMdacCalibChInFeb2GUI()
+        self.doMdacCal(self.guiColutaId,self.guiColutaChId)
+        return None
 
     def doSarCalib(self,coluta,channel):
         if coluta not in self.GUI.chips :
