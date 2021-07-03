@@ -99,6 +99,9 @@ class SARCALIBMODULE(object):
           return None
         channelLabel = self.chLabelDict[channel][0]
 
+        #get initial COLUTA config here
+        initConfig = self.getConfig(coluta)
+
         #'MDACCALEN', 'CALFLASH', 'CALMDAC' , FLAGEN, MDACCorrectionCode0
         self.doConfig(coluta,channelLabel,"FLAGEN", str(0) )
         self.doConfig(coluta,channelLabel,"MDACCALEN",str(1) )
@@ -129,11 +132,12 @@ class SARCALIBMODULE(object):
           stepMeas[stepNum] = np.mean(decArray)
  
         #done, reset config
-        self.doConfig(coluta,channelLabel,"CALMDAC", str(format(0,'08b')) )
-        self.doConfig(coluta,channelLabel,"CALFLASH",str(format(0,'08b'))  )
-        self.doConfig(coluta,channelLabel,"FLAGEN", str(1) )
-        self.doConfig(coluta,channelLabel,"MDACCALEN",str(0) )
-        self.GUI.sendUpdatedConfigurations()      
+        #self.doConfig(coluta,channelLabel,"CALMDAC", str(format(0,'08b')) )
+        #self.doConfig(coluta,channelLabel,"CALFLASH",str(format(0,'08b'))  )
+        #self.doConfig(coluta,channelLabel,"FLAGEN", str(1) )
+        #self.doConfig(coluta,channelLabel,"MDACCALEN",str(0) )
+        #self.GUI.sendUpdatedConfigurations()      
+        self.restoreConfig(coluta,initConfig)
 
         self.mdacWeights
         self.mdacWeights = {}
@@ -291,13 +295,51 @@ class SARCALIBMODULE(object):
         print("DO SAR CALIB")
         self.getSarMdacCalibChInFeb2GUI()
         self.doSarCalib(self.guiColutaId,self.guiColutaChId)
+
+        print("SAR WEIGHTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
+        print(self.sarWeights)
+        self.printSarWeights()
+        
+        print("WRITE SAR CONSTANTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
+        self.writeSarConstant(self.guiColutaId,self.guiColutaChId)
         return None
 
     def runMdacCalibInFeb2Gui(self):
         print("DO MDAC CALIB")
         self.getSarMdacCalibChInFeb2GUI()
         self.doMdacCal(self.guiColutaId,self.guiColutaChId)
+
+        print("MDAC WEIGHTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
+        print(self.mdacWeights)
+
+        self.writeMdacCal(self.guiColutaId,self.guiColutaChId)
         return None
+
+    def testRestoreCalib(self,coluta,channel):
+        if coluta not in self.GUI.chips :
+          print("INVALID ASIC")
+          return None
+        if channel not in self.chLabelDict :
+          print("INVALID CH")
+          return None
+        MSBchannel = channel
+        LSBchannel = self.chLabelDict[channel][2]
+        MSBSectionName = self.chLabelDict[channel][0]
+        LSBSectionName = self.chLabelDict[channel][1]
+
+        #get initial COLUTA config here
+        initConfig = self.getConfig(coluta)
+
+        #try programming something
+        self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
+        self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
+        self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
+        self.GUI.sendUpdatedConfigurations()
+
+        #restore initial config here
+        self.restoreConfig(coluta,initConfig)
+        return None
+
 
     def doSarCalib(self,coluta,channel):
         if coluta not in self.GUI.chips :
@@ -311,13 +353,15 @@ class SARCALIBMODULE(object):
         MSBSectionName = self.chLabelDict[channel][0]
         LSBSectionName = self.chLabelDict[channel][1]
 
+        #get initial COLUTA config here
+        initConfig = self.getConfig(coluta)
+
         # Common Setting for Weighting Evaluation
         self.doConfig(coluta,MSBSectionName,'SHORTINPUT', '1')
         self.doConfig(coluta,MSBSectionName,'DREMDACToSAR', '0')
         self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
         self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
         self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
-
         self.GUI.sendUpdatedConfigurations()
 
         nRepeats = 1
@@ -355,6 +399,9 @@ class SARCALIBMODULE(object):
           print(weightName,"TOTAL",weightResultDict[weightName]["TOTAL"])
           self.sarWeights[weightName] = weightResultDict[weightName]["TOTAL"]
  
+        #restore initial config here
+        self.restoreConfig(coluta,initConfig)
+
         #add hardcoded values for completeness
         self.sarWeights["W_2ND_10"] = 10
         self.sarWeights["W_2ND_6"] = 6
@@ -499,6 +546,21 @@ class SARCALIBMODULE(object):
         if self.feb2Version == True :
           self.GUI.chips[colutaName].setConfiguration(sectionName,configName,configString)
         return
+
+    def getConfig(self,colutaName):
+        if self.cv3tbVersion == True :
+          return self.GUI.configuration.clone()
+        if self.feb2Version == True :
+          return self.GUI.chips[colutaName].clone()
+        return None
+   
+    def restoreConfig(self,colutaName,config):
+        if self.cv3tbVersion == True :
+          self.GUI.configurations = config
+        if self.feb2Version == True :
+          self.GUI.chips[colutaName] = config
+          self.GUI.sendFullCOLUTAConfig(colutaName)
+        return None
 
     def getWeightBits(self,weightName,coluta,MSBchannel,LSBchannel):
         #cal control
