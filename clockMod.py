@@ -52,6 +52,10 @@ def setLPGBTPhaseToZero(GUI, colutas):
 
 def prepareChips(GUI,colutas):
     """ put board in correct mode for clock scan """
+    #if colutas is None:
+    #    print(colored("Please select at least one COLUTA", "red"))
+    #    return
+
     putInSerializerMode(GUI,colutas)
     setLPGBTPhaseToZero(GUI,colutas)
     GUI.sendUpdatedConfigurations()
