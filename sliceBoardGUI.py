@@ -130,7 +130,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
         #self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
-        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ["coluta17"]))
+        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, ["coluta15", "coluta16", "coluta17"]))
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
         self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
         self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))

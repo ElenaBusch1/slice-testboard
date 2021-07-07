@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import pyjson5
+from termcolor import colored
 
 def sendInversionBits(GUI, clock640, colutaName):
     """ Change the clock register on the COLUTA """
@@ -12,7 +13,12 @@ def sendInversionBits(GUI, clock640, colutaName):
     GUI.chips[colutaName].setConfiguration("global", "DELAY640", delay640)
     print(f"Updated {colutaName} global, DELAY640: {delay640}")
 
-    GUI.writeToCOLUTAGlobal(colutaName)
+    readbackSuccess = GUI.writeToCOLUTAGlobal(colutaName)
+    if readbackSuccess == False:
+        print(colored(f"First write to {colutaName.upper()} failed, trying again...", "yellow"))
+        readbackSuccess = GUI.writeToCOLUTAGlobal(colutaName)
+        if readbackSuccess == False: print(colored(f"Readback error: write to {colutaName.upper()} failed", "red")) 
+
 #Add read back
 
 def writeToHDF5(tables):
@@ -61,7 +67,7 @@ def scanClocks(GUI,colutas):
 
     channels = ['ch'+str(i) for i in range(1,9)] # Use all 8 channels
     channelSerializers = {channels[i] : bin(i)[2:].zfill(3) for i in range(0,8)} #ch1 = 000, ch2 = 001, ..., ch8 = 111
-    upper = 16 ## How many COLUTA & lpGBT settings to loop through - 16 is max
+    upper = 2 ## How many COLUTA & lpGBT settings to loop through - 16 is max
 
     i2cLabels = {}
     chanNames = {}
@@ -110,12 +116,25 @@ def scanClocks(GUI,colutas):
             # we need to write 1100<><><XT><XE>
             # 1100<<4 = 1100 0000
             # 1100<<4 + 2 = 1100 0010 (which is the default config)
+            print(colored(f"Value: {value}", "cyan"))
             for coluta in colutas:
                 for lpgbt in mapping[coluta].keys():
                     registers = mapping[coluta][lpgbt]
                     print(lpgbt, registers)
                     for reg in registers:
-                        GUI.writeToLPGBT(lpgbt, reg, [value], True) # set the lpGBT clock setting
+                        print(reg)
+                        error = False
+                        for i in range(3):
+                            if i == 1:
+                                print(colored("First write failed, trying again...", "yellow"))
+                            if i == 2:
+                                print(colored("Readback error: write failed", "red"))
+                                break 
+                            GUI.writeToLPGBT(lpgbt, reg, [value], True) # set the lpGBT clock setting
+                            readback = GUI.readFromLPGBT(lpgbt, reg, 16)
+                            if value == readback[0]: break
+                        #print(f"Readback: {readback}")
+                        #if readback == value: print
                         ## Add readback
             GUI.takeTriggerData('clockScan') # take data
             print("Opening run", str(GUI.runNumber).zfill(4))
