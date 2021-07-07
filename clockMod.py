@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import pyjson5
+from termcolor import colored
 
 def sendInversionBits(GUI, clock640, colutaName):
     """ Change the clock register on the COLUTA """
@@ -53,6 +54,11 @@ def prepareChips(GUI,colutas):
 def scanClocks(GUI,colutas): 
     """ Scan all clock parameters """
     ## Load information which matches COLUTA channels and lpGBT registers
+    
+    if colutas is None:
+        print(colored("Please select at least one COLUTA", "red"))
+        return    
+
     with open('config/colutaLpGBTMapping.txt','r') as f:
         mapping = pyjson5.load(f)
         #lpgbtRegDict = mapping[coluta]
