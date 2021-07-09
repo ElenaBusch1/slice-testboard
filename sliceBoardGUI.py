@@ -177,6 +177,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
         #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
+
+        self.lpgbt12OnlyBox.stateChanged.connect(lambda:self.btnstate(self.lpgbt12OnlyBox, self.lpgbt13OnlyBox))
+        self.lpgbt13OnlyBox.stateChanged.connect(lambda:self.btnstate(self.lpgbt13OnlyBox, self.lpgbt12OnlyBox))
+
+
+
+
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
         allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
         allMDACChannels = ["ch5", "ch6", "ch7", "ch8"]
@@ -197,6 +204,26 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
+
+
+    def btnstate(self, b1, b2):
+
+        if b1.text() == "Use lpGBT12 ONLY":
+            if b1.isChecked() == True:
+                print("Checked12")
+                b2.setChecked(False)
+            else:
+                print("Unchecked12")
+
+        if b1.text() == "Use lpGBT13 ONLY":
+            if b1.isChecked() == True:
+                print("Checked13")
+                b2.setChecked(False)
+            else:
+                print("Unckeced13")
+
+
+
 
     def testFunc(self):
         while True:
