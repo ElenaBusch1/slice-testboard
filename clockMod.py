@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import pyjson5
+import json
 from termcolor import colored
 
 def sendInversionBits(GUI, clock640, colutaName):
@@ -17,7 +18,12 @@ def sendInversionBits(GUI, clock640, colutaName):
     if readbackSuccess == False:
         print(colored(f"First write to {colutaName.upper()} failed, trying again...", "yellow"))
         readbackSuccess = GUI.writeToCOLUTAGlobal(colutaName)
-        if readbackSuccess == False: print(colored(f"Readback error: write to {colutaName.upper()} failed", "red")) 
+        if readbackSuccess == False:
+            print(colored(f"Readback error: write to {colutaName.upper()} failed", "red")) 
+            return(-2)
+        else: return(-1)
+    
+    return(1)
 
 #Add read back
 
@@ -72,16 +78,20 @@ def scanClocks(GUI,colutas):
         mapping = pyjson5.load(f)
         #lpgbtRegDict = mapping[coluta]
 
+    with open("config/lpGBTRegisterToChannel.json", "r") as f:
+        regToChannel = json.load(f)
+
     prepareChips(GUI,colutas)
 
     channels = ['ch'+str(i) for i in range(1,9)] # Use all 8 channels
     channelSerializers = {channels[i] : bin(i)[2:].zfill(3) for i in range(0,8)} #ch1 = 000, ch2 = 001, ..., ch8 = 111
-    upper = 2 ## How many COLUTA & lpGBT settings to loop through - 16 is max
+    upper = 16 ## How many COLUTA & lpGBT settings to loop through - 16 is max
 
     i2cLabels = {}
     chanNames = {}
     valid = {}
     LPGBTPhase = {}
+    readback = {}
     for coluta in colutas:
         colutaChip = GUI.chips[coluta]
         i2cLabels[coluta] = colutaChip.i2cAddress[6:10] # collect I2C address - used in serializer pattern
@@ -93,13 +103,14 @@ def scanClocks(GUI,colutas):
         i2cLabel = i2cLabels[coluta]
         valid[coluta] = {}
         LPGBTPhase[coluta] = {}
+        readback[coluta] = {}
         for chn in channels:
             sertest_true = '1010'+i2cLabel+channelSerializers[chn]+'01001'  # correct serializer pattern
             sertest_repl = sertest_true*2
             sertest_valid = [sertest_repl[i:(16+i)] for i in range (0,16)]  # valid permutations of serializer pattern
             valid[coluta][chn] = sertest_valid[:] # save all valid permutations to dictionary 
             LPGBTPhase[coluta][chn] = [[] for i in range(0,upper)]  #dictionary to save lpGBT phase result
-
+            readback[coluta][chn] = [[1]*upper for i in range(0, upper)]
     ## Uncomment to see serializer mode in hex
     #for coluta in colutas:
     #    for chn in channelSerializers.keys():
@@ -114,7 +125,10 @@ def scanClocks(GUI,colutas):
 
     for delay_idx in range(0,upper):
         for coluta in colutas:
-            sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
+            delayRdbck = sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
+            #Useless to change lpgbt_idx if failed
+            if delayRdbck < 0:
+                for chn in channels: readback[coluta][chn][delay_idx] = [delayRdbck]*upper
 
         for lpgbt_idx in range(0,upper):
             value = (lpgbt_idx<<4)+2 # lpgbt clock setting register value
@@ -131,17 +145,23 @@ def scanClocks(GUI,colutas):
                     registers = mapping[coluta][lpgbt]
                     print(lpgbt, registers)
                     for reg in registers:
-                        print(reg)
-                        error = False
-                        for i in range(3):
-                            if i == 1:
-                                print(colored("First write failed, trying again...", "yellow"))
-                            if i == 2:
-                                print(colored("Readback error: write failed", "red"))
-                                break 
-                            GUI.writeToLPGBT(lpgbt, reg, [value], True) # set the lpGBT clock setting
-                            readback = GUI.readFromLPGBT(lpgbt, reg, 16)
-                            if value == readback[0]: break
+                        if reg in regToChannel[lpgbt][coluta]:
+                            chn = regToChannel[lpgbt][coluta][reg]
+                            #print(reg)
+                            idx = 0
+                            while idx < 3:
+                                if idx == 1:
+                                    print(colored("First write failed, trying again...", "yellow"))
+                                if idx == 2:
+                                    print(colored("Readback error: write failed", "red"))
+                                    break 
+                                GUI.writeToLPGBT(lpgbt, reg, [value], True) # set the lpGBT clock setting
+                                readback = GUI.readFromLPGBT(lpgbt, reg, 1)
+                                if value == readback[0]: break
+                                idx+=1
+                            if idx == 1 and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: readback[coluta][chn][delay_idx][lpgbt_idx] = -1
+                            if idx == 2 and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: readback[coluta][chn][delay_idx][lpgbt_idx] = -2
+                            
                         #print(f"Readback: {readback}")
                         #if readback == value: print
                         ## Add readback
@@ -175,7 +195,9 @@ def scanClocks(GUI,colutas):
                         phase = valid[coluta][ch].index(binary_list[0]) # save the phase needed for the correct permutation
                     else:
                         phase = -1 # invalid
-                    LPGBTPhase[coluta][ch][delay_idx].append(phase) 
+                    LPGBTPhase[coluta][ch][delay_idx].append(phase)
+                    #dictionary readback success in same format -- 1 or 0 if combination successful
+                    #if delay_idx bad, all 0s  
 
             datafile.close()
 
@@ -193,6 +215,10 @@ def scanClocks(GUI,colutas):
                 f.write("Channel "+ch[-1]+"\n")
                 prettyTable = tabulate(LPGBTPhase[coluta][ch], headers, showindex = "always", tablefmt="psql")
                 f.write(prettyTable)
+                f.write("\n \n")
+                f.write("Readback")
+                readbackTable = tabulate(readback[coluta][ch], headers, showindex = "always", tablefmt="psql")
+                f.write(readbackTable)
                 f.write("\n \n")
 
     ## Save results in an hdf5

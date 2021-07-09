@@ -1,15 +1,15 @@
 import json
 
-mapping = {"lpgbt9": {"coluta13": {"ch1": "00", "ch2": "02", "ch3": "10", "ch4": "12", "ch5": "20", "ch6": "22", "ch7": "30", "ch8": "32"}, 
-                      "coluta14": {"ch1": "50", "ch2": "52", "ch3": "60", "ch4": "62"}},
-          "lpgbt10": {"coluta14": {"ch5": "00", "ch6": "02", "ch7": "10", "ch8": "12"},
-                      "coluta15": {"ch1": "30", "ch2": "32", "ch3": "40", "ch4": "42", "ch5": "50", "ch6": "52", "ch7": "60", "ch8": "62"}},
-          "lpgbt11": {"coluta16": {"ch1": "02", "ch2": "10", "ch3": "12", "ch4": "20", "ch5": "22", "ch6": "30", "ch7": "32", "ch8": "40"}},
-          "lpgbt14": {"coluta17": {"ch1": "02", "ch2": "10", "ch3": "12", "ch4": "20", "ch5": "22", "ch6": "30", "ch7": "32", "ch8": "40"}},
-          "lpgbt15": {"coluta18": {"ch1": "00", "ch2": "02", "ch3": "10", "ch4": "12", "ch5": "20", "ch6": "22", "ch7": "30", "ch8": "32"},
-                      "coluta19": {"ch1": "50", "ch2": "52", "ch3": "60", "ch4": "62"}},
-          "lpgbt16": {"coluta19": {"ch5": "00", "ch6": "02", "ch7": "10", "ch8": "12"},
-                      "coluta20": {"ch1": "30", "ch2": "32", "ch3": "40", "ch4": "42", "ch5": "50", "ch6": "52", "ch7": "60", "ch8": "62"}}}
+mapping = {"lpgbt9": {"coluta13": {"0x0cc": "ch1", "0x0ce": "ch2", "0x0d0": "ch3", "0x0d2": "ch4", "0x0d4": "ch5", "0x0d6": "ch6", "0x0d8": "ch7", "0x0da": "ch8"}, 
+                      "coluta14": {"0x0e0": "ch1", "0x0e2": "ch2", "0x0e4": "ch3", "0x0e6": "ch4"}},
+          "lpgbt10": {"coluta14": {"0x0cc": "ch5", "0x0ce": "ch6", "0x0d0": "ch7", "0x0d2": "ch8"},
+                      "coluta15": {"0x0d8": "ch1", "0x0da": "ch2", "0x0dc": "ch3", "0x0de": "ch4", "0x0e0": "ch5", "0x0e2": "ch6", "0x0e4": "ch7", "0x0e6": "ch8"}},
+          "lpgbt11": {"coluta16": {"0x0ce": "ch1", "0x0d0": "ch2", "0x0d2": "ch3", "0x0d4": "ch4", "0x0d6": "ch5", "0x0d8": "ch6", "0x0da": "ch7", "0x0dc": "ch8"}},
+          "lpgbt14": {"coluta17": {"0x0ce": "ch1", "0x0d0": "ch2", "0x0d2": "ch3", "0x0d4": "ch4", "0x0d6": "ch5", "0x0d8": "ch6", "0x0da": "ch7", "0x0dc": "ch8"}},
+          "lpgbt15": {"coluta18": {"0x0cc": "ch1", "0x0ce": "ch2", "0x0d0": "ch3", "0x0d2": "ch4", "0x0d4": "ch5", "0x0d6": "ch6", "0x0d8": "ch7", "0x0da": "ch8"},
+                      "coluta19": {"0x0e0": "ch1", "0x0e2": "ch2", "0x0e4": "ch3", "0x0e6": "ch4"}},
+          "lpgbt16": {"coluta19": {"0x0cc": "ch5", "0x0ce": "ch6", "0x0d0": "ch7", "0x0d2": "ch8"},
+                      "coluta20": {"0x0d8": "ch1", "0x0da": "ch2", "0x0dc": "ch3", "0x0de": "ch4", "0x0e0": "ch5", "0x0e2": "ch6", "0x0e4": "ch7", "0x0e6": "ch8"}}}
 
-with open("lpGBT_colutaMap.json", "w") as f:
+with open("config/lpGBTRegisterToChannel.json", "w") as f:
     json.dump(mapping, f)

@@ -8,6 +8,7 @@ def readInHDF5(f, coluta):
     try:
         datafile = h5py.File(f, "r")
         d = datafile.get(coluta)
+        print(d)
         data = []
         for ch in ["Channel" + str(i) for i in range(1,9)]:
             arr = np.array(d[ch])
