@@ -11,5 +11,5 @@ mapping = {"lpgbt9": {"coluta13": {"0x0cc": "ch1", "0x0ce": "ch2", "0x0d0": "ch3
           "lpgbt16": {"coluta19": {"0x0cc": "ch5", "0x0ce": "ch6", "0x0d0": "ch7", "0x0d2": "ch8"},
                       "coluta20": {"0x0d8": "ch1", "0x0da": "ch2", "0x0dc": "ch3", "0x0de": "ch4", "0x0e0": "ch5", "0x0e2": "ch6", "0x0e4": "ch7", "0x0e6": "ch8"}}}
 
-with open("config/lpGBTRegisterToChannel.json", "w") as f:
+with open("config/lpGBTColutaMapping.json", "w") as f:
     json.dump(mapping, f)

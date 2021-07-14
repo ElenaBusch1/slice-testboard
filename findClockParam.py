@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import h5py
 import json
@@ -8,25 +9,15 @@ def readInHDF5(f, coluta):
     try:
         datafile = h5py.File(f, "r")
         d = datafile.get(coluta)
-        print(d)
         data = []
         for ch in ["Channel" + str(i) for i in range(1,9)]:
             arr = np.array(d[ch])
             data.append(arr)
-        print(colored(f"Reading {f} for {coluta}...", "green"))
+        print(f"Reading {f} for {coluta}...")
         return(data)
     except:
-        print(colored(f"Could not read {f} for {coluta}", "red"))
+        print(colored("Failed", "red") + f" to read {f} for {coluta}")
         return(None)
-    
-    """print(f"reading {f}...")
-    datafile = h5py.File(f,'r')
-    d = datafile.get(coluta)
-    data = []
-    for ch in ['Channel'+str(i) for i in range(1,9)]:
-        arr = np.array(d[ch])
-        data.append(arr)
-    return data"""
 
 def getHorizontalScore(A,x,y):
     val = A[y][x]
@@ -106,7 +97,11 @@ def writeToTable(coluta, maps, data):
     rowscores = [np.prod(tab) for tab in yArr]
     row = np.argmax(rowscores)
 
-    with open(f"clockParams/{coluta}ClockParams.txt", "w") as f:
+    if not os.path.exists("clockScan/clockParams"):
+        os.makedirs("clockScan/clockParams")
+        print("Creating clockParams directory...")
+
+    with open(f"clockScan/clockParams/{coluta}ClockParams.txt", "w") as f:
         f.write("Setting format: (XPhaseSelect, Global INV/DELAY640, lpGBT Phase) \n")
         for i, chmap in enumerate(maps):
             scanResults = data[i]
@@ -141,15 +136,20 @@ def config(results):
     with open("config/lpGBT_colutaMap.json", "r") as f:
         mapping = json.load(f)
 
+    if not os.path.exists("clockScan/config"):
+        os.makedirs("clockScan/config")
+        print("Creating config directory...")
+
     ## COLUTA config file 
     config = configparser.ConfigParser(delimiters = ":")
     config.optionxform = str    
 
     for coluta in results.keys():
+        print("Updating " + coluta.upper() + " settings...")
         for i, ch in enumerate(results[coluta].keys()):
             config[f"Phase{i+1}"] = {"Total": "4", "LPGBTPhase": str(bin(results[coluta][ch][2])[2:].zfill(4))}
         config["Global"] = {"INV640": "0", "DELAY640": str(bin(results[coluta][ch][1])[2:].zfill(3))}
-        with open("clock_configs/" + coluta.upper() + ".cfg", "w") as f:
+        with open("clockScan/config/" + coluta.upper() + ".cfg", "w") as f:
             config.write(f)
     
     ## lpGBT config files   
@@ -159,27 +159,28 @@ def config(results):
         config.read("config/" + lpgbt.replace("gbt", "GBT") + ".cfg")
         for coluta in mapping[lpgbt].keys():
             if coluta in results.keys():
-                print(colored("Updating " + lpgbt.replace("gbt", "GBT") + " settings...", "green"))
-                for ch in results[coluta].keys():
+                print("Updating " + lpgbt.replace("gbt", "GBT") + " settings...")
+                for ch in mapping[lpgbt][coluta].keys():
                     config.set("ChnCntr" + mapping[lpgbt][coluta][ch], "XPhaseSelect", str(bin(results[coluta][ch][0])[2:].zfill(4)))
             else:
                 continue
-        with open("clock_configs/" + lpgbt.replace("gbt", "GBT") + ".cfg", "w") as f:
+        with open("clockScan/config/" + lpgbt.replace("gbt", "GBT") + ".cfg", "w") as f:
             config.write(f)
          
 def findParams():
+    print("Finding best clock parameters...")
     colutas = ["coluta" + str(i) for i in range(13,21)]
     results = {}
     for coluta in colutas:
-        data = readInHDF5("clockScanBoard634Repeat.hdf5", coluta)
+        data = readInHDF5("clockScan/clockScanResults/clockScanBoard634Repeat.hdf5", coluta)
         if data == None: continue
         
         maps = [scoreMap(X) for X in data] #Map for each channel
         coords = writeToTable(coluta, maps, data)
-        results[coluta] = coords
-
-    return(results)
+        results[coluta] = coords 
+    print("Writing config files...")
+    config(results)    
+    print("Finished finding clock parameters")
 
 if __name__ == "__main__":
-    results = findParams()
-    config(results)
+    findParams()

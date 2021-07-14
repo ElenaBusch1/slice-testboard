@@ -1,8 +1,11 @@
+import os
 import h5py
 import numpy as np
 import pyjson5
-import json
+import findClockParam
 from termcolor import colored
+from timeit import default_times as timer
+from datetime import timedelta
 
 def sendInversionBits(GUI, clock640, colutaName):
     """ Change the clock register on the COLUTA """
@@ -14,24 +17,26 @@ def sendInversionBits(GUI, clock640, colutaName):
     GUI.chips[colutaName].setConfiguration("global", "DELAY640", delay640)
     print(f"Updated {colutaName} global, DELAY640: {delay640}")
 
-    readbackSuccess = GUI.writeToCOLUTAGlobal(colutaName)
-    if readbackSuccess == False:
-        print(colored(f"First write to {colutaName.upper()} failed, trying again...", "yellow"))
+    #Readback
+    attempts = 0
+    while attempts < 2:
         readbackSuccess = GUI.writeToCOLUTAGlobal(colutaName)
-        if readbackSuccess == False:
-            print(colored(f"Readback error: write to {colutaName.upper()} failed", "red")) 
-            return(-2)
-        else: return(-1)
+        if readbackSuccess is True:
+            break
+        elif attempts == 0:
+            print(colored(f"First write to {colutaName.upper()} failed, trying again...", "yellow"))
+        elif attempts == 1:
+            print(colored(f"Readback error: write to {colutaName.upper()} failed", "red"))
+            return(False)
+        attempts += 1
     
-    return(1)
-
-#Add read back
+    return(True)
 
 def writeToHDF5(tables):
   """ Saves clock scan results to an HDF5 """
   fileName = 'clockScanBoard634Repeat.hdf5'
-  out_file = h5py.File(fileName,'w')
-  print("Opening hdf5 file: "+ fileName)
+  out_file = h5py.File("clockScan/clockScanResults/" + fileName,'w')
+  print("Opening hdf5 file: " + fileName)
 
   for coluta in tables.keys():
       out_file.create_group(coluta)
@@ -58,29 +63,50 @@ def setLPGBTPhaseToZero(GUI, colutas):
 
 def prepareChips(GUI,colutas):
     """ put board in correct mode for clock scan """
-    #if colutas is None:
-    #    print(colored("Please select at least one COLUTA", "red"))
-    #    return
 
     putInSerializerMode(GUI,colutas)
     setLPGBTPhaseToZero(GUI,colutas)
     GUI.sendUpdatedConfigurations()
 
+def writeToLpGBT(GUI, coluta, lpgbt, reg, value):
+    
+    ## Matches lpGBT to correct COLUTA channel
+    with open("config/lpGBTColutaMapping.txt", "r") as f:
+        regToChannel = pyjson5.load(f)
+
+    #Readback
+    chn = regToChannel[lpgbt][coluta].get(reg)
+    if chn is not None:
+        attempts = 0
+        while attempts < 2:
+            GUI.writeToLPGBT(lpgbt, reg, [value], True)
+            readback = GUI.readFromLPGBT(lpgbt, reg, 1)
+            if value == readback[0]:
+                return chn, True
+                break
+            elif attempts == 0:
+                print(colored(f"First write to {lpgbt} register {reg} failed, trying again...", "yellow"))
+            elif attempts == 1:
+                print(colored(f"Readback error: write to {lpgbt} register {reg} failed", "red"))
+                return chn, False
+            attempts += 1
+    
+    #For frames...?
+    else: GUI.writeToLPGBT(lpgbt, reg, [value], True)
+
 def scanClocks(GUI,colutas): 
     """ Scan all clock parameters """
-    ## Load information which matches COLUTA channels and lpGBT registers
-    
+    ## Makes sure at least one COLUTA is selected for clock scan
     if colutas is None:
         print(colored("Please select at least one COLUTA", "red"))
         return    
 
+    start = timer()
+    ## Load information which matches COLUTA channels and lpGBT registers
     with open('config/colutaLpGBTMapping.txt','r') as f:
         mapping = pyjson5.load(f)
         #lpgbtRegDict = mapping[coluta]
-
-    with open("config/lpGBTRegisterToChannel.json", "r") as f:
-        regToChannel = json.load(f)
-
+        
     prepareChips(GUI,colutas)
 
     channels = ['ch'+str(i) for i in range(1,9)] # Use all 8 channels
@@ -109,8 +135,9 @@ def scanClocks(GUI,colutas):
             sertest_repl = sertest_true*2
             sertest_valid = [sertest_repl[i:(16+i)] for i in range (0,16)]  # valid permutations of serializer pattern
             valid[coluta][chn] = sertest_valid[:] # save all valid permutations to dictionary 
-            LPGBTPhase[coluta][chn] = [[] for i in range(0,upper)]  #dictionary to save lpGBT phase result
-            readback[coluta][chn] = [[1]*upper for i in range(0, upper)]
+            LPGBTPhase[coluta][chn] = [[] for i in range(0,upper)]  # dictionary to save lpGBT phase result
+            readback[coluta][chn] = [[1]*upper for i in range(0, upper)] # map with failed readbacks
+    
     ## Uncomment to see serializer mode in hex
     #for coluta in colutas:
     #    for chn in channelSerializers.keys():
@@ -125,10 +152,10 @@ def scanClocks(GUI,colutas):
 
     for delay_idx in range(0,upper):
         for coluta in colutas:
-            delayRdbck = sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
+            configureSuccess = sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
             #Useless to change lpgbt_idx if failed
-            if delayRdbck < 0:
-                for chn in channels: readback[coluta][chn][delay_idx] = [delayRdbck]*upper
+            if configureSuccess is False:
+                for chn in channels: readback[coluta][chn][delay_idx] = [0]*upper # readback failed so can't trust entire row
 
         for lpgbt_idx in range(0,upper):
             value = (lpgbt_idx<<4)+2 # lpgbt clock setting register value
@@ -139,32 +166,19 @@ def scanClocks(GUI,colutas):
             # we need to write 1100<><><XT><XE>
             # 1100<<4 = 1100 0000
             # 1100<<4 + 2 = 1100 0010 (which is the default config)
-            print(colored(f"Value: {value}", "cyan"))
+
             for coluta in colutas:
                 for lpgbt in mapping[coluta].keys():
                     registers = mapping[coluta][lpgbt]
-                    print(lpgbt, registers)
+                    #print(lpgbt, registers)
                     for reg in registers:
-                        if reg in regToChannel[lpgbt][coluta]:
-                            chn = regToChannel[lpgbt][coluta][reg]
-                            #print(reg)
-                            idx = 0
-                            while idx < 3:
-                                if idx == 1:
-                                    print(colored("First write failed, trying again...", "yellow"))
-                                if idx == 2:
-                                    print(colored("Readback error: write failed", "red"))
-                                    break 
-                                GUI.writeToLPGBT(lpgbt, reg, [value], True) # set the lpGBT clock setting
-                                readback = GUI.readFromLPGBT(lpgbt, reg, 1)
-                                if value == readback[0]: break
-                                idx+=1
-                            if idx == 1 and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: readback[coluta][chn][delay_idx][lpgbt_idx] = -1
-                            if idx == 2 and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: readback[coluta][chn][delay_idx][lpgbt_idx] = -2
+                        try:
+                            chn, configureSuccess = writeToLpGBT(GUI, coluta, lpgbt, reg, value)
+                            if configureSuccess is False and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: 
+                                readback[coluta][chn][delay_idx][lpgbt_idx] = 0
+                        except TypeError:
+                            continue
                             
-                        #print(f"Readback: {readback}")
-                        #if readback == value: print
-                        ## Add readback
             GUI.takeTriggerData('clockScan') # take data
             print("Opening run", str(GUI.runNumber).zfill(4))
             datafile = h5py.File('../Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')  # open the data
@@ -195,6 +209,10 @@ def scanClocks(GUI,colutas):
                         phase = valid[coluta][ch].index(binary_list[0]) # save the phase needed for the correct permutation
                     else:
                         phase = -1 # invalid
+                    
+                    if readback[coluta][ch][delay_idx][lpgbt_idx] == 0:
+                        phase = -2 # flags failed writes
+
                     LPGBTPhase[coluta][ch][delay_idx].append(phase)
                     #dictionary readback success in same format -- 1 or 0 if combination successful
                     #if delay_idx bad, all 0s  
@@ -202,6 +220,10 @@ def scanClocks(GUI,colutas):
             datafile.close()
 
     ## Save results in a pretty table
+    if not os.path.exists("clockScan/clockScanResults"):
+        os.makedirs("clockScan/clockScanResults")
+        print("Creating clockScan directory...")
+
     headers = [f'{i}\n' for i in range(0,upper)]
     headers.insert(0,"xPhaseSelect -> \n INV/DELAY640 ")
     try:
@@ -210,18 +232,25 @@ def scanClocks(GUI,colutas):
         print('You need the tabulate package...')
 
     for coluta in colutas:
-        with open("clockScanBoard634Repeat"+coluta+".txt", "w") as f:
+        with open("clockScan/clockScanResults/clockScanBoard634Repeat"+coluta+".txt", "w") as f:
             for ch in channels:
                 f.write("Channel "+ch[-1]+"\n")
                 prettyTable = tabulate(LPGBTPhase[coluta][ch], headers, showindex = "always", tablefmt="psql")
                 f.write(prettyTable)
                 f.write("\n \n")
-                f.write("Readback")
-                readbackTable = tabulate(readback[coluta][ch], headers, showindex = "always", tablefmt="psql")
-                f.write(readbackTable)
-                f.write("\n \n")
+
+                #Uncomment to see readback tables
+                #f.write("Readback \n")
+                #readbackTable = tabulate(readback[coluta][ch], headers, showindex = "always", tablefmt="psql")
+                #f.write(readbackTable)
+                #f.write("\n \n")
 
     ## Save results in an hdf5
     writeToHDF5(LPGBTPhase)
-    print("Finished Clock Scan")
+    end = timer()
+    print("Finished clock scan for:")
+    print(*colutas, sep = ", ")
+    print("Time elapsed: " + timedelta(seconds = end-start))
+    print("\n \n")
+    findClockParam.findParams()
 
