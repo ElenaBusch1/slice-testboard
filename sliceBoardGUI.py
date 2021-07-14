@@ -13,6 +13,7 @@ import serialMod
 import powerMod
 import parseDataMod
 import instrumentControlMod
+import serializerValidation
 import status
 import subprocess
 from functools import partial
@@ -130,6 +131,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
         #self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+        self.serializerValidationButton.clicked.connect(lambda: serializerValidation.validateData(self, self.allCOLUTAs))
         self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.getColutasClockScan()))
         self.selectAllColutaClockScanButton.clicked.connect(self.selectAllColutas)
         self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)

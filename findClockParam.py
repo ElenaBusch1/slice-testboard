@@ -16,7 +16,7 @@ def readInHDF5(f, coluta):
         print(f"Reading {f} for {coluta}...")
         return(data)
     except:
-        print(colored("Failed", "red") + f" to read {f} for {coluta}")
+        print(colored("FAILED", "red") + f" to read {f} for {coluta}")
         return(None)
 
 def getHorizontalScore(A,x,y):

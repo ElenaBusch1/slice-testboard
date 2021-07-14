@@ -4,7 +4,7 @@ import numpy as np
 import pyjson5
 import findClockParam
 from termcolor import colored
-from timeit import default_times as timer
+from timeit import default_timer as timer
 from datetime import timedelta
 
 def sendInversionBits(GUI, clock640, colutaName):
@@ -248,9 +248,9 @@ def scanClocks(GUI,colutas):
     ## Save results in an hdf5
     writeToHDF5(LPGBTPhase)
     end = timer()
-    print("Finished clock scan for:")
-    print(*colutas, sep = ", ")
-    print("Time elapsed: " + timedelta(seconds = end-start))
-    print("\n \n")
-    findClockParam.findParams()
+    print("\n")
+    print(colored("Finished ", "cyan") + "clock scan for: " + ", ".join(colutas))
+    print(colored("Time elapsed: ", "cyan") + str(timedelta(seconds = end-start)))
+    print("\n")
+    if upper == 16: findClockParam.findParams()
 
