@@ -135,6 +135,7 @@ class Device(Setting):
     def connect(self):
         ipAddress = self.getSetting('ipAddress')
         print(ipAddress)
+        device = None
         try:
             print(ipAddress)
             device = self.resourceManager.open_resource("TCPIP::"+ipAddress)
@@ -142,6 +143,7 @@ class Device(Setting):
         except visa.VisaIOError:
             self.coluta.showError('INSTRUMENT CONTROL: Cannot connect to IP address: {0}'.format(ipAddress))
         return device
+
     def disconnect(self):
         try:
             self.device.query("*IDN?")
@@ -250,6 +252,8 @@ class t3awg3252(Device):
         self.coluta = coluta
         Device.__init__(self,coluta,resourceManager,configItems)
         self.device = self.connect()
+        if self.device == None :
+          return None
         self.voltageUnit = self.getSetting('voltageUnit')
         self.setReferenceClock()
 

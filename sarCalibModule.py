@@ -4,6 +4,7 @@ import time
 import subprocess
 import parseDataMod #feb2 version only
 import math
+from calibModule import CALIBMODULE
 
 class SARCALIBMODULE(object):
     def __init__(self,GUI):
@@ -25,6 +26,8 @@ class SARCALIBMODULE(object):
         self.guiColutaChId = None
 
         self.chLabelDict = { 'channel1': ('ch1','ch2','channel2'), 'channel2': ('ch2','ch1','channel1'), 'channel3': ('ch3','ch4','channel4'), 'channel4': ('ch4','ch3','channel3') , 'channel5': ('ch5','ch6','channel6'), 'channel6': ('ch6','ch5','channel5'), 'channel7': ('ch7','ch8','channel8'), 'channel8': ('ch8','ch7','channel7') }
+
+        self.calibModule = CALIBMODULE()
 
     def test(self):
         #test calib process
@@ -198,7 +201,8 @@ class SARCALIBMODULE(object):
           val = chWeightResultDict[weightLabel]
           valNormed = val/chWeightResultDict["W_1ST_3584"]*3584*self.scaleFactor
           val4x = round(4*valNormed)
-          if val4x > 16383 :
+          if val4x < 0 or val4x > 16383 :
+            val4x = 0
             print("OVERFLOW, CALIB IS BAD!")
           valLength = sarCorrLengths[corr]
           #binString = format(6,'014b')
@@ -313,6 +317,36 @@ class SARCALIBMODULE(object):
         print(self.mdacWeights)
 
         self.writeMdacCal(self.guiColutaId,self.guiColutaChId)
+        return None
+
+    def runFullCalibInFeb2Gui(self):
+        #chips = ["coluta13","coluta14","coluta15","coluta16","coluta18","coluta19","coluta20"]
+        #channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
+        chips = ["coluta20"]
+        channels = ["channel5","channel6","channel7","channel8"]
+        for chip in chips :
+          for chan in channels :
+            self.doSarCalib(chip,chan)
+            self.writeSarConstant(chip,chan)
+            self.calibModule.addSarCalib(self.GUI.boardID,chip,chan,self.sarWeights)
+            self.doMdacCal(chip,chan)
+            self.writeMdacCal(chip,chan)
+            self.calibModule.addMdacCalib(self.GUI.boardID,chip,chan,self.mdacWeights)
+        return None
+
+    def getFullCalibInFeb2Gui(self):
+        chips = ["coluta13","coluta14","coluta15","coluta16","coluta18","coluta19","coluta20"]
+        channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
+        for chip in chips :
+          for chan in channels :
+            result = self.calibModule.getSarCalib(self.GUI.boardID,chip,chan)
+            if result != None :
+              self.sarWeights = result
+              self.writeSarConstant(chip,chan)
+            result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
+            if result != None :
+              self.mdacWeights = result
+              self.writeMdacCal(chip,chan)
         return None
 
     def testRestoreCalib(self,coluta,channel):
