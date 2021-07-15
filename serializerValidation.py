@@ -8,6 +8,7 @@ def putInSerializerMode(GUI, colutas):
 	""" put all channels in serializer mode """
 	for coluta in colutas:
 		GUI.serializerTestMode(coluta, "1")
+	GUI.sendUpdatedConfigurations()
 
 def validateData(GUI, colutas):
 	#run = run_path[run_path.index("run"):run_path.index(".hdf5")]
