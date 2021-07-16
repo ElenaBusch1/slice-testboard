@@ -131,7 +131,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.test2Button.clicked.connect(lambda: self.redundantReadFromControlLPGBT('lpgbt13', 0x05a, 4))
         self.test1Button.clicked.connect(lambda: self.redundantWriteToControlLPGBT('lpgbt13', 0x05a,[0xa,0xb,0xc,0xd]))
         self.test3Button.clicked.connect(lambda: self.enableGPIOPin('lpgbt12', '1'))   
- 
+        self.enableRedundantControl.clicked.connect(lambda: self.enablingRedundantControl())
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
 
@@ -181,7 +181,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpgbt12OnlyBox.stateChanged.connect(lambda:self.btnstate(self.lpgbt12OnlyBox, self.lpgbt13OnlyBox))
         self.lpgbt13OnlyBox.stateChanged.connect(lambda:self.btnstate(self.lpgbt13OnlyBox, self.lpgbt12OnlyBox))
 
-
+ 
 
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
@@ -222,8 +222,16 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             else:
                 self.lpgbt13Only = False
 
-        print("lpgbt12:    ", self.lpgbt12Only, "    lpgbt13:    ", self.lpgbt13Only) 
+        #print("lpgbt12:    ", self.lpgbt12Only, "    lpgbt13:    ", self.lpgbt13Only) 
+    
 
+    def enablingRedundantControl(self):
+        if (self.lpgbt12Only):
+            self.enableGPIOPin('lpgbt12', '1')
+        elif (self.lpgbt13Only):
+            self.enableGPIOPin('lpgbt13', '1')
+        else:
+            print("nothing happens")
 
     def testFunc(self):
         while True:
@@ -285,7 +293,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #print("Reading register ", hex(register))
         regH, regL = u16_to_bytes(register)
-        # We will write 2 bytes to the data lpGBT
         writeToLpGBT(lpgbtI2CAddr, 0x100, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x104, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
         # Write 2 byte register address
@@ -1513,6 +1520,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.redundantWriteToControlLPGBT(lpgbt, 0x140, [0x01] )
 
     def enableGPIOPin(self, lpgbt, setting):
+        print("GPIO PINS CONNECTED FOR ", lpgbt)
         chip = self.chips[lpgbt]
         #SC_I2C
         chip.setConfiguration("piodirh","piodir14",setting)
@@ -1856,4 +1864,5 @@ def makeI2CSubData(dataBits,wrFlag,readBackMux,subAddress,adcSelect):
     '''Combines the control bits and adds them to the internal address'''
     # {{dataBitsSubset}, {wrFlag,readBackMux,subAddress}, {adcSelect}}, pad with zeros
     return (dataBits+wrFlag+readBackMux+subAddress+adcSelect).zfill(64)
+        # We will write 2 bytes to the data lpGBT
 
