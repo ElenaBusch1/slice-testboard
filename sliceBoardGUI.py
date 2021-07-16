@@ -95,7 +95,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status36 = status.Status(self, "36")
         self.status45 = status.Status(self, "45")
 
-        self.lpgbt12Only = True
+        self.lpgbt12Only = False
         self.lpgbt13Only = False
 
         # Instrument control
@@ -210,19 +210,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         if b1.text() == "Use lpGBT12 ONLY":
             if b1.isChecked() == True:
-                print("Checked12")
+                self.lpgbt12Only = True
                 b2.setChecked(False)
             else:
-                print("Unchecked12")
+                self.lpgbt12Only = False
 
         if b1.text() == "Use lpGBT13 ONLY":
             if b1.isChecked() == True:
-                print("Checked13")
+                self.lpgbt13Only = True
                 b2.setChecked(False)
             else:
-                print("Unckeced13")
+                self.lpgbt13Only = False
 
-
+        print("lpgbt12:    ", self.lpgbt12Only, "    lpgbt13:    ", self.lpgbt13Only) 
 
 
     def testFunc(self):
