@@ -14,8 +14,10 @@ import powerMod
 import parseDataMod
 import instrumentControlMod
 import serializerValidation
+import itertools
 import status
 import subprocess
+import threading
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
@@ -27,7 +29,8 @@ from flxMod import takeManagerData
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
-
+from standardRunsModule import STANDARDRUNS
+from sarCalibModule import SARCALIBMODULE
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -56,7 +59,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stopbits = 1
         self.bytesize = 8
         self.timeout = 2
-
+        
+        # Error configuration Box items
+        self.failedConfigurations = []
+        
         # Some version-dependent parameters/values
 
         #self.nSamples = 1000000  # default number of samples to parse from standard readout
@@ -75,15 +81,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.att_val = '-99'
         self.awg_amp = '-99'
         self.awg_freq = '-99'
+        self.testNum = '-99'
         self.measStep = '-99'
         self.daqMode = 'trigger'
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
+        self.measChan = "default"
 
         # Default attributes for hdf5 output, overwritten by instrument control
         self.runType = 'sine'
         self.sineFrequency = '1.00'
-        self.sineAmplitude = '0.50'
+        self.awgAmplitude = '0.50'
         self.awgFreq = 1200 # Sampling freq of external AWG
         self.pulseLength = 64 # Pulse length in bunch crossings
  
@@ -95,6 +103,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.IPaddress = self.ipAddressBox.toPlainText()
         #self.IC = instrumentControlMod.InstrumentControl(self,'./config/instrumentConfig.cfg')
         #self.function_generator = getattr(self.IC,'function_generator')
+        self.function_generator = None
 
         # Instance of dataParser class
         dataParserConfig = "./config/dataConfig.cfg"
@@ -119,7 +128,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(takeManagerData)
+        self.test2Button.clicked.connect(self.testFunc)
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -174,7 +183,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
         allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-
+    
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.document().setPlainText(str(self.nSamples))
@@ -184,18 +193,24 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.dataGridLayout.addWidget(self.dataDisplay,0,0)
         #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
 
+        #Standard Runs
+        self.stdRuns = STANDARDRUNS(self)
+        self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
+
+        #Calibration runs
+        self.sarMdacCal = SARCALIBMODULE(self)
+        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
+        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+        self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
+        self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
+
         self.isConnected = True
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
 
     def testFunc(self):
-        while True:
-          #print("Configuring LAUROC20")
-          #self.sendFullLAUROCConfigs("lauroc20")
-          print("Configuring COLUTA20")
-          self.sendFullCOLUTAConfig("coluta20")
-          time.sleep(0.5)
+        pass
 
     def selectAllColutas(self):
         for coluta in self.allCOLUTAs:
@@ -381,7 +396,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Checking Write")
+        #print("Checking Write")
         outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
         if outcome == 'reset':
             writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
@@ -392,6 +407,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
             outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
             if outcome == 'reset': print("Failed after reset")
+
+        readback = self.readFromLAUROC(lauroc, register)
+        if readback[0] != data:
+            readbackSuccess = False
+            print("Writing ", lauroc, register, " failed")
+        if self.READBACK:
+            print("Writing", lauroc, hex(register), ":", hex(data))
+            print("Reading", lauroc, hex(register), ":", hex(readback[0]))
+            if readback[0] == data:
+                print("Successfully readback what was written!")
+            else:
+                print("Readback does not agree with what was written")
 
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
@@ -414,7 +441,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Checking Read")
+        #print("Checking Read")
         self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
         readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
@@ -731,7 +758,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Done Configuring")
         print("Configuration results")
         for chip in self.configResults :
+          if self.configResults[chip] == False:
+            self.failedConfigurations.append(chip)
           print(chip,"",self.configResults[chip])
+        self.updateErrorConfiguration()
+          
 
     def sendFullLPGBTConfigs(self):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
@@ -781,6 +812,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lpgbt)
+
+
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -815,6 +849,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Readback does not agree with what was written")
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lpgbt)
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -854,6 +889,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Readback does not agree with what was written")
         self.configResults[lauroc] = readbackSuccess
         print("Done configuring", lauroc, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -877,6 +913,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         readbackSuccess = readbackSuccess & globalSuccess
         self.configResults[coluta] = readbackSuccess
         print("Done configuring", coluta, ", success =", readbackSuccess)
+        self.updateErrorConfigurationList(readbackSuccess, coluta)
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -1240,7 +1277,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.coluta19SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta19', "0"))
         self.coluta20SerializerTestModeOffButton.clicked.connect(lambda: self.serializerTestMode('coluta20', "0"))
 
-
+        # Connect lauroc 25/50 ohm mode buttons
+        for mode in ["25", "50"]:
+            for lauroc in self.allLAUROCs:
+                buttonName = lauroc+"_"+mode+"OhmModeButton"
+                try:
+                    button = getattr(self, buttonName)
+                except AttributeError:
+                    print("Bad button name", buttonName)
+                    continue
+                button.clicked.connect(partial(self.LAUROC_25_50_OhmMode, lauroc, mode))
+                          
     def connectButtons(self):
         """Create a signal response for each configuration box"""
         for (chipName, chipConfig) in self.chips.items():
@@ -1336,6 +1383,47 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog = QtWidgets.QErrorMessage(self)
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
+
+    def takeTriggerData_noDataFile(self, measType):
+        """Runs takeTriggerData script"""
+        # Collect metadata
+        self.runType = measType
+        flxADCMapping = self.flxMapping
+        self.daqMode = getattr(self,'daqModeBox').currentText()
+        ADCSelect = getattr(self,'daqADCSelectBox').currentText()
+        try:
+            self.daqADCSelect = flxADCMapping[ADCSelect]
+        except:
+            print("Unknown FLX mapping for this COLUTA. \n Exiting ...")
+            return
+        if self.daqMode == "singleADC":
+            self.singleADCMode_ADC = ADCSelect
+        else:
+            self.singleADCMode_ADC = 'trigger'
+
+        # Establish output file
+        # using default file
+        outputDirectory = './'
+        outputFile = "test.dat"
+        stampedOutputFile = "test-1.dat"
+        outputPath = outputDirectory+"/"+outputFile
+        outputPathStamped = outputDirectory+"/"+stampedOutputFile
+
+        if self.opened:
+            # Take dummy data - first data always bad
+            takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+            self.opened = False  
+        takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
+        #time.sleep(5) #this is unnecessary with takeManagerData
+
+        #parseDataMod parseData only uses "adc" attribute
+        attributes = {}
+        attributes['adc'] = self.singleADCMode_ADC
+        chanData = parseDataMod.parseData(outputPathStamped,self.daqMode, self.nSamples,attributes)
+
+        print("Removing "+outputPathStamped)
+        subprocess.call("rm "+outputPathStamped, shell=True)
+        return chanData
 
     def takeTriggerData(self, measType):
         """Runs takeTriggerData script"""
@@ -1561,6 +1649,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         try:
             box = getattr(self, boxName)
         except AttributeError:
+            print("Attribute Error in updateBox for ", boxName)
             return
         if isinstance(box, QtWidgets.QPlainTextEdit):
             decimalString = str(sliceMod.binaryStringToDecimal(settingValue))
@@ -1587,6 +1676,70 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             channel = coluta[f"ch{i}"]
             boxName = colutaName + f"ch{i}" + "SerializerTestModeBox"
             self.updateBox(boxName, setting)
+
+    def LAUROC_25_50_OhmMode(self, laurocName, mode):
+        ## Sets 25 Ohm mode or 50 ohm mode. See LAUROC2 data sheet, page 28
+        lauroc = self.chips[laurocName]
+
+        #25 Ohm Setting, 50 Ohm Setting
+        settings = {
+            "datain2sw_DC_g20": ['1', '1'],
+            "datain2sw_ibo_g20": ['0','0'],
+            "datain2dac_g20": [f'{63:b}'.zfill(6),f'{63:b}'.zfill(6)],
+            "datain3sw_ibi_25": ['1','1'],
+            "datain3sw_ibo": ['0','0'], 
+            "datain3sw_R025_10mA": ['1', '0'],
+            "datain3sw_R025_5mA": ['0','0'],
+            "datain4cr_hg_s1": [f'{0:b}'.zfill(3),f'{0:b}'.zfill(3)],
+            "datain4rc_hg_s1": [f'{9:b}'.zfill(4),f'{10:b}'.zfill(4)],
+            "datain5rc_hg_s2": [f'{8:b}'.zfill(4),f'{8:b}'.zfill(4)],
+            "datain5rc_lg_s2": [f'{9:b}'.zfill(4),f'{11:b}'.zfill(4)],
+            "datain6cr_lg_s1": [f'{3:b}'.zfill(3),f'{0:b}'.zfill(3)],
+            "datain6rc_lg_s1": [f'{9:b}'.zfill(4),f'{11:b}'.zfill(4)],
+            "datain8c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain12c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain16c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain20c2": [f'{230:b}'.zfill(8),f'{79:b}'.zfill(8)],
+            "datain9dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain13dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain17dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain21dacb_VDC_hg": [f'{62:b}'.zfill(6),f'{62:b}'.zfill(6)],
+            "datain11dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)], 
+            "datain15dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain19dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain23dacb_VDC_lg": [f'{32:b}'.zfill(6),f'{32:b}'.zfill(6)],
+            "datain26dacb_VDC_sum": [f'{20:b}'.zfill(6),f'{48:b}'.zfill(6)]
+        }
+        if mode == "25": idx = 0
+        elif mode == "50": idx = 1
+        for setting, values in settings.items():
+            boxName =  laurocName + setting + "Box"
+            self.updateBox(boxName, values[idx])
+
+        ## cmd_gain_sum not implemented as button in GUI
+        lauroc.setConfiguration("datain27", "cmd_gain_sum", '000')
+        print(f"Updated {laurocName} datain27, cmd_gain_sum: 000")
+
+    def updateErrorConfigurationList(self, readback, chip):
+        print("performed test for", chip)
+        if readback == True:
+            if chip in self.failedConfigurations:
+                self.failedConfigurations.remove(chip)
+                self.updateErrorConfiguration()
+        else:
+            if chip not in self.failedConfigurations:
+                self.failedConfigurations.append(chip)
+                self.updateErrorConfiguration()
+
+    def updateErrorConfiguration(self):
+        #The line of code below removes any duplicate entries
+        self.failedConfigurations = list(dict.fromkeys(self.failedConfigurations))
+        if len(self.failedConfigurations) == 0:
+            self.configurationStatus.setText("Successful Configuration")
+            self.configurationStatus.setStyleSheet("background-color: lightgreen; border: 1px solid black")
+        else:
+            self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
+            self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
 
 
 ## Helper functions

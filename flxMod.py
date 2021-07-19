@@ -514,7 +514,7 @@ def ecReadLpGBT(GBTX_I2CADDR: int, GBTX_ADDR: int, GBTX_LEN: int, ICEC_CHANNEL):
 ################################################################
 def takeManagerData(tempdir, basename, mode, ADC):
     #Once the board is configured, we can use the manager to trigger data acquisition 
-    duration_ms = 2000 # 3500ms acquisition
+    duration_ms = 1000 # 3500ms acquisition
     max_file_size_mb = 200 # 64Mb per file 
     trigger_delay=0 # delay between trigger and sample acquisition start
     trigger_rate = 4 # 40MHz/2**13 (choice from 0 to 4, see documentation)

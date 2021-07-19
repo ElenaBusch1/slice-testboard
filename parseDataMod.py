@@ -350,9 +350,10 @@ def main(GUI, fileName):
   attributes = {}
   attributes['boardID'] = GUI.boardID
   attributes['att_val'] = GUI.att_val
-  attributes['awg_amp'] = GUI.sineAmplitude
+  attributes['awg_amp'] = GUI.awgAmplitude
   attributes['awg_freq'] = GUI.awgFreq
-  #attributes['measChan'] = GUI.measChan
+  attributes['measChan'] = GUI.measChan
+  attributes['testNum'] = GUI.testNum
   attributes['measStep'] = GUI.measStep
   attributes['measType'] = GUI.runType
   attributes['runNum'] = GUI.runNumber
