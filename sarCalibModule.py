@@ -320,9 +320,9 @@ class SARCALIBMODULE(object):
         return None
 
     def runFullCalibInFeb2Gui(self):
-        #chips = ["coluta13","coluta14","coluta15","coluta16","coluta18","coluta19","coluta20"]
+        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
         #channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
-        chips = ["coluta20"]
+        #chips = ["coluta20"]
         channels = ["channel5","channel6","channel7","channel8"]
         for chip in chips :
           for chan in channels :
@@ -335,7 +335,7 @@ class SARCALIBMODULE(object):
         return None
 
     def getFullCalibInFeb2Gui(self):
-        chips = ["coluta13","coluta14","coluta15","coluta16","coluta18","coluta19","coluta20"]
+        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
         channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
         for chip in chips :
           for chan in channels :
