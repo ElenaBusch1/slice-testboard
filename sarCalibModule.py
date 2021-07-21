@@ -447,7 +447,7 @@ class SARCALIBMODULE(object):
         print("DONE TEST")
         return None
 
-    def takeData(self,coluta): #slideboard data-taking function
+    def takeData(self,coluta,weightName=''): #slideboard data-taking function
         print("TAKE DATA",coluta)
         colutaIndexDict = { "coluta20":0,"coluta19":1,"coluta18":2,"coluta17":3,"coluta16":4,"coluta15":5,"coluta14":6,"coluta13":7}
         if coluta not in colutaIndexDict :
@@ -460,7 +460,7 @@ class SARCALIBMODULE(object):
         getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
         getattr(self.GUI,'daqADCSelectBox').setCurrentIndex(adcIndex)
 
-        chanData = self.GUI.takeTriggerData_noDataFile('sarCalib')
+        chanData = self.GUI.takeTriggerData_noDataFile('sarCalib',True,'sarcalib_'+weightName)
         #self.removeTriggerData()
         self.dataMap = {}
         for chanNum,data in enumerate(chanData) :
@@ -644,7 +644,7 @@ class SARCALIBMODULE(object):
           MSB_list_string = coluta_binary_data[MSBchannel]
           LSB_list_string = coluta_binary_data[LSBchannel]
         if self.feb2Version == True :
-          self.takeData(coluta)
+          self.takeData(coluta,Evaluating_Indicator)
           if coluta not in self.dataMap :
             return None
           if MSBchannel not in self.dataMap[coluta] :

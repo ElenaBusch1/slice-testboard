@@ -302,7 +302,7 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
   out_file.close()  
 
 #-------------------------------------------------------------------------
-def parseData(fileName,dataType,maxNumReads, attributes):
+def parseData(fileName,dataType,maxNumReads, attributes,writeHDF5=False):
 
   struct_fmt = ">2H"
   struct_len = struct.calcsize(struct_fmt)
@@ -332,6 +332,9 @@ def parseData(fileName,dataType,maxNumReads, attributes):
   if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
   elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets,adc)
   else: print("Unknown data type") 
+  if writeHDF5: 
+    print('Write to HDF5!')
+    writeToHDF5(chanData,fileName,attributes)
   return chanData
 
     

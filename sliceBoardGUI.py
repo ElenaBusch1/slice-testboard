@@ -1384,7 +1384,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         errorDialog.showMessage(message)
         errorDialog.setWindowTitle("Error")
 
-    def takeTriggerData_noDataFile(self, measType):
+    def takeTriggerData_noDataFile(self, measType,writeHDF5=False,fileName='test'):
         """Runs takeTriggerData script"""
         # Collect metadata
         self.runType = measType
@@ -1403,9 +1403,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         # Establish output file
         # using default file
-        outputDirectory = './'
-        outputFile = "test.dat"
-        stampedOutputFile = "test-1.dat"
+        if 'sarcalib' in fileName: outputDirectory = 'sar_calib_debug/'
+        else: outputDirectory = './'
+        outputFile = fileName+".dat"
+        stampedOutputFile = fileName+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
         outputPathStamped = outputDirectory+"/"+stampedOutputFile
 
@@ -1419,8 +1420,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #parseDataMod parseData only uses "adc" attribute
         attributes = {}
         attributes['adc'] = self.singleADCMode_ADC
-        chanData = parseDataMod.parseData(outputPathStamped,self.daqMode, self.nSamples,attributes)
-
+        chanData = parseDataMod.parseData(outputPathStamped,self.daqMode, self.nSamples,attributes,writeHDF5)
         print("Removing "+outputPathStamped)
         subprocess.call("rm "+outputPathStamped, shell=True)
         return chanData
