@@ -21,6 +21,9 @@ class STANDARDRUNS(object):
         if self.GUI.function_generator == None :
           self.doAwgControl = False
 
+        self.chan32BitModePairs = { "ch1":"ch2","ch2":"ch1","ch3":"ch4","ch4":"ch3",\
+                                    "ch5":"ch6","ch6":"ch5","ch7":"ch8","ch8":"ch7" }
+
     def test(self):
         return None
      
@@ -66,9 +69,14 @@ class STANDARDRUNS(object):
 
     #interface to GUI settings
     def setCommonGuiSettings(self):
-        self.GUI.nSamples = 3000000 #necessary for singleADC pulse measurements
-        self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
-        getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
+        if self.measType == "pulse" :
+          self.GUI.nSamples = 3000000 #necessary for singleADC pulse measurements
+          self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
+          getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
+        if self.measType == "pedestal" :
+          self.GUI.nSamples = 10000000 
+          self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
+          getattr(self.GUI,'daqModeBox').setCurrentIndex(0) #ensure trigger
         return None
 
     #interface to GUI
@@ -95,6 +103,56 @@ class STANDARDRUNS(object):
         getattr(self.GUI,'daqADCSelectBox').setCurrentIndex(adcIndex)
         return None
 
+    #interface to GUI COLUTA DDPU controls, set 32-bit mode
+    def set32BitMode(self,coluta,channel,is32Mode=False):
+        if coluta not in self.GUI.chips :
+          return None
+        if channel not in self.chan32BitModePairs :
+          return None
+        is32BitModeVal = '0'
+        if is32Mode == True :
+          is32BitModeVal = '1'
+        MSBSectionName = channel
+        LSBSectionName = self.chan32BitModePairs[channel]
+        if MSBSectionName not in self.GUI.chips[coluta] or LSBSectionName not in self.GUI.chips[coluta] :
+          return None
+
+        self.GUI.chips[coluta].setConfiguration(MSBSectionName,'OutputMode', is32BitModeVal)
+        self.GUI.chips[coluta].setConfiguration(LSBSectionName,'DATAMUXSelect', is32BitModeVal)
+        return None
+
+    #interface to GUI set all even or odd channels to 32-bit mode
+    def setEvenOddChs32BitMode(self,setEven=False,setOdd=False):
+        self.evenChans = ["ch2","ch4","ch6","ch8"]
+        self.oddChans  = ["ch1","ch3","ch5","ch7"]
+        if setEven != True and setEven != False : return None
+        if setOdd  != True and setOdd  != False : return None
+        for coluta in self.GUI.chips :
+          for channel in self.evenChans :
+            self.set32BitMode(coluta,channel,is32Mode=setEven)
+          for channel in self.oddChans :
+            self.set32BitMode(coluta,channel,is32Mode=setOdd)
+        self.GUI.sendUpdatedConfigurations()
+        return None
+
+    def do32BitModePedestalRun(self):
+        print("START 32-BIT MODE PEDESTAL RUN")
+        #initialize GUI parameters
+        self.measType = "pedestal"
+        self.setCommonGuiSettings()
+
+        #measurement 1: all even channels in 32 bit mode
+        self.measStep = 0
+        self.setEvenOddChs32BitMode(setEven=True,setOdd=False)
+        self.takeData()
+        #measurement 2: all odd channels in 32 bit mode
+        self.measStep = 1
+        self.setEvenOddChs32BitMode(setEven=False,setOdd=True)
+        self.takeData()
+        #put everything back into normal mode
+        self.setEvenOddChs32BitMode(setEven=False,setOdd=False)
+        print("DONE 32-BIT MODE PEDESTAL RUN")
+
     def doPulseRun(self):
         if self.awgChan != "1" and self.awgChan != "2": #Specific to LeCroy, should generalize
           print("Standard Pulse Data, must specify source channel, DONE")
@@ -120,7 +178,7 @@ class STANDARDRUNS(object):
         #standardAmps = ['0.1','1.0'] #debug amp list
         #standardAmps = ['0.005','0.01','0.015','0.020','0.025','0.03','0.035','0.04','0.045','0.05','0.06','0.08','0.1','0.2','0.4','0.6','0.8','1.0','2.0','3.0','4.0','5.0','6.0'] #1000Ohm injection resistor into 25Ohm+1500pF input impedance case
         #standardAmps = ['0.01', '0.01125', '0.0125', '0.015', '0.02', '0.025', '0.05', '0.1', '0.15', '0.2', '0.25','0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0', '2.25', '2.5'] #250Ohm injection resistor into 25Ohm+1500pF input impedance
-        standardAmps = ['0.01', '0.01125', '0.0125', '0.015', '0.02', '0.025', '0.05', '0.1', '0.15', '0.2', '0.25','0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0'] #1000Ohm injection resistor into 50Ohm+330pF input impedance
+        standardAmps = ['0.01', '0.0113', '0.0125', '0.015', '0.02', '0.025', '0.05', '0.1', '0.15', '0.2', '0.25','0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0'] #1000Ohm injection resistor into 50Ohm+330pF input impedance
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
             self.measStep = stepNum
