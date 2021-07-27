@@ -197,6 +197,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stdRuns = STANDARDRUNS(self)
         self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
         self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
+        self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
 
         #Calibration runs
         self.sarMdacCal = SARCALIBMODULE(self)

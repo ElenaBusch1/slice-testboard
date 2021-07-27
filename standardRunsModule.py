@@ -152,6 +152,21 @@ class STANDARDRUNS(object):
         #put everything back into normal mode
         self.setEvenOddChs32BitMode(setEven=False,setOdd=False)
         print("DONE 32-BIT MODE PEDESTAL RUN")
+ 
+    #Gets serializer data in 32-bit mode to debug clock scan 
+    def get32BitModeSerializerData(self, even=True, Odd=False):
+        print("START 32-BIT SERIALIZER DATA COLLECTION")
+        for coluta in self.GUI.allCOLUTAs:
+            self.GUI.serializerTestMode(coluta, "1")
+        self.GUI.sendUpdatedConfigurations()
+        if even: self.setEvenOddChs32BitMode(setEven=True, setOdd=False)
+        elif odd: self.setEvenOddChs32BitMode(setEven=False, setOdd=True)
+
+        self.GUI.saveBinaryCheckBox.setChecked(True)
+        self.GUI.takeTriggerData("32-bit Serializer Data")
+        if even: print("DONE 32-BIT SERIALIZER DATA COLLECTION FOR EVEN CHANNELS")
+        elif odd: print("DONE 32-BIT SERIALIZER DATA COLLECTION FOR ODD CHANNELS")
+        self.GUI.saveBinaryCheckBox.setChecked(False)
 
     def doPulseRun(self):
         if self.awgChan != "1" and self.awgChan != "2": #Specific to LeCroy, should generalize
