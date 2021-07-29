@@ -178,11 +178,9 @@ class STANDARDRUNS(object):
         self.getChId()
 
         #setup required settings for pulser data taking
-        self.setCommonGuiSettings()
-
-        #set required metadata
         self.measType = "pulse"
         self.measStep = 0
+        self.setCommonGuiSettings()
         self.updateGuiMetadata()
 
         #initialize function generator for pulse output
