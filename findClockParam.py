@@ -91,11 +91,20 @@ def table(values, row, col):
 
 def writeToTable(coluta, maps, data):
     coords = {}
-
     yscores = [np.array([np.max(row) for row in chmap]) for chmap in maps]
     yArr = np.transpose(np.array(yscores))
     rowscores = [np.prod(tab) for tab in yArr]
     row = np.argmax(rowscores)
+
+    cols = {}
+    for i in range(len(maps)):
+        if i%2 == 0:
+           odd_row  =  maps[i][row]
+           even_row = maps[i+1][row]
+           prod = [odd_row[idx]*even_row[idx] for idx in range(len(odd_row))]
+           cols["ch"+str(i+1)] = np.argmax(prod)
+           continue
+        else: cols["ch"+str(i+1)] = cols["ch"+str(i)] 
 
     if not os.path.exists("clockScan/clockParams"):
         os.makedirs("clockScan/clockParams")
@@ -105,7 +114,8 @@ def writeToTable(coluta, maps, data):
         f.write("Setting format: (XPhaseSelect, Global INV/DELAY640, lpGBT Phase) \n")
         for i, chmap in enumerate(maps):
             scanResults = data[i]
-            col = np.argmax(chmap[row])
+            #col = np.argmax(chmap[row])
+            col = cols["ch"+str(i+1)]
             val = scanResults[row][col]
             coord = (col, row, val)
             
@@ -148,7 +158,8 @@ def config(results):
         print("Updating " + coluta.upper() + " settings...")
         for i, ch in enumerate(results[coluta].keys()):
             config[f"Phase{i+1}"] = {"Total": "4", "LPGBTPhase": str(bin(results[coluta][ch][2])[2:].zfill(4))}
-        config["Global"] = {"INV640": "0", "DELAY640": str(bin(results[coluta][ch][1])[2:].zfill(3))}
+        INV_DELAY640 = str(bin(results[coluta][ch][1])[2:].zfill(4))
+        config["Global"] = {"INV640": INV_DELAY640[0] , "DELAY640": INV_DELAY640[1:]}
         with open("clockScan/config/" + coluta.upper() + ".cfg", "w") as f:
             config.write(f)
     
