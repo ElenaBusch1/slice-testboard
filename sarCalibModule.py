@@ -470,9 +470,11 @@ class SARCALIBMODULE(object):
           #check for fake data in parsed data, corresponds to channel without data recorded
           if isinstance(loData[0], list) : continue
 
-          loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
-          hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]
-          
+          #loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
+          #hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]
+          loDataBin = [ '{0:016b}'.format(x) for x in loData ]
+          hiDataBin = [ '{0:016b}'.format(x) for x in hiData ]          
+
           colutaLabel = self.mapFeb2ChToColutaCh[chanNum]["lo"][2]
           lo_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["lo"][3]
           hi_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["hi"][3]
