@@ -94,7 +94,9 @@ class SARCALIBMODULE(object):
           self.doConfig(coluta,channelLabel,corr,binString)
           boxName = coluta + channelLabel + corr + "Box"
           self.GUI.updateBox(boxName, binString)
-        self.GUI.sendUpdatedConfigurations()    
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess:
+            print("WRITING MDAC CAL FAILED: ONE OR MORE READBACKS FAILED")
 
 
     def doMdacCal(self,coluta,channel):
@@ -116,7 +118,9 @@ class SARCALIBMODULE(object):
         self.doConfig(coluta,channelLabel,"MDACCorrectionCode5",'00000000000000000' )
         self.doConfig(coluta,channelLabel,"MDACCorrectionCode6",'00000000000000000' )
         self.doConfig(coluta,channelLabel,"MDACCorrectionCode7",'00000000000000000' )
-        self.GUI.sendUpdatedConfigurations()
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess:
+          sys.exit("MDAC CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
 
         mdacCalList = [128,128,64 ,64 ,32 ,32 ,16 ,16 ,8  ,8  ,4  ,4  ,2  ,2  ,1  ,1  ]
         flashList =   [0  ,1  ,1  ,3  ,3  ,7  ,7  ,15 ,15 ,31 ,31 ,63 ,63 ,127,127,255]
@@ -126,8 +130,10 @@ class SARCALIBMODULE(object):
           flashVal = str(   format(flashList[stepNum],'08b') )
           self.doConfig(coluta,channelLabel,"CALMDAC",str(mdacCalVal) )
           self.doConfig(coluta,channelLabel,"CALFLASH",str(flashVal)  )
-          self.GUI.sendUpdatedConfigurations()
+          readbackSuccess = self.GUI.sendUpdatedConfigurations()
           time.sleep(0.1)
+          if not readbackSuccess:
+            sys.exit("MDAC CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
           self.takeData(coluta)
           #print( self.dataMap[coluta][channel][0:4] )
           decArray = self.convert_to_dec(self.dataMap[coluta][channel] )
@@ -213,7 +219,9 @@ class SARCALIBMODULE(object):
           #print( corr, self.GUI.chips[coluta][channelLabel][corr] ,"\t",val4x, binString )
           boxName = coluta + channelLabel + corr + "Box"
           self.GUI.updateBox(boxName, binString)
-        self.GUI.sendUpdatedConfigurations()
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess:
+          sys.exit("WRITING SAR CONST FAILED: ONE OR MORE READBACKS FAILED")
         #look at current channel DDPU config
         #print(self.GUI.chips[coluta][channelLabel])
         #print(chWeightResultDict)
@@ -368,7 +376,9 @@ class SARCALIBMODULE(object):
         self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
         self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
         self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
-        self.GUI.sendUpdatedConfigurations()
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess:
+            print("FAILED WRITE BEFORE RESTORING INITIAL CONFIG")
 
         #restore initial config here
         self.restoreConfig(coluta,initConfig)
@@ -396,7 +406,9 @@ class SARCALIBMODULE(object):
         self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
         self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
         self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
-        self.GUI.sendUpdatedConfigurations()
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess: 
+          sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
 
         nRepeats = 1
         self.GUI.nSamples = 8186
@@ -621,8 +633,10 @@ class SARCALIBMODULE(object):
           self.doConfig(coluta,MSBSectionName,'CALPNDAC', CALPNDAC)
           self.doConfig(coluta,MSBSectionName,'CALREGA', CALREGA)
           self.doConfig(coluta,MSBSectionName,'CALREGB', CALREGB)
-          self.GUI.sendUpdatedConfigurations()
+          readbackSuccess = self.GUI.sendUpdatedConfigurations()
           time.sleep(0.1)
+          if not readbackSuccess:
+            sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
 
           #record data
           result = self.SARCalibDataTaking(weightName + '_' + calibType ,coluta,MSBchannel ,LSBchannel)

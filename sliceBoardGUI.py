@@ -233,14 +233,15 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def writeToLPGBT(self, lpgbt, register, dataBits, disp = False):
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
-            self.writeToControlLPGBT(lpgbt,register,dataBits)
+            readbackSuccess = self.writeToControlLPGBT(lpgbt,register,dataBits)
         elif lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
-            self.writeToDataLPGBT(lpgbt,register,dataBits)
+            readbackSuccess = self.writeToDataLPGBT(lpgbt,register,dataBits)
         else:
             print("Bad LPGBT value in writeToLPGBT")
+            return False
         if disp:
             print("Writing", lpgbt, hex(register), ":", [hex(x) for x in dataBits])
-
+        return readbackSuccess
 
     def readFromLPGBT(self, lpgbt, register, nBytes, disp = False):
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
@@ -273,6 +274,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
         else:
             print("Invalid lpGBT specified (writeToControlLpgbt)")
+
+        readbackSuccess = True
+        readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+        if dataBits != readback:
+            print("Writing ", lpgbt, register, " failed")
+            readbackSuccess = False        
+        return readbackSuccess
+        """
+        print("DATA BITS HERE -------------------- ", dataBits)
+        print("READBACK HERE --------------------- ", readback)
+        """
 
     def readFromControlLPGBT(self, lpgbt, register, nBytes):
         """ Reads max 16 bytes through the EC or IC channels"""
@@ -338,6 +350,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Check to see if the i2c Bus Transaction is finished before proceeding
         print("Writing")
         self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+
+        readbackSuccess = True
+        readback = self.readFromDataLPGBT(lpgbt, register, len(data))
+        if dataBits != readback:
+            print("Writing ", lpgbt, register, " failed")
+            readbackSuccess = False
+        return readbackSuccess
+
+        """
+        print("DATA HERE ------------------------- ", data)
+        print("READBACK HERE --------------------- ", readback)
+        """
 
     def readFromDataLPGBT(self, lpgbt, register, nBytes):
         """ Reads nBytes back from the lpgbt, starting at the given register """
@@ -410,6 +434,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
             if outcome == 'reset': print("Failed after reset")
 
+        readbackSuccess = True
         readback = self.readFromLAUROC(lauroc, register)
         if readback[0] != data:
             readbackSuccess = False
@@ -421,6 +446,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 print("Successfully readback what was written!")
             else:
                 print("Readback does not agree with what was written")
+        return readbackSuccess
 
     def readFromLAUROC(self, lauroc, register):
         """ Reads from LAUROC one register at a time """
@@ -1069,6 +1095,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         badCOLUTAs = [coluta for coluta in [f'coluta{i}' for i in range(13,21)] if coluta not in self.allCOLUTAs]
         badChips = badCOLUTAs+badLAUROCS
         print("updating")
+        success = True
         for (chipName, chipConfig) in self.chips.items():
             if chipName in badChips:
                 continue
@@ -1090,23 +1117,30 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             if chipName in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
                 dataToSend = self.sortUpdates(updates, 4)
                 for (addr, data) in dataToSend.items():
-                    self.writeToControlLPGBT(chipName, addr, data)
+                    readbackSuccess = self.writeToControlLPGBT(chipName, addr, data)
+                    success = readbackSuccess and success
             elif chipName in ['lpgbt9', 'lpgbt10', 'lpgbt15', 'lpgbt16']:
                 dataToSend = self.sortUpdates(updates, 14)
                 for (addr, data) in dataToSend.items():
-                    self.writeToDataLPGBT(chipName, addr, data)
+                    readbackSuccess = self.writeToDataLPGBT(chipName, addr, data)
+                    success = readbackSuccess and success
             elif chipName.find('lauroc') == 0:
                 for (addr, data) in updates.items():
-                    self.writeToLAUROC(chipName, addr, data[1])
+                    readbackSuccess = self.writeToLAUROC(chipName, addr, data[1])
+                    success = readbackSuccess and success
             elif chipName.find('coluta') == 0:
                 for (addr, data) in updates.items():
                     if data[0] == 'global':
-                        self.writeToCOLUTAGlobal(chipName)
+                        readbackSuccess = self.writeToCOLUTAGlobal(chipName)
+                        success = readbackSuccess and success
                     else:
-                        self.writeToCOLUTAChannel(chipName, data[0])
+                        readbackSuccess = self.writeToCOLUTAChannel(chipName, data[0])
+                        success = readbackSuccess and success
             else:
                 print('ChipName Not recognized: ', chipName)
         print("Done Updating")
+        if not success: print("Readback in one or more chips failed")
+        return success
 
 
     def sortUpdates(self, updates, maxConsecutive):
