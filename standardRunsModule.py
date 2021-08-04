@@ -70,7 +70,7 @@ class STANDARDRUNS(object):
     #interface to GUI settings
     def setCommonGuiSettings(self):
         if self.measType == "pulse" :
-          self.GUI.nSamples = 3000000 #necessary for singleADC pulse measurements
+          self.GUI.nSamples = 10000000 #necessary for singleADC pulse measurements
           self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
           getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
         if self.measType == "pedestal" :
