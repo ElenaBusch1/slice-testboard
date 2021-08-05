@@ -64,6 +64,7 @@ class InstrumentControl():
         # print(hasattr(devic)
         for setting,value in getattr(device,'settings').items():
             settingName = setting
+            if settingName == 'extClockFreq' : continue
             boxName = settingName+'Box'
             boxType = type(getattr(coluta,boxName))
             if boxType == QtWidgets.QPlainTextEdit:
@@ -259,7 +260,11 @@ class t3awg3252(Device):
 
     def setReferenceClock(self):
         self.device.write("SOURce:ROSCillator:SOURce EXTernal")
-        self.device.write("SOURce:ROSCillator:FREQuency 10MHZ")
+        #self.device.write("SOURce:ROSCillator:FREQuency 10MHZ")
+        freq = "10"
+        if 'extClockFreq' in self.settings:
+            freq = self.settings['extClockFreq']
+        self.device.write("SOURce:ROSCillator:FREQuency "+str(freq)+"MHZ")
 
     def applySin(self):
         self.coluta.runType = 'sine'
