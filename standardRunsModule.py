@@ -70,9 +70,10 @@ class STANDARDRUNS(object):
     #interface to GUI settings
     def setCommonGuiSettings(self):
         if self.measType == "pulse" :
-          self.GUI.nSamples = 3000000 #necessary for singleADC pulse measurements
+          self.GUI.nSamples = 10000000 #necessary for singleADC pulse measurements
           self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
           getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
+          self.GUI.n_pulsesBox.setPlainText(str(30)) #ensure 30 pulses
         if self.measType == "pedestal" :
           self.GUI.nSamples = 10000000 
           self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
@@ -178,11 +179,9 @@ class STANDARDRUNS(object):
         self.getChId()
 
         #setup required settings for pulser data taking
-        self.setCommonGuiSettings()
-
-        #set required metadata
         self.measType = "pulse"
         self.measStep = 0
+        self.setCommonGuiSettings()
         self.updateGuiMetadata()
 
         #initialize function generator for pulse output
@@ -191,9 +190,7 @@ class STANDARDRUNS(object):
 
         #loop through amps, take data
         #standardAmps = ['0.1','1.0'] #debug amp list
-        #standardAmps = ['0.005','0.01','0.015','0.020','0.025','0.03','0.035','0.04','0.045','0.05','0.06','0.08','0.1','0.2','0.4','0.6','0.8','1.0','2.0','3.0','4.0','5.0','6.0'] #1000Ohm injection resistor into 25Ohm+1500pF input impedance case
-        #standardAmps = ['0.01', '0.01125', '0.0125', '0.015', '0.02', '0.025', '0.05', '0.1', '0.15', '0.2', '0.25','0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0', '2.25', '2.5'] #250Ohm injection resistor into 25Ohm+1500pF input impedance
-        standardAmps = ['0.01', '0.0113', '0.0125', '0.015', '0.02', '0.025', '0.05', '0.1', '0.15', '0.2', '0.25','0.5', '0.75', '1.0', '1.25', '1.5', '1.75', '2.0'] #1000Ohm injection resistor into 50Ohm+330pF input impedance
+        standardAmps = ['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1.0','2.0','3.0','4.0','5.0','6.0'] #AWG valid voltage range
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
             self.measStep = stepNum
