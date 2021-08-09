@@ -353,7 +353,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         readbackSuccess = True
         readback = self.readFromDataLPGBT(lpgbt, register, len(data))
-        if dataBits != readback:
+        if data != readback:
             print("Writing ", lpgbt, register, " failed")
             readbackSuccess = False
         return readbackSuccess
