@@ -4,6 +4,7 @@ import time
 import subprocess
 import parseDataMod #feb2 version only
 import math
+import sys
 from calibModule import CALIBMODULE
 
 class SARCALIBMODULE(object):
@@ -29,75 +30,421 @@ class SARCALIBMODULE(object):
 
         self.calibModule = CALIBMODULE()
 
-    def test(self):
-        #test calib process
-        self.doSarCalib("coluta20","channel8")
-        self.writeSarConstant("coluta20","channel8")
-        self.doMdacCal("coluta20","channel8")
-        self.writeMdacCal("coluta20","channel8")
+    ############################################
+    ########           Debug            #######
+    ############################################
 
-        print("SAR WEIGHTS")
-        print(self.sarWeights)
-        self.printSarWeights()
+    def test(self):
+        import timeit
+        #test calib process
+        #self.doSarCalib("coluta20","channel8")
+        #self.writeSarConstant("coluta20","channel8")
+        colutas = [f"coluta{i}" for i in range(13,21)]
+        #colutas.remove("coluta17")
+        start_time = timeit.default_timer()
+        self.doMdacCalMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
+        print("Time for multichannel MDAC calibration:", str(timeit.default_timer()-start_time))       
+
+        #start_time = timeit.default_timer()
+        #self.doMdacCalParallel(["coluta13", "coluta14", "coluta15", "coluta16"],"channel8")
+        #print("Time for *parallel* MDAC calibration:", str(timeit.default_timer()-start_time))
+
+        #self.writeMdacCal("coluta20","channel8")
+
+        #print("SAR WEIGHTS")
+        #print(self.sarWeights)
+        #self.printSarWeights()
 
         print("MDAC WEIGHTS")
         print(self.mdacWeights)
 
+        start_time = timeit.default_timer()
+        self.doMdacCal("coluta13", "channel8")
+        print("Time for standard MDAC calibration:", str(timeit.default_timer()-start_time))
+
+        print("MDAC WEIGHTS")
+        print(self.mdacWeights)
         return None
 
-    def printSarWeights(self):
-        if 'W_1ST_3584' not in self.sarWeights :
-          return None
-        scaleVal = 3584./float(self.sarWeights['W_1ST_3584'])
-        print( [ round(self.sarWeights[x]*scaleVal,2) for x in self.sarWeights] )
-        print( self.sarWeights )
-        weightNameList = ["W_1ST_3584","W_1ST_2048","W_1ST_1024","W_1ST_640","W_1ST_384","W_1ST_256","W_1ST_128",\
-                      "W_2ND_224","W_2ND_128","W_2ND_64","W_2ND_32","W_2ND_24","W_2ND_16",\
-                      "W_2ND_10","W_2ND_6","W_2ND_4","W_2ND_2","W_2ND_1","W_2ND_0p5","W_2ND_0p25"]
+    ############################################
+    ########        Do Calibration       #######
+    ############################################
+
+    def runSarCalibInFeb2Gui(self):
+        print("DO SAR CALIB")
+        self.getSarMdacCalibChInFeb2GUI()
+        self.doSarCalib(self.guiColutaId,self.guiColutaChId)
+
+        print("SAR WEIGHTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
+        print(self.sarWeights)
+        self.printSarWeights()
         
-        weightList = []
-        for weightName in weightNameList :
-          weightList.append( round(self.sarWeights[weightName]*scaleVal,2) )
-        print(weightList)
-        return
+        print("WRITE SAR CONSTANTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
+        self.writeSarConstant(self.guiColutaId,self.guiColutaChId)
+        return None
 
+    def runMdacCalibInFeb2Gui(self):
+        print("DO MDAC CALIB")
+        self.getSarMdacCalibChInFeb2GUI()
+        self.doMdacCal(self.guiColutaId,self.guiColutaChId)
 
+        print("MDAC WEIGHTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
+        print(self.mdacWeights)
 
-    def writeMdacCal(self,coluta,channel):
+        self.writeMdacCal(self.guiColutaId,self.guiColutaChId)
+        return None
+
+    def runFullCalibInFeb2Gui(self):
+        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
+        #channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
+        #chips = ["coluta20"]
+        channels = ["channel5","channel6","channel7","channel8"]
+        for chip in chips :
+          for chan in channels :
+            self.doSarCalib(chip,chan)
+            self.writeSarConstant(chip,chan)
+            self.calibModule.addSarCalib(self.GUI.boardID,chip,chan,self.sarWeights)
+            self.doMdacCal(chip,chan)
+            self.writeMdacCal(chip,chan)
+            self.calibModule.addMdacCalib(self.GUI.boardID,chip,chan,self.mdacWeights)
+        return None
+
+    def getSarMdacCalibChInFeb2GUI(self):
+        colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
+        colutaId = None
+        try:
+            colutaId = colutaBox.currentText()
+        except:
+            print("Invalid channelId")
+        chBox = getattr(self.GUI, 'stdRunsCalibColutaChSelectBox')
+        chId = None
+        try:
+            chId = chBox.currentText()
+        except:
+            print("Invalid channelId")
+
+        print(colutaId,chId)
+        self.guiColutaId = colutaId
+        self.guiColutaChId = chId
+        return None
+
+    def getFullCalibInFeb2Gui(self):
+        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
+        channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
+        for chip in chips :
+          for chan in channels :
+            result = self.calibModule.getSarCalib(self.GUI.boardID,chip,chan)
+            if result != None :
+              self.sarWeights = result
+              self.writeSarConstant(chip,chan)
+            result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
+            if result != None :
+              self.mdacWeights = result
+              self.writeMdacCal(chip,chan)
+        return None
+
+    def testRestoreCalib(self,coluta,channel):
+        if coluta not in self.GUI.chips :
+          print("INVALID ASIC")
+          return None
         if channel not in self.chLabelDict :
+          print("INVALID CH")
           return None
-        channelLabel = self.chLabelDict[channel][0]
+        MSBchannel = channel
+        LSBchannel = self.chLabelDict[channel][2]
+        MSBSectionName = self.chLabelDict[channel][0]
+        LSBSectionName = self.chLabelDict[channel][1]
 
-        mdacCorr = self.mdacWeights
-        if 'MDACCorrectionCode0' not in mdacCorr :
-          return None
-        mdacCorrDdpu = {}
-        mdacCorrDdpu['MDACCorrectionCode0'] = mdacCorr['MDACCorrectionCode0']
-        mdacCorrDdpu['MDACCorrectionCode1'] = mdacCorrDdpu['MDACCorrectionCode0']+mdacCorr['MDACCorrectionCode1']
-        mdacCorrDdpu['MDACCorrectionCode2'] = mdacCorrDdpu['MDACCorrectionCode1']+mdacCorr['MDACCorrectionCode2']
-        mdacCorrDdpu['MDACCorrectionCode3'] = mdacCorrDdpu['MDACCorrectionCode2']+mdacCorr['MDACCorrectionCode3']
-        mdacCorrDdpu['MDACCorrectionCode4'] = mdacCorrDdpu['MDACCorrectionCode3']+mdacCorr['MDACCorrectionCode4']
-        mdacCorrDdpu['MDACCorrectionCode5'] = mdacCorrDdpu['MDACCorrectionCode4']+mdacCorr['MDACCorrectionCode5']
-        mdacCorrDdpu['MDACCorrectionCode6'] = mdacCorrDdpu['MDACCorrectionCode5']+mdacCorr['MDACCorrectionCode6']
-        mdacCorrDdpu['MDACCorrectionCode7'] = mdacCorrDdpu['MDACCorrectionCode6']+mdacCorr['MDACCorrectionCode7']
+        #get initial COLUTA config here
+        initConfig = self.getConfig(coluta)
 
-        for corr in mdacCorrDdpu :
-          if corr not in self.GUI.chips[coluta][channelLabel] :
-            continue
-          val = mdacCorrDdpu[corr]
-          val4x = round(4*val)
-          if (val4x < 0) or (val4x >= 131071) :
-            val4x = 0
-            print("INVALID VALUE IN MDAC CALIBRATION")
-          valLength = 17
-          binString = format(val4x,'0'+str(valLength)+'b')
-          self.doConfig(coluta,channelLabel,corr,binString)
-          boxName = coluta + channelLabel + corr + "Box"
-          self.GUI.updateBox(boxName, binString)
+        #try programming something
+        self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
+        self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
+        self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
         readbackSuccess = self.GUI.sendUpdatedConfigurations()
         if not readbackSuccess:
-            print("WRITING MDAC CAL FAILED: ONE OR MORE READBACKS FAILED")
+            print("FAILED WRITE BEFORE RESTORING INITIAL CONFIG")
 
+        #restore initial config here
+        self.restoreConfig(coluta,initConfig)
+        return None
+ 
+    ############################################
+    ########          Helpers            #######
+    ############################################
+
+    def defineMaps(self):
+        #define feb2ch to COLUTA ch
+        numFeb2ChPerAsic = 4
+        for feb2Ch in range(0,128,1):
+          colutaNum = math.floor(int(feb2Ch) / numFeb2ChPerAsic)
+          colutaLabel = "coluta" + str(colutaNum+1)
+          self.mapFeb2ChToColutaCh[feb2Ch] = {}
+          #asic hi/lo pair
+          hiLoPair = feb2Ch % numFeb2ChPerAsic
+          if hiLoPair == 0 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,0,colutaLabel,"channel1")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,1,colutaLabel,"channel2")
+          if hiLoPair == 1 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,3,colutaLabel,"channel4")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,2,colutaLabel,"channel3")
+          if hiLoPair == 2 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,4,colutaLabel,"channel5")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,5,colutaLabel,"channel6")
+          if hiLoPair == 3 :
+            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,7,colutaLabel,"channel8")
+            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,6,colutaLabel,"channel7")
+
+        #define COLUTA ch labels to feb2ch
+        numColutaPerFeb2 = 32
+        numChPerColuta = 8
+        for colutaNum in range(0,numColutaPerFeb2,1):
+          for chNum in range(0,numChPerColuta,1) :
+            febChNum = math.floor((numChPerColuta*colutaNum+chNum)/2)
+            hilo = "lo"
+            if chNum == 1 or chNum == 2 or chNum == 5 or chNum == 6 :
+              hilo = "hi"
+            colutaLabel = "coluta" + str(colutaNum+1)
+            channelLabel = "channel" + str(chNum+1)
+            if colutaLabel not in self.mapColutaChToFeb2Ch :
+              self.mapColutaChToFeb2Ch[colutaLabel] = {}
+            self.mapColutaChToFeb2Ch[colutaLabel][channelLabel] = (febChNum,hilo)
+
+        #test maps here
+        #for feb2Ch in range(0,128,1):
+        #  print(feb2Ch)
+        #  print("LO",self.mapFeb2ChToColutaCh[feb2Ch]["lo"])
+        #  print("HI",self.mapFeb2ChToColutaCh[feb2Ch]["hi"])
+
+        #for colutaNum in range(0,numColutaPerFeb2,1):
+        #  for chNum in range(0,numChPerColuta,1) :
+        #    colutaLabel = "coluta" + str(colutaNum+1)
+        #    channelLabel = "channel" + str(chNum+1)
+        #    print(colutaNum,chNum,colutaLabel,channelLabel,self.mapColutaChToFeb2Ch[colutaLabel][channelLabel])    
+        return
+
+    def doConfig(self,colutaName,sectionName,configName,configString):
+        #different methods for different GUIs
+        if self.cv3tbVersion == True :
+          self.GUI.configurations[sectionName].setConfiguration(configName,configString)
+        if self.feb2Version == True :
+          self.GUI.chips[colutaName].setConfiguration(sectionName,configName,configString)
+        return
+
+    def getConfig(self,colutaName):
+        if self.cv3tbVersion == True :
+          return self.GUI.configuration.clone()
+        if self.feb2Version == True :
+          return self.GUI.chips[colutaName].clone()
+        return None
+   
+    def restoreConfig(self,colutaName,config):
+        if self.cv3tbVersion == True :
+          self.GUI.configurations = config
+        if self.feb2Version == True :
+          self.GUI.chips[colutaName] = config
+          self.GUI.sendFullCOLUTAConfig(colutaName)
+        return None
+
+    def printData(self):
+        for asicLabel in self.dataMap :
+          for chanLabel in self.dataMap[asicLabel] :
+            if len( self.dataMap[asicLabel][chanLabel] ) > 0 :
+              print(asicLabel,"\t",chanLabel,"\t",self.dataMap[asicLabel][chanLabel][0] )
+        return None
+
+    def takeData(self, coluta="", trigger=False):
+        """Takes single ADC data if one coluta is passed; takes trigger data if trigger is true"""
+        self.GUI.nSamples = 1000000 # Need to optimize, currently gets about 5950 samples with 1000000
+        self.GUI.nSamplesBox.document().setPlainText(str(self.GUI.nSamples))
+        # Data taking mode
+        if trigger:
+            print("TAKE TRIGGER DATA")
+            getattr(self.GUI,'daqModeBox').setCurrentIndex(0) #ensure trigger mode
+        else:
+            print("TAKE DATA",coluta)
+            colutaIndexDict = { "coluta20":0,"coluta19":1,"coluta18":2,"coluta17":3,"coluta16":4,"coluta15":5,"coluta14":6,"coluta13":7}
+            if coluta not in colutaIndexDict:
+                print(f"Could not find {coluta}...")
+                return None
+            adcIndex = colutaIndexDict[coluta]
+            getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
+            getattr(self.GUI,'daqADCSelectBox').setCurrentIndex(adcIndex)
+
+        chanData = self.GUI.takeTriggerData_noDataFile('sarCalib')
+
+        # Sorts data by COLUTA/channel
+        self.dataMap = {}
+        for chanNum,data in enumerate(chanData) :
+          loData = data[0]
+          hiData = data[1]
+          if len(loData) == 0 or len(hiData) == 0 : continue
+          # Check for fake data in parsed data, corresponds to channel without data recorded
+          if isinstance(loData[0], list) : continue
+
+          #loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
+          #hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]
+          loDataBin = [ '{0:016b}'.format(x) for x in loData ]
+          hiDataBin = [ '{0:016b}'.format(x) for x in hiData ]          
+
+          colutaLabel = self.mapFeb2ChToColutaCh[chanNum]["lo"][2]
+          lo_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["lo"][3]
+          hi_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["hi"][3]
+ 
+          if colutaLabel not in self.dataMap :
+            self.dataMap[colutaLabel] = {}
+          self.dataMap[colutaLabel][lo_colutaCh] = loDataBin
+          self.dataMap[colutaLabel][hi_colutaCh] = hiDataBin
+          continue
+          print( chanNum )
+          print( "\t",colutaLabel)
+          print( "\t", lo_colutaCh )
+          print( "\t", hi_colutaCh )
+          print( "\t", loData)
+          print( "\t", hiData)
+        return
+
+    ############################################
+    ########  Parallel MDAC Calibration  #######
+    ############################################
+
+    def convert_to_dec_np(self,binArray):
+        """Helper that converts binary array to decimal"""
+        decArray = np.empty(binArray.shape[0], dtype=int)
+        for i in range(binArray.shape[0]):
+          dec  = int(''.join([str(x) for x in binArray[i]]),2)
+          decArray[i] = dec
+        return decArray
+
+
+    def doMdacCalMultichannel(self, colutas, channels):
+        """Calibrates MDAC for given COLUTAs/channels"""
+        try:
+            channelLabel = {channel : self.chLabelDict[channel][0] for channel in channels}
+        except KeyError:
+            print("Could not find channel(s) in MDAC calibration...")
+            return None
+
+        # Gets initial configurations
+        initConfig = {coluta : self.getConfig(coluta) for coluta in colutas}
+       
+        # Sets configuration for MDAC calibration
+        for coluta in colutas:
+            for channel in channels:
+                self.doConfig(coluta, channelLabel[channel], "FLAGEN", str(0))
+                self.doConfig(coluta, channelLabel[channel], "MDACCALEN", str(1))
+                for i in range(8):
+                    self.doConfig(coluta, channelLabel[channel], f"MDACCorrectionCode{i}", '00000000000000000')
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess: sys.exit(f"MDAC Calibration stopped: readback failed while setting up colutas for MDAC calibration!")
+ 
+        # Gets MDAC measurements
+        mdacCalList = [128, 128, 64, 64, 32, 32, 16, 16, 8, 8, 4, 4, 2, 2, 1, 1]
+        flashList = [0, 1, 1, 3, 3, 7, 7, 15, 15, 31, 31, 63, 63, 127, 127, 255]
+        stepMeas = {coluta : {ch : {} for ch in channels} for coluta in colutas}
+
+        for stepNum in range(0, 16, 1):
+            mdacCalVal = str(format(mdacCalList[stepNum],'08b'))
+            flashVal = str(format(flashList[stepNum],'08b'))
+ 
+            # Updates MDAC calibration + flash value configurations
+            for coluta in colutas:
+                for channel in channels:
+                    self.doConfig(coluta,channelLabel[channel],"CALMDAC",str(mdacCalVal)) 
+                    self.doConfig(coluta,channelLabel[channel],"CALFLASH",str(flashVal))
+            time.sleep(0.1)
+ 
+            # Checks readback
+            readbackSuccess = self.GUI.sendUpdatedConfigurations()
+            if not readbackSuccess:
+                sys.exit("MDAC Calibration stopped: readback failed while updating MDAC + flash value configurations!")
+            
+            if len(colutas) == 1:
+                self.takeData(coluta=colutas[0]) # If only one COLUTA, don't take data in all COLUTAs
+            else:
+                self.takeData(trigger=True) # Takes data on all COLUTA/channels if two or more COLUTAs
+
+            for coluta in colutas:
+                for channel in channels:
+                    # Converts binary array to dec + finds mean of data
+                    decArray = self.convert_to_dec_np(np.asarray(self.dataMap[coluta][channel]))
+                    stepMeas[coluta][channel][stepNum] = np.mean(decArray)
+                    std = np.std(decArray)
+                    print(f"{coluta}, {channel}:", stepNum, stepMeas[coluta][channel][stepNum], std)
+ 
+        # Restores initial configs
+        for coluta in initConfig.keys(): self.restoreConfig(coluta, initConfig[coluta])
+
+        # Determines weights
+        self.mdacWeights = {coluta : {ch : {} for ch in channels} for coluta in colutas}
+        for coluta in colutas:
+            for ch in channels:
+                for i in range(8):
+                    self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+        try:
+            from tabulate import tabulate
+        except:
+            print("You need the tabulate package...")
+            print(self.mdacWeights)
+            return
+        print(self.mdacWeights)
+        # Writes output to a table 
+        with open("MDACCalibConstants.txt", "w") as f:
+            for coluta in colutas:
+                f.write("++++++++++++++++++++++++++++++++")
+                f.write("++  {coluta}  ++".format(coluta=coluta))
+                f.write("++++++++++++++++++++++++++++++++\n\n")
+                for ch in channels:
+                    f.write(f"{ch}\n")
+                    to_table = [[corr, self.mdacWeights[coluta][ch][corr]] for corr in self.mdacWeights[coluta][ch].keys()]
+                    table = tabulate(to_table,  showindex="never", tablefmt="psql")
+                    f.write(table)
+                    f.write("\n \n")
+
+    def writeMdacCalMultichanel(self, colutas, channels):
+        """Writes MDAC constants to board"""
+        try:
+            channelLabel = {channel : self.chLabelDict[channel][0] for channel in channels}
+        except KeyError:
+            print("Could not find channel(s) in MDAC calibration...")
+            return None        
+       
+        for coluta in colutas:
+            for ch in channels:
+                mdacCorrDdpu = {}
+
+                mdacCorrDdpu['MDACCorrectionCode0'] = self.mdacWeights[coluta][ch]['MDACCorrectionCode0']
+                for i in range(1,8): 
+                    mdacCorrDdpu[f'MDACCorrectionCode{i}'] = mdacCorrDdpu[f'MDACCorrectionCode{i-1}']+self.mdacWeights[coluta][ch][f'MDACCorrectionCode{i}']
+                
+                for corr in mdacCorrDdpu:
+                    if corr not in self.GUI.chips[coluta][channelLabel[ch]]:
+                       continue
+                    val = round(4*mdacCorrDdpu[corr])
+                    if (val < 0) or (val >= 131071): 
+                        val = 0
+                        print("INVALID value in MDAC calibration!")
+                    binString = format(val,'017b') # Binary string with 17 zeroes as placeholders
+                    self.doConfig(coluta, channelLabel[ch], corr, binString)
+                    boxName = coluta + channelLabel[ch] + corr + "Box"
+                    self.GUI.updateBox(boxName, binString)
+
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        # Check if write succeeded
+        if not readbackSuccess:
+            print("Writing MDAC constants failed!")
+
+    ############################################
+    ########     Old MDAC Calibration    #######
+    ############################################
+
+    def convert_to_dec(self,binArray):
+        decArray = []
+        for num in binArray :
+          dec  = int(''.join([str(x) for x in num]),2)
+          decArray.append(dec)
+        return decArray
 
     def doMdacCal(self,coluta,channel):
         if channel not in self.chLabelDict :
@@ -162,12 +509,60 @@ class SARCALIBMODULE(object):
 
         return
 
-    def convert_to_dec(self,binArray):
-        decArray = []
-        for num in binArray :
-          dec  = int(''.join([str(x) for x in num]),2)
-          decArray.append(dec)
-        return decArray
+    def writeMdacCal(self,coluta,channel):
+        if channel not in self.chLabelDict :
+          return None
+        channelLabel = self.chLabelDict[channel][0]
+
+        mdacCorr = self.mdacWeights
+        if 'MDACCorrectionCode0' not in mdacCorr :
+          return None
+        mdacCorrDdpu = {}
+        mdacCorrDdpu['MDACCorrectionCode0'] = mdacCorr['MDACCorrectionCode0']
+        mdacCorrDdpu['MDACCorrectionCode1'] = mdacCorrDdpu['MDACCorrectionCode0']+mdacCorr['MDACCorrectionCode1']
+        mdacCorrDdpu['MDACCorrectionCode2'] = mdacCorrDdpu['MDACCorrectionCode1']+mdacCorr['MDACCorrectionCode2']
+        mdacCorrDdpu['MDACCorrectionCode3'] = mdacCorrDdpu['MDACCorrectionCode2']+mdacCorr['MDACCorrectionCode3']
+        mdacCorrDdpu['MDACCorrectionCode4'] = mdacCorrDdpu['MDACCorrectionCode3']+mdacCorr['MDACCorrectionCode4']
+        mdacCorrDdpu['MDACCorrectionCode5'] = mdacCorrDdpu['MDACCorrectionCode4']+mdacCorr['MDACCorrectionCode5']
+        mdacCorrDdpu['MDACCorrectionCode6'] = mdacCorrDdpu['MDACCorrectionCode5']+mdacCorr['MDACCorrectionCode6']
+        mdacCorrDdpu['MDACCorrectionCode7'] = mdacCorrDdpu['MDACCorrectionCode6']+mdacCorr['MDACCorrectionCode7']
+
+        for corr in mdacCorrDdpu :
+          if corr not in self.GUI.chips[coluta][channelLabel] :
+            continue
+          val = mdacCorrDdpu[corr]
+          val4x = round(4*val)
+          if (val4x < 0) or (val4x >= 131071) :
+            val4x = 0
+            print("INVALID VALUE IN MDAC CALIBRATION")
+          valLength = 17
+          binString = format(val4x,'0'+str(valLength)+'b')
+          self.doConfig(coluta,channelLabel,corr,binString)
+          boxName = coluta + channelLabel + corr + "Box"
+          self.GUI.updateBox(boxName, binString)
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess:
+            print("WRITING MDAC CAL FAILED: ONE OR MORE READBACKS FAILED")
+
+    ############################################
+    ########       SAR Calibration       #######
+    ############################################
+
+    def printSarWeights(self):
+        if 'W_1ST_3584' not in self.sarWeights :
+          return None
+        scaleVal = 3584./float(self.sarWeights['W_1ST_3584'])
+        print( [ round(self.sarWeights[x]*scaleVal,2) for x in self.sarWeights] )
+        print( self.sarWeights )
+        weightNameList = ["W_1ST_3584","W_1ST_2048","W_1ST_1024","W_1ST_640","W_1ST_384","W_1ST_256","W_1ST_128",\
+                      "W_2ND_224","W_2ND_128","W_2ND_64","W_2ND_32","W_2ND_24","W_2ND_16",\
+                      "W_2ND_10","W_2ND_6","W_2ND_4","W_2ND_2","W_2ND_1","W_2ND_0p5","W_2ND_0p25"]
+        
+        weightList = []
+        for weightName in weightNameList :
+          weightList.append( round(self.sarWeights[weightName]*scaleVal,2) )
+        print(weightList)
+        return
 
     def writeSarConstant(self,coluta,channel):
         self.scaleFactor = 0.97
@@ -226,164 +621,6 @@ class SARCALIBMODULE(object):
         #print(self.GUI.chips[coluta][channelLabel])
         #print(chWeightResultDict)
         pass
-
-    def printData(self):
-        for asicLabel in self.dataMap :
-          for chanLabel in self.dataMap[asicLabel] :
-            if len( self.dataMap[asicLabel][chanLabel] ) > 0 :
-              print(asicLabel,"\t",chanLabel,"\t",self.dataMap[asicLabel][chanLabel][0] )
-        return None
-
-    def defineMaps(self):
-        #define feb2ch to COLUTA ch
-        numFeb2ChPerAsic = 4
-        for feb2Ch in range(0,128,1):
-          colutaNum = math.floor(int(feb2Ch) / numFeb2ChPerAsic)
-          colutaLabel = "coluta" + str(colutaNum+1)
-          self.mapFeb2ChToColutaCh[feb2Ch] = {}
-          #asic hi/lo pair
-          hiLoPair = feb2Ch % numFeb2ChPerAsic
-          if hiLoPair == 0 :
-            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,0,colutaLabel,"channel1")
-            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,1,colutaLabel,"channel2")
-          if hiLoPair == 1 :
-            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,3,colutaLabel,"channel4")
-            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,2,colutaLabel,"channel3")
-          if hiLoPair == 2 :
-            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,4,colutaLabel,"channel5")
-            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,5,colutaLabel,"channel6")
-          if hiLoPair == 3 :
-            self.mapFeb2ChToColutaCh[feb2Ch]["lo"] = (colutaNum,7,colutaLabel,"channel8")
-            self.mapFeb2ChToColutaCh[feb2Ch]["hi"] = (colutaNum,6,colutaLabel,"channel7")
-
-        #define COLUTA ch labels to feb2ch
-        numColutaPerFeb2 = 32
-        numChPerColuta = 8
-        for colutaNum in range(0,numColutaPerFeb2,1):
-          for chNum in range(0,numChPerColuta,1) :
-            febChNum = math.floor((numChPerColuta*colutaNum+chNum)/2)
-            hilo = "lo"
-            if chNum == 1 or chNum == 2 or chNum == 5 or chNum == 6 :
-              hilo = "hi"
-            colutaLabel = "coluta" + str(colutaNum+1)
-            channelLabel = "channel" + str(chNum+1)
-            if colutaLabel not in self.mapColutaChToFeb2Ch :
-              self.mapColutaChToFeb2Ch[colutaLabel] = {}
-            self.mapColutaChToFeb2Ch[colutaLabel][channelLabel] = (febChNum,hilo)
-
-        #test maps here
-        #for feb2Ch in range(0,128,1):
-        #  print(feb2Ch)
-        #  print("LO",self.mapFeb2ChToColutaCh[feb2Ch]["lo"])
-        #  print("HI",self.mapFeb2ChToColutaCh[feb2Ch]["hi"])
-
-        #for colutaNum in range(0,numColutaPerFeb2,1):
-        #  for chNum in range(0,numChPerColuta,1) :
-        #    colutaLabel = "coluta" + str(colutaNum+1)
-        #    channelLabel = "channel" + str(chNum+1)
-        #    print(colutaNum,chNum,colutaLabel,channelLabel,self.mapColutaChToFeb2Ch[colutaLabel][channelLabel])    
-        return
-
-    def getSarMdacCalibChInFeb2GUI(self):
-        colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
-        colutaId = None
-        try:
-            colutaId = colutaBox.currentText()
-        except:
-            print("Invalid channelId")
-        chBox = getattr(self.GUI, 'stdRunsCalibColutaChSelectBox')
-        chId = None
-        try:
-            chId = chBox.currentText()
-        except:
-            print("Invalid channelId")
-
-        print(colutaId,chId)
-        self.guiColutaId = colutaId
-        self.guiColutaChId = chId
-        return None
-
-    def runSarCalibInFeb2Gui(self):
-        print("DO SAR CALIB")
-        self.getSarMdacCalibChInFeb2GUI()
-        self.doSarCalib(self.guiColutaId,self.guiColutaChId)
-
-        print("SAR WEIGHTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
-        print(self.sarWeights)
-        self.printSarWeights()
-        
-        print("WRITE SAR CONSTANTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
-        self.writeSarConstant(self.guiColutaId,self.guiColutaChId)
-        return None
-
-    def runMdacCalibInFeb2Gui(self):
-        print("DO MDAC CALIB")
-        self.getSarMdacCalibChInFeb2GUI()
-        self.doMdacCal(self.guiColutaId,self.guiColutaChId)
-
-        print("MDAC WEIGHTS","\t",self.guiColutaId,"\t",self.guiColutaChId)
-        print(self.mdacWeights)
-
-        self.writeMdacCal(self.guiColutaId,self.guiColutaChId)
-        return None
-
-    def runFullCalibInFeb2Gui(self):
-        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
-        #channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
-        #chips = ["coluta20"]
-        channels = ["channel5","channel6","channel7","channel8"]
-        for chip in chips :
-          for chan in channels :
-            self.doSarCalib(chip,chan)
-            self.writeSarConstant(chip,chan)
-            self.calibModule.addSarCalib(self.GUI.boardID,chip,chan,self.sarWeights)
-            self.doMdacCal(chip,chan)
-            self.writeMdacCal(chip,chan)
-            self.calibModule.addMdacCalib(self.GUI.boardID,chip,chan,self.mdacWeights)
-        return None
-
-    def getFullCalibInFeb2Gui(self):
-        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
-        channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
-        for chip in chips :
-          for chan in channels :
-            result = self.calibModule.getSarCalib(self.GUI.boardID,chip,chan)
-            if result != None :
-              self.sarWeights = result
-              self.writeSarConstant(chip,chan)
-            result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
-            if result != None :
-              self.mdacWeights = result
-              self.writeMdacCal(chip,chan)
-        return None
-
-    def testRestoreCalib(self,coluta,channel):
-        if coluta not in self.GUI.chips :
-          print("INVALID ASIC")
-          return None
-        if channel not in self.chLabelDict :
-          print("INVALID CH")
-          return None
-        MSBchannel = channel
-        LSBchannel = self.chLabelDict[channel][2]
-        MSBSectionName = self.chLabelDict[channel][0]
-        LSBSectionName = self.chLabelDict[channel][1]
-
-        #get initial COLUTA config here
-        initConfig = self.getConfig(coluta)
-
-        #try programming something
-        self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
-        self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
-        self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
-        readbackSuccess = self.GUI.sendUpdatedConfigurations()
-        if not readbackSuccess:
-            print("FAILED WRITE BEFORE RESTORING INITIAL CONFIG")
-
-        #restore initial config here
-        self.restoreConfig(coluta,initConfig)
-        return None
-
 
     def doSarCalib(self,coluta,channel):
         if coluta not in self.GUI.chips :
@@ -458,51 +695,6 @@ class SARCALIBMODULE(object):
         self.sarWeights["W_2ND_0p25"] = 0.25
         print("DONE TEST")
         return None
-
-    def takeData(self,coluta): #slideboard data-taking function
-        print("TAKE DATA",coluta)
-        colutaIndexDict = { "coluta20":0,"coluta19":1,"coluta18":2,"coluta17":3,"coluta16":4,"coluta15":5,"coluta14":6,"coluta13":7}
-        if coluta not in colutaIndexDict :
-          return None
-        adcIndex = colutaIndexDict[coluta]
-        #maxReads = 1000000 #need to optimize, currently gets about 5950 samples with 1000000
-        self.GUI.nSamples = 1000000
-        self.GUI.nSamplesBox.document().setPlainText(str(self.GUI.nSamples))
-        #getattr(self.GUI,'daqModeBox').setCurrentIndex(0) #ensure trigger mode
-        getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
-        getattr(self.GUI,'daqADCSelectBox').setCurrentIndex(adcIndex)
-
-        chanData = self.GUI.takeTriggerData_noDataFile('sarCalib')
-        #self.removeTriggerData()
-        self.dataMap = {}
-        for chanNum,data in enumerate(chanData) :
-          loData = data[0]
-          hiData = data[1]
-          if len(loData) == 0 or len(hiData) == 0 : continue
-          #check for fake data in parsed data, corresponds to channel without data recorded
-          if isinstance(loData[0], list) : continue
-
-          #loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
-          #hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]
-          loDataBin = [ '{0:016b}'.format(x) for x in loData ]
-          hiDataBin = [ '{0:016b}'.format(x) for x in hiData ]          
-
-          colutaLabel = self.mapFeb2ChToColutaCh[chanNum]["lo"][2]
-          lo_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["lo"][3]
-          hi_colutaCh = self.mapFeb2ChToColutaCh[chanNum]["hi"][3]
- 
-          if colutaLabel not in self.dataMap :
-            self.dataMap[colutaLabel] = {}
-          self.dataMap[colutaLabel][lo_colutaCh] = loDataBin
-          self.dataMap[colutaLabel][hi_colutaCh] = hiDataBin
-          continue
-          print( chanNum )
-          print( "\t",colutaLabel)
-          print( "\t", lo_colutaCh )
-          print( "\t", hi_colutaCh )
-          print( "\t", loData)
-          print( "\t", hiData)
-        return
 
     def calcWeights(self, weightsList, weightResultDict):
         list_Weighting_Second_Stage_P = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
@@ -586,29 +778,6 @@ class SARCALIBMODULE(object):
         weightResultDict[weightName]["W_P"] = SWP - SWPB
         weightResultDict[weightName]["W_N"] =SWNB -SWN
         return None      
-
-    def doConfig(self,colutaName,sectionName,configName,configString):
-        #different methods for different GUIs
-        if self.cv3tbVersion == True :
-          self.GUI.configurations[sectionName].setConfiguration(configName,configString)
-        if self.feb2Version == True :
-          self.GUI.chips[colutaName].setConfiguration(sectionName,configName,configString)
-        return
-
-    def getConfig(self,colutaName):
-        if self.cv3tbVersion == True :
-          return self.GUI.configuration.clone()
-        if self.feb2Version == True :
-          return self.GUI.chips[colutaName].clone()
-        return None
-   
-    def restoreConfig(self,colutaName,config):
-        if self.cv3tbVersion == True :
-          self.GUI.configurations = config
-        if self.feb2Version == True :
-          self.GUI.chips[colutaName] = config
-          self.GUI.sendFullCOLUTAConfig(colutaName)
-        return None
 
     def getWeightBits(self,weightName,coluta,MSBchannel,LSBchannel):
         #cal control
