@@ -36,14 +36,24 @@ class SARCALIBMODULE(object):
 
     def test(self):
         import timeit
-        #test calib process
-        #self.doSarCalib("coluta20","channel8")
-        #self.writeSarConstant("coluta20","channel8")
+        	#test calib process
+        	#self.doSarCalib("coluta20","channel8")
+        	#self.writeSarConstant("coluta20","channel8")
+        
+        #this creates a list of coluta names
         colutas = [f"coluta{i}" for i in range(13,21)]
-        #colutas.remove("coluta17")
-        start_time = timeit.default_timer()
-        self.doMdacCalMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
-        print("Time for multichannel MDAC calibration:", str(timeit.default_timer()-start_time))       
+        colutas.remove("coluta17") #Might have to deactivate this line of code
+       
+
+        print("We are doing the multichannel Sar Calibration")
+        self.doSarCalibMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
+        print("End Sar Calibration Debugging")
+
+ 
+        #start_time = timeit.default_timer()
+        #print("We are doing the multichannel Mdac Calibration")
+        #self.doMdacCalMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
+        #print("Time for multichannel MDAC calibration:", str(timeit.default_timer()-start_time))       
 
         #start_time = timeit.default_timer()
         #self.doMdacCalParallel(["coluta13", "coluta14", "coluta15", "coluta16"],"channel8")
@@ -55,15 +65,15 @@ class SARCALIBMODULE(object):
         #print(self.sarWeights)
         #self.printSarWeights()
 
-        print("MDAC WEIGHTS")
-        print(self.mdacWeights)
+        #print("MDAC WEIGHTS")
+        #print(self.mdacWeights)
 
-        start_time = timeit.default_timer()
-        self.doMdacCal("coluta13", "channel8")
-        print("Time for standard MDAC calibration:", str(timeit.default_timer()-start_time))
+        #start_time = timeit.default_timer()
+        #self.doMdacCal("coluta13", "channel8")
+        #print("Time for standard MDAC calibration:", str(timeit.default_timer()-start_time))
 
-        print("MDAC WEIGHTS")
-        print(self.mdacWeights)
+        #print("MDAC WEIGHTS")
+        #print(self.mdacWeights)
         return None
 
     ############################################
@@ -544,8 +554,157 @@ class SARCALIBMODULE(object):
         if not readbackSuccess:
             print("WRITING MDAC CAL FAILED: ONE OR MORE READBACKS FAILED")
 
+    
     ############################################
-    ########       SAR Calibration       #######
+    #######   SAR Parallel Calibration   #######
+    ############################################
+
+
+
+    #Currently not working, perhaps because we need to calibrate first
+    def writeSarConstantMultichannel(self, colutas, channels):
+        self.scaleFactor = 0.97
+        print("we began the writeSar")
+        try:
+          channelLabel = {channel : self.chLabelDict[channel][0] for channel in channels}
+        except KeyError:
+          print("Could not find channel(s) in SAR calibration...")
+          return None
+                 
+        if "W_1ST_3584" not in self.sarWeights:
+          return None
+        chWeightResultDict = self.sarWeights
+
+        print("Has this something to do with the mapping?")
+        #awkward mapping between SAR weight names and DDPU constant names
+        sarCalibDdpuConfigs = {"W_1ST_3584" : 'SARCorrectionCode20',"W_1ST_2048" : 'SARCorrectionCode19',"W_1ST_1024" : 'SARCorrectionCode18' ,\
+                               "W_1ST_640" : 'SARCorrectionCode17' ,"W_1ST_384" : 'SARCorrectionCode16' ,"W_1ST_256" : 'SARCorrectionCode15'  ,\
+                               "W_1ST_128" : 'SARCorrectionCode14' ,"W_2ND_224" : 'SARCorrectionCode13' ,"W_2ND_128" : 'SARCorrectionCode12'  ,\
+                               "W_2ND_64" : 'SARCorrectionCode11'  ,"W_2ND_32" : 'SARCorrectionCode10'  ,"W_2ND_24" : 'SARCorrectionCode9'    ,\
+                               "W_2ND_16" : 'SARCorrectionCode8'   ,"W_2ND_10" : 'SARCorrectionCode7'   ,"W_2ND_6"  : 'SARCorrectionCode6'}
+
+        mapSarCorrToWeights = {'SARCorrectionCode20' : "W_1ST_3584",'SARCorrectionCode19' : "W_1ST_2048",'SARCorrectionCode18' : "W_1ST_1024" ,\
+                               'SARCorrectionCode17' : "W_1ST_640" ,'SARCorrectionCode16' : "W_1ST_384" ,'SARCorrectionCode15' : "W_1ST_256"  ,\
+                               'SARCorrectionCode14' : "W_1ST_128" ,'SARCorrectionCode13' : "W_2ND_224" ,'SARCorrectionCode12' : "W_2ND_128"  ,\
+                               'SARCorrectionCode11' : "W_2ND_64"  ,'SARCorrectionCode10' : "W_2ND_32"  ,'SARCorrectionCode9'  : "W_2ND_24"   ,\
+                               'SARCorrectionCode8' : "W_2ND_16"   ,'SARCorrectionCode7'  : "W_2ND_10"  ,'SARCorrectionCode6'  : "W_2ND_6"}
+                               
+        sarCorrLengths      = {'SARCorrectionCode20' : 14,'SARCorrectionCode19' : 14,'SARCorrectionCode18' : 13 ,\
+                               'SARCorrectionCode17' : 12 ,'SARCorrectionCode16' : 11 ,'SARCorrectionCode15' : 11  ,\
+                               'SARCorrectionCode14' : 10 ,'SARCorrectionCode13' : 10 ,'SARCorrectionCode12' : 10  ,\
+                               'SARCorrectionCode11' : 9  ,'SARCorrectionCode10' : 8  ,'SARCorrectionCode9'  : 7   ,\
+                               'SARCorrectionCode8' : 7   ,'SARCorrectionCode7'  : 6  ,'SARCorrectionCode6'  : 5}
+        print("We should begin for loop now") 
+        for coluta in colutas:
+          for channel in channels:
+            print("Doing coluta ", coluta, "and channel", channel) 
+            for corr in mapSarCorrToWeights :
+              if corr not in self.GUI.chips[coluta][channelLabel[channel]] :
+                continue
+              weightLabel = mapSarCorrToWeights[corr]
+              if weightLabel not in chWeightResultDict :
+                continue
+              val = chWeightResultDict[weightLabel]
+              valNormed = val/chWeightResultDict["W_1ST_3584"]*3584*self.scaleFactor
+              val4x = round(4*valNormed)
+              if val4x < 0 or val4x > 16383 :
+                val4x = 0
+                print("OVERFLOW, CALIB IS BAD!")
+              valLength = sarCorrLengths[corr]
+              binString = format(val4x,'0'+str(valLength)+'b')
+              self.doConfig(coluta,channelLabel[channel],corr,binString)
+              boxName = coluta + channelLabel[channel] + corr + "Box"
+              self.GUI.updateBox(boxName, binString)
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess:
+          sys.exit("WRITING SAR CONST FAILED: ONE OR MORE READBACKS FAILED")
+        pass
+   
+    
+    def doSarCalibMultichannel(self, colutas, channels):
+      for coluta in colutas:
+        if coluta not in self.GUI.chips:
+          print("INVALID ASIC")
+          return None
+      for channel in channels:
+        if channel not in self.chLabelDict:
+          print("INVALID CH")
+          return None
+      
+      for coluta in colutas:
+        for channel in channels:
+          print("We're doing ", coluta, "and ", channel)
+          MSBchannel = channel
+          LSBchannel = self.chLabelDict[channel][2]
+          MSBSectionName = self.chLabelDict[channel][0]
+          LSBSectionName = self.chLabelDict[channel][1]
+          
+          initConfig = self.getConfig(coluta)
+           
+          # Common Setting for Weighting Evaluation
+          self.doConfig(coluta,MSBSectionName,'SHORTINPUT', '1')
+          self.doConfig(coluta,MSBSectionName,'DREMDACToSAR', '0')
+          self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
+          self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
+          self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
+          readbackSuccess = self.GUI.sendUpdatedConfigurations()
+          if not readbackSuccess: 
+            sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
+          nRepeats = 1
+          self.GUI.nSamples = 8186
+          if self.feb2Version == True :
+            self.GUI.nSamples = 100000          
+          self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
+
+          #list of weights to measure
+          weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
+                       "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
+          if self.testSingleWeight == True :
+            weightsList = ["W_2ND_16"] #test only
+          weightResultDict = {}
+          print("\n\n\n Quick until here\n\n\n")
+          for weightName in weightsList :
+            print("SAR CALIB ",coluta,channel,weightName)
+            bitArrayDict = self.getWeightBits(weightName,coluta,MSBchannel,LSBchannel)
+            weightResultDict[weightName] = bitArrayDict
+
+          #calculate the weights given the recorded data
+          self.calcWeights(weightsList,weightResultDict)
+          #print out weights
+          for weightName in weightsList :
+            if weightName not in weightResultDict :
+              print("MISSING WEIGHT ", weightName)
+              return None
+            if "W_P" not in weightResultDict[weightName] or "W_N" not in weightResultDict[weightName] :
+              print("MISSING WEIGHT ", weightName)
+              return None
+            if weightName == "W_1ST_Unit" : continue
+            totalWeight = ( weightResultDict[weightName]["W_P"] + weightResultDict[weightName]["W_N"] ) / 2.0
+            weightResultDict[weightName]["TOTAL"] = totalWeight
+            print(weightName,"P",weightResultDict[weightName]["W_P"])
+            print(weightName,"N",weightResultDict[weightName]["W_N"])
+            print(weightName,"TOTAL",weightResultDict[weightName]["TOTAL"])
+            self.sarWeights[weightName] = weightResultDict[weightName]["TOTAL"]
+ 
+        #restore initial config here
+        self.restoreConfig(coluta,initConfig)
+
+        #add hardcoded values for completeness
+        self.sarWeights["W_2ND_10"] = 10
+        self.sarWeights["W_2ND_6"] = 6
+        self.sarWeights["W_2ND_4"] = 4
+        self.sarWeights["W_2ND_2"] = 2
+        self.sarWeights["W_2ND_1"] = 1
+        self.sarWeights["W_2ND_0p5"] = 0.5
+        self.sarWeights["W_2ND_0p25"] = 0.25
+        print("DONE TEST")
+        return None
+
+
+
+
+    ############################################
+    ########    Old SAR Calibration      #######
     ############################################
 
     def printSarWeights(self):
