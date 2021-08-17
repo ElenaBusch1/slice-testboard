@@ -620,7 +620,8 @@ class SARCALIBMODULE(object):
           sys.exit("WRITING SAR CONST FAILED: ONE OR MORE READBACKS FAILED")
         pass
    
-    
+   
+ 
     def doSarCalibMultichannel(self, colutas, channels):
       for coluta in colutas:
         if coluta not in self.GUI.chips:
@@ -630,75 +631,127 @@ class SARCALIBMODULE(object):
         if channel not in self.chLabelDict:
           print("INVALID CH")
           return None
-      
+
+
+      # Dictionary to store some channel names and initial configurations
+      MSBLSB = {}
+      initConfigs = {}
+
       for coluta in colutas:
+        initConfigs[coluta] = self.getConfig(coluta)
         for channel in channels:
-          print("We're doing ", coluta, "and ", channel)
           MSBchannel = channel
           LSBchannel = self.chLabelDict[channel][2]
           MSBSectionName = self.chLabelDict[channel][0]
           LSBSectionName = self.chLabelDict[channel][1]
-          
-          initConfig = self.getConfig(coluta)
-           
+          MSBLSB[(coluta, channel)] = [MSBchannel, LSBchannel, MSBSectionName, LSBSectionName]
           # Common Setting for Weighting Evaluation
           self.doConfig(coluta,MSBSectionName,'SHORTINPUT', '1')
           self.doConfig(coluta,MSBSectionName,'DREMDACToSAR', '0')
           self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
           self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
           self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
-          readbackSuccess = self.GUI.sendUpdatedConfigurations()
-          if not readbackSuccess: 
-            sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
-          nRepeats = 1
-          self.GUI.nSamples = 8186
-          if self.feb2Version == True :
-            self.GUI.nSamples = 100000          
-          self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
+      
+        #Decided to test readback success for each coluta
+        readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        if not readbackSuccess: 
+          sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
+                  
+      nRepeats = 1
+      self.GUI.nSamples = 8186
+      if self.feb2Version == True :
+        self.GUI.nSamples = 100000          
+      self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
 
-          #list of weights to measure
-          weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
+      #list of weights to measure
+      weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
                        "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
-          if self.testSingleWeight == True :
-            weightsList = ["W_2ND_16"] #test only
-          weightResultDict = {}
-          print("\n\n\n Quick until here\n\n\n")
-          for weightName in weightsList :
-            print("SAR CALIB ",coluta,channel,weightName)
-            bitArrayDict = self.getWeightBits(weightName,coluta,MSBchannel,LSBchannel)
-            weightResultDict[weightName] = bitArrayDict
+      
 
-          #calculate the weights given the recorded data
-          self.calcWeights(weightsList,weightResultDict)
-          #print out weights
-          for weightName in weightsList :
-            if weightName not in weightResultDict :
-              print("MISSING WEIGHT ", weightName)
-              return None
-            if "W_P" not in weightResultDict[weightName] or "W_N" not in weightResultDict[weightName] :
-              print("MISSING WEIGHT ", weightName)
-              return None
-            if weightName == "W_1ST_Unit" : continue
-            totalWeight = ( weightResultDict[weightName]["W_P"] + weightResultDict[weightName]["W_N"] ) / 2.0
-            weightResultDict[weightName]["TOTAL"] = totalWeight
-            print(weightName,"P",weightResultDict[weightName]["W_P"])
-            print(weightName,"N",weightResultDict[weightName]["W_N"])
-            print(weightName,"TOTAL",weightResultDict[weightName]["TOTAL"])
-            self.sarWeights[weightName] = weightResultDict[weightName]["TOTAL"]
- 
-        #restore initial config here
-        self.restoreConfig(coluta,initConfig)
+      CAL_Config = configparser.ConfigParser()
+      CAL_Config.read("./config/COLUTAV3_PipelineSARCalibrationControls.cfg")
+      calibTypeList = ["SWP","SWPB","SWN","SWNB"]
 
-        #add hardcoded values for completeness
-        self.sarWeights["W_2ND_10"] = 10
-        self.sarWeights["W_2ND_6"] = 6
-        self.sarWeights["W_2ND_4"] = 4
-        self.sarWeights["W_2ND_2"] = 2
-        self.sarWeights["W_2ND_1"] = 1
-        self.sarWeights["W_2ND_0p5"] = 0.5
-        self.sarWeights["W_2ND_0p25"] = 0.25
-        print("DONE TEST")
-        return None
+
+      # indexed by weightName and calibType
+      SARCALEN_dict = {}
+      CALDIR_dict = {}
+      CALPNDAC_dict = {}
+      CALREGA_dict = {}
+      CALREGB_dict = {}
+
+      for weightName in weightsList:
+        for calibType in calibTypeList:
+          SARCALEN_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_SARCALEN_" + str(calibType))   
+          CALDIR_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALDIR_" + str(calibType) ) 
+          CALPNDAC_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALPNDAC_" + str(calibType) ) 
+          CALREGA_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGA_" + str(calibType) ) 
+          CALREGB_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGB_" + str(calibType) ) 
+
+      weightResultDict = {}
+      for weightName in weightList:
+        bitArrayDict = {}
+        for calibType in calibTypeList:    
+          for coluta in colutas:
+            for channel in channels:
+              MSBSecName = MSBLSB[(coluta, channel)][2]
+              SARCALEN = SARCALEN_dict[(weightName, calibType)]
+              CALDIR = CALDIR_dict[(weightName, calibType)]
+              CALPNDAC = CALPNDAC_dict[(weightName, calibType)]
+              CALREGA = CALREGA_dict[(weightName, calibType)]
+              CALREGB = CALREGB_dict[(weightName, calibType)]
+              self.doConfig(coluta,MSBSecName,'SARCALEN', SARCALEN)
+              self.doConfig(coluta,MSBSecName,'CALDIR', CALDIR)
+              self.doConfig(coluta,MSBSecName,'CALPNDAC', CALPNDAC)
+              self.doConfig(coluta,MSBSecName,'CALREGA', CALREGA)
+              self.doConfig(coluta,MSBSecName,'CALREGB', CALREGB)
+
+          #Decided to test readback success for each coluta
+          readbackSuccess = self.GUI.sendUpdatedConfigurations()
+          if not readbackSuccess:
+            sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
+
+          result = self.SARCalibDataTakingMultichannel(colutas, channels, MSBLSB)
+          if result == None:
+            return None
+          BitsArrayP_dict, BitsArrayN_dict = result
+          bitArrayDict[calibType] = {"P": BitsArrayP_dict, "N":BitsArrayN_dict}
+        weightResultDict[weightName] = bitArrayDict
+      
+      self.calcWeightsMultichannel(weightsList, weightResultDict)
+   
+
+####MULTICHANNEL
+    def calcWeights(self, weightsList, weightResultDict):
+      
+
+
+
+    def SARCalibDataTakingMultichannel(self, colutas, channels, msblsb):
+      BitsArrayP_dict = {}
+      BitsArrayN_dict = {}      
+
+      #Take Data 
+      if len(colutas) == 1:
+        self.takeData(coluta=colutas[0])
+      else:
+        self.takeData(trigger=True)
+      
+      for coluta in colutas:
+       if coluta not in self.dataMap:
+         return None
+       for channel in channels:
+         if msblsb[(coluta, channel)][0] not in self.dataMap[coluta]: 
+           return None
+         if msblsb[(coluta, channel)][1] not in self.dataMap[coluta]: 
+           return None
+         MSB_list_string = self.dataMap[coluta][msblsb[(coluta, channel)][0]]
+         LSB_list_string = self.dataMap[coluta][msblsb[(coluta, channel)][1]]
+         BitsArrayP_dict[(coluta, channel)], BitsArrayN_dict[(coluta, channel)] = self.sarCalibListDataToTwentyBits(MSB_list_string, LSB_list_string) 
+      
+      return BitsArrayP_dict, BitsArrayN_dict
+     
+
 
 
 
