@@ -5,6 +5,7 @@ import subprocess
 import parseDataMod #feb2 version only
 import math
 import sys
+import timeit
 from calibModule import CALIBMODULE
 
 class SARCALIBMODULE(object):
@@ -35,10 +36,10 @@ class SARCALIBMODULE(object):
     ############################################
 
     def test(self):
-        import timeit
         #test calib process
         #self.doSarCalib("coluta20","channel8")
         #self.writeSarConstant("coluta20","channel8")
+        """
         colutas = [f"coluta{i}" for i in range(13,21)]
         #colutas.remove("coluta17")
         start_time = timeit.default_timer()
@@ -64,8 +65,76 @@ class SARCALIBMODULE(object):
 
         print("MDAC WEIGHTS")
         print(self.mdacWeights)
+        """
+        self.compareMdacCalibConstants()
         return None
 
+    def compareMdacCalibConstants(self):
+        colutas = [f"coluta{i}" for i in range(13,21)]
+        channels = [f"channel{j}" for j in range (5,9,2)]
+        # Parallel calibration
+        
+        print("#####################")
+        print("   Parallel Calib    ")
+        print("#####################")
+        start_time = timeit.default_timer()
+        self.doMdacCalMultichannel(colutas, channels)
+        parallel_time = timeit.default_timer()-start_time
+        parallel_constants_1 = self.mdacWeights
+        print(parallel_constants_1)
+
+        channels = [f"channel{j}" for j in range (6,9,2)]
+        # Parallel calibration
+
+        print("#####################")
+        print("   Parallel Calib    ")
+        print("#####################")
+        start_time = timeit.default_timer()
+        self.doMdacCalMultichannel(colutas, channels)
+        parallel_time = timeit.default_timer()-start_time
+        parallel_constants_2 = self.mdacWeights
+        print(parallel_constants_2)
+
+        parallel_constants = parallel_constants_1 | parallel_constants_2
+        print(parallel_constants)
+        """
+        # Single channel calibration
+        print("#####################")
+        print("   Single Ch Calib   ")
+        print("#####################")
+        start_time = timeit.default_timer()
+        single_constants = {coluta: {} for coluta in colutas}
+        for coluta in colutas:
+            for ch in channels:
+                self.doMdacCal(coluta, ch)
+                single_constants[coluta][ch] = self.mdacWeights
+        single_time = timeit.default_timer()-start_time
+        print(single_constants)
+
+        try:
+            from tabulate import tabulate
+        except:
+            print("You need the tabulate package...")
+            print(self.mdacWeights)
+            return
+        print(self.mdacWeights)
+        # Writes output to a table
+        with open("compareMDACCalibConstants.txt", "w") as f:
+            f.write(f"Time for parallel calibration: {parallel_time}\n")
+            f.write(f"Time for single ch. calibration: {single_time}\n\n")
+            
+            for coluta in colutas:
+                f.write("++++++++++++++++++++++++")
+                f.write("++  {coluta}  ++".format(coluta=coluta))
+                f.write("++++++++++++++++++++++++\n\n")
+                for ch in channels:
+                    f.write(f"{ch}\n")
+                    to_table = [[corr, parallel_constants[coluta][ch][corr], single_constants[coluta][ch][corr], (parallel_constants[coluta][ch][corr] - single_constants[coluta][ch][corr])] for corr in parallel_constants[coluta][ch].keys()]
+                    table = tabulate(to_table, headers = ["Weight", "Parallel", "Single Ch.", "Delta"],  showindex="never", tablefmt="psql")
+                    f.write(table)
+                    f.write("\n \n")        
+        print("Calibration constants in compareMDACCalibConstants.txt")
+        """
     ############################################
     ########        Do Calibration       #######
     ############################################
