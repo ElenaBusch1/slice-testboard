@@ -187,6 +187,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.document().setPlainText(str(self.nSamples))
+        self.AttValBox.document().setPlainText(str(self.att_val))
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
         #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
         #                                        ylim=[0,65536],ylabel='ADC Counts')
@@ -1606,6 +1607,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         with open("colutaOutput.txt", "w") as f:
             f.write(dataStringChunks16)
         #print(dataStringChunks16)
+
+    def updateAtt(self):
+        self.att_val = int(self.AttValBox.toPlainText())
 
     def updateNSamples(self):
         self.nSamples = int(self.nSamplesBox.toPlainText())
