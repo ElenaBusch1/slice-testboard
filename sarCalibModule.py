@@ -45,6 +45,11 @@ class SARCALIBMODULE(object):
         colutas.remove("coluta17") #Might have to deactivate this line of code
        
 
+        #print("Do regular SAR calib first")
+        #self.doSarCalib("coluta20", "channel8") 
+        #print("Now do regular")
+
+
         print("We are doing the multichannel Sar Calibration")
         self.doSarCalibMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
         print("End Sar Calibration Debugging")
@@ -763,22 +768,14 @@ class SARCALIBMODULE(object):
       return None
 
 
-    def pretty(self, d, indent=0):
-      for key, value in d.items():
-        print('\t' * indent + str(key))
-        if isinstance(value, dict):
-          self.pretty(value, indent+1)
-        else:
-          self.print('\t' * (indent+1) + str(value))
-
-
-
 
     def calcWeightsMultichannel(self, weightsList, weightResultDict, coluta, channel):
       list_Weighting_Second_Stage_P = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
       list_Weighting_Second_Stage_N = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
       weightPositionDict = {"W_2ND_16":12,"W_2ND_24":11,"W_2ND_32":10,"W_2ND_64":9,"W_2ND_128":8,"W_2ND_224":7} #Note: this is a bad solution. also note only 2nd stage weights here
+      print("We are now doing deep stage multichannel weight calculation")
       for weightName in weightsList:
+        print("This is weight ", weightName)
         self.calcWeightMultichannel(weightName, weightResultDict, list_Weighting_Second_Stage_P,list_Weighting_Second_Stage_N, coluta, channel)
         if "W_P" not in weightResultDict[weightName] or "W_N" not in weightResultDict[weightName] :
           return None
@@ -787,37 +784,38 @@ class SARCALIBMODULE(object):
         #update weighting list
         #use position dict above to correctly update the list_Weighting_Second_Stage_P/N lists
         listPos = weightPositionDict[weightName]
+        print(listPos)
         list_Weighting_Second_Stage_P[listPos] = round(W_P,2)
         list_Weighting_Second_Stage_N[listPos] = round(W_N,2)
 
 
-        print("Printing first term: ",  weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]) 
-        print("If next term doesn't print it's screwed")
-        print("Printing second term: ", weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]) 
+      print("Printing first term: ",  weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]) 
+      print("If next term doesn't print it's screwed")
+      print("Printing second term: ", weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]) 
 
-        weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]= weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
-        weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
+      weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]= weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
+      weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
 
-        weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
-        weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
+      weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
+      weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
 
-        weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]
-        weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]
+      weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]
+      weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]
 
-        weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]
-        weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]
+      weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]
+      weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]
 
-        weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)]
-        weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)]
+      weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)]
+      weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)]
 
-        weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)]
-        weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)]
+      weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)]
+      weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)]
 
-        weightResultDict["W_1ST_3584"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  \
+      weightResultDict["W_1ST_3584"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  \
                                               + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_3584"]["W_P"][(coluta, channel)] 
-        weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  \
+      weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  \
                                               + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] 
-        return None
+      return None
 
 
 
