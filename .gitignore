@@ -1,6 +1,7 @@
 old/
 .DS_Store
 *.txt
+andrew*
 configBoard633/
 configBoard634*
 config_tmp_*
