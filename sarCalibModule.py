@@ -6,6 +6,7 @@ import parseDataMod #feb2 version only
 import math
 import sys
 import timeit
+import json
 from calibModule import CALIBMODULE
 
 class SARCALIBMODULE(object):
@@ -82,7 +83,7 @@ class SARCALIBMODULE(object):
         parallel_time = timeit.default_timer()-start_time
         parallel_constants_1 = self.mdacWeights
         print(parallel_constants_1)
-
+        
         channels = [f"channel{j}" for j in range (6,9,2)]
         # Parallel calibration
 
@@ -95,9 +96,16 @@ class SARCALIBMODULE(object):
         parallel_constants_2 = self.mdacWeights
         print(parallel_constants_2)
 
-        parallel_constants = parallel_constants_1 | parallel_constants_2
+        for coluta in colutas:
+            parallel_constants_1[coluta].update(parallel_constants_2[coluta])
+        parallel_constants = parallel_constants_1
+        print("Final constants for parallel")
         print(parallel_constants)
-        """
+       
+        with open("parallel_constants.json", "w") as f:
+            json.dump(parallel_constants, f)
+ 
+        channels = ["channel5", "channel8"]
         # Single channel calibration
         print("#####################")
         print("   Single Ch Calib   ")
@@ -109,8 +117,12 @@ class SARCALIBMODULE(object):
                 self.doMdacCal(coluta, ch)
                 single_constants[coluta][ch] = self.mdacWeights
         single_time = timeit.default_timer()-start_time
+        print("Final constants for single")
         print(single_constants)
+        with open("single_constants.json", "w") as f:
+            json.dump(single_constants, f)
 
+        """
         try:
             from tabulate import tabulate
         except:
