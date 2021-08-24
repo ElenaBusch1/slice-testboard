@@ -785,6 +785,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
 
+        self.sarMdacCal.getFullCalibInFeb2Gui()
+
         print("Done Configuring")
         print("Configuration results")
         for chip in self.configResults :
