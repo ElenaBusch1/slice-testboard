@@ -358,6 +358,7 @@ def main(GUI, fileName):
   attributes['measType'] = GUI.runType
   attributes['runNum'] = GUI.runNumber
   attributes['adc'] = GUI.singleADCMode_ADC
+  attributes['LAUROCmode'] = GUI.LAUROCmode
   attributes['timestamp'] = str(datetime.now())
 
   print('Parsing '+fileName+' of type '+dataType) 
