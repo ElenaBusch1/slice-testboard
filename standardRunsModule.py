@@ -29,7 +29,6 @@ class STANDARDRUNS(object):
      
     #update metadata related to standard data runs in GUI
     def updateGuiMetadata(self):
-        self.GUI.att_val = self.attVal #define here for now, should go in tab
         self.GUI.awgAmplitude = self.pulseAmp #define here for now, should go in tab
         self.GUI.awgFreq = self.freq #define here for now, should go in tab
         self.GUI.runType = self.measType
@@ -181,6 +180,10 @@ class STANDARDRUNS(object):
         #setup required settings for pulser data taking
         self.measType = "pulse"
         self.measStep = 0
+        #print("Att val before setting: ",self.attVal,self.GUI.att_val)
+        self.attVal = getattr(self.GUI, 'AttValBox').toPlainText()
+        self.GUI.att_val = self.attVal #define here for now, should go in tab
+        #print("Att val after setting: ",self.attVal,self.GUI.att_val)
         self.setCommonGuiSettings()
         self.updateGuiMetadata()
 
@@ -191,6 +194,8 @@ class STANDARDRUNS(object):
         #loop through amps, take data
         #standardAmps = ['0.1','1.0'] #debug amp list
         standardAmps = ['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1.0','2.0','3.0','4.0','5.0','6.0'] #AWG valid voltage range
+
+
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
             self.measStep = stepNum

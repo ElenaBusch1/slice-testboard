@@ -87,6 +87,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
         self.measChan = "default"
+        self.LAUROCmode = '-99'
 
         # Default attributes for hdf5 output, overwritten by instrument control
         self.runType = 'sine'
@@ -187,6 +188,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.document().setPlainText(str(self.nSamples))
+        self.AttValBox.document().setPlainText(str(self.att_val))
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
         #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
         #                                        ylim=[0,65536],ylabel='ADC Counts')
@@ -1607,6 +1609,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             f.write(dataStringChunks16)
         #print(dataStringChunks16)
 
+    def updateAtt(self):
+        self.att_val = int(self.AttValBox.toPlainText())
+
     def updateNSamples(self):
         self.nSamples = int(self.nSamplesBox.toPlainText())
         # try:
@@ -1755,6 +1760,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         ## cmd_gain_sum not implemented as button in GUI
         lauroc.setConfiguration("datain27", "cmd_gain_sum", '000')
         print(f"Updated {laurocName} datain27, cmd_gain_sum: 000")
+        self.LAUROCmode = mode
 
     def updateErrorConfigurationList(self, readback, chip):
         print("performed test for", chip)
