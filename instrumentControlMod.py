@@ -350,7 +350,8 @@ class t3awg3252(Device):
         # CH1_Frequency = 0.083507
         # CH1_Frequency = 1.251303
         #CH1_Frequency = 0.6253257
-        CH1_Frequency =  0.2083333333 #correct frequency fir 192 samples
+        #CH1_Frequency =  0.2083333333 #correct frequency fir 192 samples
+        CH1_Frequency =  0.2083695085924 #correct frequency for 4800ns - 1 AWG tick long pulse shape
         #CH1_Frequency = 0.0800053337 #correct frequency for 12500ns - 1 AWG tick long pulse shape
         # CH1_Frequency = self.getSetting('ramp_frequency')
         #CH1_Amplitude = self.getSetting('pulse_amplitude')

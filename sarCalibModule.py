@@ -4,6 +4,7 @@ import time
 import subprocess
 import parseDataMod #feb2 version only
 import math
+import sys
 from calibModule import CALIBMODULE
 
 class SARCALIBMODULE(object):
