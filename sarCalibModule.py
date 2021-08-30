@@ -43,11 +43,6 @@ class SARCALIBMODULE(object):
         #this creates a list of coluta names
         colutas = [f"coluta{i}" for i in range(13,21)]
         colutas.remove("coluta17") #Might have to deactivate this line of code
-       
-
-        #print("Do regular SAR calib first")
-        #self.doSarCalib("coluta20", "channel8") 
-        #print("Now do regular")
 
 
         print("We are doing the multichannel Sar Calibration")
@@ -564,23 +559,18 @@ class SARCALIBMODULE(object):
     #######   SAR Parallel Calibration   #######
     ############################################
 
-
-
     #Currently not working, perhaps because we need to calibrate first
     def writeSarConstantMultichannel(self, colutas, channels):
         self.scaleFactor = 0.97
-        print("we began the writeSar")
+        print("we began the multichannel writeSar")
         try:
           channelLabel = {channel : self.chLabelDict[channel][0] for channel in channels}
         except KeyError:
           print("Could not find channel(s) in SAR calibration...")
           return None
                  
-        if "W_1ST_3584" not in self.sarWeights:
-          return None
         chWeightResultDict = self.sarWeights
 
-        print("Has this something to do with the mapping?")
         #awkward mapping between SAR weight names and DDPU constant names
         sarCalibDdpuConfigs = {"W_1ST_3584" : 'SARCorrectionCode20',"W_1ST_2048" : 'SARCorrectionCode19',"W_1ST_1024" : 'SARCorrectionCode18' ,\
                                "W_1ST_640" : 'SARCorrectionCode17' ,"W_1ST_384" : 'SARCorrectionCode16' ,"W_1ST_256" : 'SARCorrectionCode15'  ,\
@@ -598,11 +588,10 @@ class SARCALIBMODULE(object):
                                'SARCorrectionCode17' : 12 ,'SARCorrectionCode16' : 11 ,'SARCorrectionCode15' : 11  ,\
                                'SARCorrectionCode14' : 10 ,'SARCorrectionCode13' : 10 ,'SARCorrectionCode12' : 10  ,\
                                'SARCorrectionCode11' : 9  ,'SARCorrectionCode10' : 8  ,'SARCorrectionCode9'  : 7   ,\
-                               'SARCorrectionCode8' : 7   ,'SARCorrectionCode7'  : 6  ,'SARCorrectionCode6'  : 5}
-        print("We should begin for loop now") 
+                               'SARCorrectionCode8' : 7   ,'SARCorrectionCode7'  : 6  ,'SARCorrectionCode6'  : 5} 
         for coluta in colutas:
           for channel in channels:
-            print("Doing coluta ", coluta, "and channel", channel) 
+            print("For ", coluta, " and ", channel) 
             for corr in mapSarCorrToWeights :
               if corr not in self.GUI.chips[coluta][channelLabel[channel]] :
                 continue
@@ -626,8 +615,21 @@ class SARCALIBMODULE(object):
         pass
 
 
+
+    def pretty(self, d, indent=0):
+       for key, value in d.items():
+          print('\t' * indent + str(key))
+          if isinstance(value, dict):
+             pretty(value, indent+1)
+          else:
+             print('\t' * (indent+1) + str(value))   
+
+
+
+
  
     def doSarCalibMultichannel(self, colutas, channels):
+
       for coluta in colutas:
         if coluta not in self.GUI.chips:
           print("INVALID ASIC")
@@ -660,24 +662,17 @@ class SARCALIBMODULE(object):
         #Decided to test readback success for each coluta
         #This is to save time for now, but wemight want to relocate this
         #To another part of the code
-        readbackSuccess = self.GUI.sendUpdatedConfigurations()
-        if not readbackSuccess: 
-          sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
-     
-      print("\n\n ###############################################################\n\n")
-      print("\t\t Preliminary Stuff Works Fine")       
-      print("\n\n ###############################################################\n\n")
+        #readbackSuccess = self.GUI.sendUpdatedConfigurations()
+        #if not readbackSuccess: 
+          #sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
 
       nRepeats = 1
-      self.GUI.nSamples = 8186
-      if self.feb2Version == True :
-        self.GUI.nSamples = 100000          
+      self.GUI.nSamples = 100000
       self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
 
       #list of weights to measure
       weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
                        "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
-      
 
       CAL_Config = configparser.ConfigParser()
       CAL_Config.read("./config/COLUTAV3_PipelineSARCalibrationControls.cfg")
@@ -699,11 +694,7 @@ class SARCALIBMODULE(object):
           CALREGA_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGA_" + str(calibType) ) 
           CALREGB_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGB_" + str(calibType) ) 
 
-      print("\n\n ###############################################################\n\n")
-      print("\t\t Preliminary CalibType Study Works Fine")       
-      print("\n\n ###############################################################\n\n")
- 
-      weightResultDict = {}
+      weightResultDict = {}#weightResultDict = {"TOTAL": {}}
       for weightName in weightsList:
         bitArrayDict = {}
         for calibType in calibTypeList:    
@@ -727,16 +718,8 @@ class SARCALIBMODULE(object):
           #readbackSuccess = self.GUI.sendUpdatedConfigurations()
           #if not readbackSuccess:
           #  sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
-
-
-          print("\n\n ###############################################################\n\n")
-          print("\t\t About to Perform Calibration for", calibType, weightName)       
-          print("\n\n ###############################################################\n\n")
  
           result = self.SARCalibDataTakingMultichannel(colutas, channels, MSBLSB)        
-
-          if result == None:
-            return None
 
           BitsArrayP_dict, BitsArrayN_dict = result
           bitArrayDict[calibType] = {"P": BitsArrayP_dict, "N":BitsArrayN_dict, "val": {}}
@@ -744,16 +727,17 @@ class SARCALIBMODULE(object):
         bitArrayDict["W_P"] = {}
         bitArrayDict["W_N"] = {}
         weightResultDict[weightName] = bitArrayDict
-      
+     
+      print("Now we are entering the calcWeights Stage of the Program")
+
+      print("regular print")
+      print(weightResultDict)
+
+ 
       for coluta in colutas:
         for channel in channels:
+          print("this is for ", coluta, " and ", channel)
           self.calcWeightsMultichannel(weightsList, weightResultDict, coluta, channel)
-
-
-      print("\n\n ###############################################################\n\n")
-      print("\t\t Essentially Done")  
-      print("\n\n ###############################################################\n\n")
- 
 
 
       for weightName in weightsList:
@@ -761,6 +745,7 @@ class SARCALIBMODULE(object):
           for channel in channels:
             totalWeight = ( weightResultDict[weightName]["W_P"][(coluta, channel)] + weightResultDict[weightName]["W_N"][(coluta, channel)] ) / 2.0 
             weightResultDict[weightName]["TOTAL"][(coluta, channel)] = totalWeight
+            print("Successs!")
             self.sarWeights[weightName][(coluta, channel)] = weightResultDict[weightName]["Total"][(coluta, channel)]
 
       self.restoreConfig(coluta, initConfig)
@@ -768,14 +753,15 @@ class SARCALIBMODULE(object):
       return None
 
 
-
+    #Position stuff
     def calcWeightsMultichannel(self, weightsList, weightResultDict, coluta, channel):
       list_Weighting_Second_Stage_P = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
       list_Weighting_Second_Stage_N = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
-      weightPositionDict = {"W_2ND_16":12,"W_2ND_24":11,"W_2ND_32":10,"W_2ND_64":9,"W_2ND_128":8,"W_2ND_224":7} #Note: this is a bad solution. also note only 2nd stage weights here
-      print("We are now doing deep stage multichannel weight calculation")
-      for weightName in weightsList:
-        print("This is weight ", weightName)
+      weightPositionDict = {"W_2ND_16":12,"W_2ND_24":11,"W_2ND_32":10,"W_2ND_64":9,"W_2ND_128":8,"W_2ND_224":7,"W_1ST_128":6 ,"W_1ST_256":5,"W_1ST_384":4,"W_1ST_640":3,"W_1ST_1024":2,"W_1ST_2048":1,"W_1ST_3584":0} #Note: this is a bad solution. also note only 2nd stage weights here
+      weightsList2 = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
+
+
+      for weightName in weightsList2:
         self.calcWeightMultichannel(weightName, weightResultDict, list_Weighting_Second_Stage_P,list_Weighting_Second_Stage_N, coluta, channel)
         if "W_P" not in weightResultDict[weightName] or "W_N" not in weightResultDict[weightName] :
           return None
@@ -783,15 +769,14 @@ class SARCALIBMODULE(object):
         W_N = weightResultDict[weightName]["W_N"][(coluta, channel)]
         #update weighting list
         #use position dict above to correctly update the list_Weighting_Second_Stage_P/N lists
+        print(W_P)
+        print(W_N)
         listPos = weightPositionDict[weightName]
-        print(listPos)
         list_Weighting_Second_Stage_P[listPos] = round(W_P,2)
         list_Weighting_Second_Stage_N[listPos] = round(W_N,2)
 
 
-      print("Printing first term: ",  weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]) 
-      print("If next term doesn't print it's screwed")
-      print("Printing second term: ", weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]) 
+      ###Maybe think of rewriting this to make it more readable
 
       weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]= weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
       weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
@@ -816,6 +801,7 @@ class SARCALIBMODULE(object):
       weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  \
                                               + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] 
       return None
+
 
 
 
@@ -855,8 +841,6 @@ class SARCALIBMODULE(object):
         return None      
 
 
-   
-
     def SARCalibDataTakingMultichannel(self, colutas, channels, msblsb):
       BitsArrayP_dict = {}
       BitsArrayN_dict = {}      
@@ -887,6 +871,7 @@ class SARCALIBMODULE(object):
     ############################################
 
     def printSarWeights(self):
+        print("It has begun")
         if 'W_1ST_3584' not in self.sarWeights :
           return None
         scaleVal = 3584./float(self.sarWeights['W_1ST_3584'])
