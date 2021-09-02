@@ -37,16 +37,17 @@ class SARCALIBMODULE(object):
     ############################################
 
     def test(self):
-        """
+        
+        
         colutas = [f"coluta{i}" for i in range(13,21)]
         colutas.remove("coluta17") #Might have to deactivate this line of code
 
 
         print("We are doing the multichannel Sar Calibration")
-        self.doSarCalibMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
+        self.doSarCalibMultichannel(colutas, [f"channel{j}" for j in range (5,6)])
         print("End Sar Calibration Debugging")
 
- 
+        """
         #start_time = timeit.default_timer()
         #print("We are doing the multichannel Mdac Calibration")
         #self.doMdacCalMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
@@ -72,7 +73,7 @@ class SARCALIBMODULE(object):
         print("MDAC WEIGHTS")
         print(self.mdacWeights)
         """
-        self.compareMdacCalibConstants()
+        #self.compareMdacCalibConstants()
         return None
 
     def compareMdacCalibConstants(self):
@@ -700,9 +701,45 @@ class SARCALIBMODULE(object):
           else:
              print('\t' * (indent+1) + str(value))   
 
+    def doSarCalibMultichannelDebug(self, colutas, channels):
 
+      for coluta in colutas:
+        if coluta not in self.GUI.chips:
+          print("INVALID ASIC")
+          return None
+      for channel in channels:
+        if channel not in self.chLabelDict:
+          print("INVALID CH")
+          return None
 
+      MSBchannels = {coluta: {ch: ch for ch in channels} for coluta in colutas}
+      LSBchannels = {coluta: {ch: self.chLabelDict[ch][2] for ch in channels} for coluta in colutas}
+      MSBSectionNames = {coluta: {ch: self.chLabelDict[ch][0] for ch in channels} for coluta in colutas}
+      LSBSectionNames = {coluta: {ch: self.chLabelDict[ch][1] for ch in channels} for coluta in colutas}
+      initConfigs = {coluta : self.getConfig(coluta) for coluta in colutas}
 
+      for coluta in colutas:
+          for ch in channels:
+              self.doConfig(coluta,MSBSectionNames[coluta][ch],'SHORTINPUT', '1')
+              self.doConfig(coluta,MSBSectionNames[coluta][ch],'DREMDACToSAR', '0')
+              self.doConfig(coluta,MSBSectionNames[coluta][ch],'OutputMode', '1')
+              self.doConfig(coluta,MSBSectionNames[coluta][ch],'EXTToSAR', '0')
+              self.doConfig(coluta,LSBSectionNames[coluta][ch],'DATAMUXSelect', '1')         
+
+      readbackSuccess = self.GUI.sendUpdatedConfigurations()
+      if not readbackSuccess:
+          sys.exit("SAR calibration stopped: readback failed for SAR configurations")
+    
+      weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
+                     "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024",
+                     "W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
+
+      if self.testSingleWeight == True:
+          weightsList = ["W_2ND_16"] #test only
+
+      weightResultDict = {coluta: {ch: {} for ch in channels} for coluta in colutas}
+      for weight in weightsList:
+          bitArrayDict = self.getWeightBits(weight, coluta, 
  
     def doSarCalibMultichannel(self, colutas, channels):
 
