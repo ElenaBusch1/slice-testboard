@@ -40,11 +40,11 @@ class SARCALIBMODULE(object):
         
         
         colutas = [f"coluta{i}" for i in range(13,21)]
-        colutas.remove("coluta17") #Might have to deactivate this line of code
+        #colutas.remove("coluta17") #Might have to deactivate this line of code
 
 
         print("We are doing the multichannel Sar Calibration")
-        self.doSarCalibMultichannelDebug(colutas, [f"channel{j}" for j in range (5,6)])
+        self.doSarCalibMultichannelDebug(colutas, [f"channel{j}" for j in range (6,9,2)])
         print("End Sar Calibration Debugging")
 
         """
@@ -78,7 +78,7 @@ class SARCALIBMODULE(object):
 
     def compareMdacCalibConstants(self):
         colutas = [f"coluta{i}" for i in range(13,21)]
-        channels = [f"channel{j}" for j in range (5,9,2)]
+        channels = [f"channel{j}" for j in range (6,9,2)]
         # Parallel calibration
         
         print("#####################")
@@ -692,15 +692,6 @@ class SARCALIBMODULE(object):
         pass
 
 
-
-    def pretty(self, d, indent=0):
-       for key, value in d.items():
-          print('\t' * indent + str(key))
-          if isinstance(value, dict):
-             pretty(value, indent+1)
-          else:
-             print('\t' * (indent+1) + str(value))   
-
     def doSarCalibMultichannelDebug(self, colutas, channels):
       sarWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
       for coluta in colutas:
@@ -748,6 +739,7 @@ class SARCALIBMODULE(object):
               for ch in channels:
                   weightResultDictDebug[coluta][ch][weightName] = {}
           for calibType in calibTypeList:
+              print(weightName,":", calibType,"########")
               SARCALEN  = CAL_Config.get("SARCalibrationControls", str(weightName) + "_SARCALEN_" + str(calibType))
               CALDIR    = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALDIR_" + str(calibType))
               CALPNDAC  = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALPNDAC_" + str(calibType))
@@ -772,13 +764,7 @@ class SARCALIBMODULE(object):
               for coluta in colutas:
                   for ch in channels:
                       BitsArrayP, BitsArrayN = self.sarCalibListDataToTwentyBits(MSBLists[coluta][ch],LSBLists[coluta][ch])
-                      #bitArrayDict[coluta][ch][calibType] = {"P":BitsArrayP , "N":BitsArrayN}
-                      #print(bitArrayDict[coluta][ch][calibType])
                       weightResultDictDebug[coluta][ch][weightName][calibType] = {"P":BitsArrayP , "N":BitsArrayN}
-
-          #for coluta in colutas:
-          #    for ch in channels:                  
-          #        weightResultDictDebug[coluta][ch][weightName] = bitArrayDict[coluta][ch]
 
       for coluta in colutas:
           for ch in channels:
@@ -901,247 +887,7 @@ class SARCALIBMODULE(object):
         weightResultDict[weightName]["W_P"] = SWP - SWPB
         weightResultDict[weightName]["W_N"] =SWNB -SWN
         return weightResultDict      
-
-
           
-
-    def doSarCalibMultichannel(self, colutas, channels):
-
-      for coluta in colutas:
-        if coluta not in self.GUI.chips:
-          print("INVALID ASIC")
-          return None
-      for channel in channels:
-        if channel not in self.chLabelDict:
-          print("INVALID CH")
-          return None
-
-      # Dictionary to store some channel names and initial configurations
-      MSBLSB = {}
-      initConfigs = {}
-
-      for coluta in colutas:
-        # Get initial COLUTA config here
-        initConfigs[coluta] = self.getConfig(coluta)
-        for channel in channels:
-          MSBchannel = channel
-          LSBchannel = self.chLabelDict[channel][2]
-          MSBSectionName = self.chLabelDict[channel][0]
-          LSBSectionName = self.chLabelDict[channel][1]
-          MSBLSB[(coluta, channel)] = [MSBchannel, LSBchannel, MSBSectionName, LSBSectionName]
-          # Common Setting for Weighting Evaluation
-          self.doConfig(coluta,MSBSectionName,'SHORTINPUT', '1')
-          self.doConfig(coluta,MSBSectionName,'DREMDACToSAR', '0')
-          self.doConfig(coluta,MSBSectionName,'OutputMode', '1')
-          self.doConfig(coluta,MSBSectionName,'EXTToSAR', '0')
-          self.doConfig(coluta,LSBSectionName,'DATAMUXSelect', '1')
-      
-        #Decided to test readback success for each coluta
-        #This is to save time for now, but wemight want to relocate this
-        #To another part of the code
-        #readbackSuccess = self.GUI.sendUpdatedConfigurations()
-        #if not readbackSuccess: 
-          #sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
-
-      nRepeats = 1
-      self.GUI.nSamples = 100000
-      self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples))
-
-      #list of weights to measure
-      weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
-                       "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
-
-      CAL_Config = configparser.ConfigParser()
-      CAL_Config.read("./config/COLUTAV3_PipelineSARCalibrationControls.cfg")
-      calibTypeList = ["SWP","SWPB","SWN","SWNB"]
-
-
-      # indexed by weightName and calibType
-      SARCALEN_dict = {}
-      CALDIR_dict = {}
-      CALPNDAC_dict = {}
-      CALREGA_dict = {}
-      CALREGB_dict = {}
-
-      for weightName in weightsList:
-        for calibType in calibTypeList:
-          SARCALEN_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_SARCALEN_" + str(calibType))   
-          CALDIR_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALDIR_" + str(calibType) ) 
-          CALPNDAC_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALPNDAC_" + str(calibType) ) 
-          CALREGA_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGA_" + str(calibType) ) 
-          CALREGB_dict[(weightName, calibType)] = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGB_" + str(calibType) ) 
-
-      weightResultDict = {}#weightResultDict = {"TOTAL": {}}
-      for weightName in weightsList:
-        bitArrayDict = {}
-        for calibType in calibTypeList:    
-          for coluta in colutas:
-            for channel in channels:
-              #Retrive info for coluta/channel pair
-              MSBSecName = MSBLSB[(coluta, channel)][2]
-              SARCALEN = SARCALEN_dict[(weightName, calibType)]
-              CALDIR = CALDIR_dict[(weightName, calibType)]
-              CALPNDAC = CALPNDAC_dict[(weightName, calibType)]
-              CALREGA = CALREGA_dict[(weightName, calibType)]
-              CALREGB = CALREGB_dict[(weightName, calibType)]
-              #Do config for each pair
-              self.doConfig(coluta,MSBSecName,'SARCALEN', SARCALEN)
-              self.doConfig(coluta,MSBSecName,'CALDIR', CALDIR)
-              self.doConfig(coluta,MSBSecName,'CALPNDAC', CALPNDAC)
-              self.doConfig(coluta,MSBSecName,'CALREGA', CALREGA)
-              self.doConfig(coluta,MSBSecName,'CALREGB', CALREGB)
-
-          #Decided to test readback success for colutas for each calibType/weightName pair
-          #readbackSuccess = self.GUI.sendUpdatedConfigurations()
-          #if not readbackSuccess:
-          #  sys.exit("SAR CALIBRATION STOPPED: ONE OR MORE READBACKS FAILED")
- 
-          result = self.SARCalibDataTakingMultichannel(colutas, channels, MSBLSB)        
-
-          BitsArrayP_dict, BitsArrayN_dict = result
-          bitArrayDict[calibType] = {"P": BitsArrayP_dict, "N":BitsArrayN_dict, "val": {}}
-          
-        bitArrayDict["W_P"] = {}
-        bitArrayDict["W_N"] = {}
-        weightResultDict[weightName] = bitArrayDict
-     
-      print("Now we are entering the calcWeights Stage of the Program")
-
-      print("regular print")
-      print(weightResultDict)
-
- 
-      for coluta in colutas:
-        for channel in channels:
-          print("this is for ", coluta, " and ", channel)
-          self.calcWeightsMultichannel(weightsList, weightResultDict, coluta, channel)
-
-
-      for weightName in weightsList:
-        for coluta in colutas:
-          for channel in channels:
-            totalWeight = ( weightResultDict[weightName]["W_P"][(coluta, channel)] + weightResultDict[weightName]["W_N"][(coluta, channel)] ) / 2.0 
-            weightResultDict[weightName]["TOTAL"][(coluta, channel)] = totalWeight
-            print("Successs!")
-            self.sarWeights[weightName][(coluta, channel)] = weightResultDict[weightName]["Total"][(coluta, channel)]
-
-      self.restoreConfig(coluta, initConfig)
-      #add hardcoded values for completeness later
-      return None
-
-
-    #Position stuff
-    def calcWeightsMultichannel(self, weightsList, weightResultDict, coluta, channel):
-      list_Weighting_Second_Stage_P = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
-      list_Weighting_Second_Stage_N = [0,0,0,0,0,0,0,0,0,0,0,0,0,10,6,4,2,1,0.5,0.25]
-      weightPositionDict = {"W_2ND_16":12,"W_2ND_24":11,"W_2ND_32":10,"W_2ND_64":9,"W_2ND_128":8,"W_2ND_224":7,"W_1ST_128":6 ,"W_1ST_256":5,"W_1ST_384":4,"W_1ST_640":3,"W_1ST_1024":2,"W_1ST_2048":1,"W_1ST_3584":0} #Note: this is a bad solution. also note only 2nd stage weights here
-      weightsList2 = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024","W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
-
-
-      for weightName in weightsList2:
-        self.calcWeightMultichannel(weightName, weightResultDict, list_Weighting_Second_Stage_P,list_Weighting_Second_Stage_N, coluta, channel)
-        if "W_P" not in weightResultDict[weightName] or "W_N" not in weightResultDict[weightName] :
-          return None
-        W_P = weightResultDict[weightName]["W_P"][(coluta, channel)]
-        W_N = weightResultDict[weightName]["W_N"][(coluta, channel)]
-        #update weighting list
-        #use position dict above to correctly update the list_Weighting_Second_Stage_P/N lists
-        print(W_P)
-        print(W_N)
-        listPos = weightPositionDict[weightName]
-        list_Weighting_Second_Stage_P[listPos] = round(W_P,2)
-        list_Weighting_Second_Stage_N[listPos] = round(W_N,2)
-
-
-      ###Maybe think of rewriting this to make it more readable
-
-      weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]= weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
-      weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
-
-      weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_P"][(coluta, channel)]
-      weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)] + weightResultDict["W_1ST_Unit"]["W_N"][(coluta, channel)]
-
-      weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]
-      weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]
-
-      weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]
-      weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]
-
-      weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)]
-      weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)]
-
-      weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)]
-      weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_1024"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)]
-
-      weightResultDict["W_1ST_3584"]["W_P"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_P"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_P"][(coluta, channel)]  \
-                                              + weightResultDict["W_1ST_640"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_P"][(coluta, channel)]  + weightResultDict["W_1ST_3584"]["W_P"][(coluta, channel)] 
-      weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] = weightResultDict["W_1ST_128"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_256"]["W_N"][(coluta, channel)]   + weightResultDict["W_1ST_384"]["W_N"][(coluta, channel)]  \
-                                              + weightResultDict["W_1ST_640"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_2048"]["W_N"][(coluta, channel)]  + weightResultDict["W_1ST_3584"]["W_N"][(coluta, channel)] 
-      return None
-
-
-
-
-    def calcWeightMultichannel(self,weightName,weightResultDict,list_Weighting_Second_Stage_P,list_Weighting_Second_Stage_N, coluta, channel):
-
-        Weighting_Second_Stage_P = np.array(list_Weighting_Second_Stage_P)
-        Weighting_Second_Stage_P = np.diag(Weighting_Second_Stage_P)
-        Weighting_Second_Stage_N = np.array(list_Weighting_Second_Stage_P)
-        Weighting_Second_Stage_N = np.diag(Weighting_Second_Stage_N)
-
-        calibTypeList = ["SWP","SWPB","SWN","SWNB"]
-        for calibType in calibTypeList :
-          if calibType not in weightResultDict[weightName] :
-            print("MISSING calibType in weightResultDict")
-            return None
-
-          PArray = weightResultDict[weightName][calibType]["P"][(coluta, channel)]
-          NArray = weightResultDict[weightName][calibType]["N"][(coluta, channel)]
-          calibVal = PArray.dot(Weighting_Second_Stage_P)+NArray.dot(Weighting_Second_Stage_N)
-          calibVal = np.sum(calibVal, axis=1)
-          calibVal = np.mean(calibVal)
-          weightResultDict[weightName][calibType]["val"][(coluta, channel)] = calibVal
-
-        for calibType in calibTypeList :
-          if calibType not in weightResultDict[weightName] :
-            print("MISSING calibType in weightResultDict")
-            return None
-          if "val" not in weightResultDict[weightName][calibType] :
-            print("MISSING val in weightResultDict")
-            return None
-        SWP  = weightResultDict[weightName]["SWP"]["val"][(coluta, channel)]
-        SWPB = weightResultDict[weightName]["SWPB"]["val"][(coluta, channel)]
-        SWN  = weightResultDict[weightName]["SWN"]["val"][(coluta, channel)]
-        SWNB = weightResultDict[weightName]["SWNB"]["val"][(coluta, channel)]
-        weightResultDict[weightName]["W_P"][(coluta, channel)] = SWP - SWPB
-        weightResultDict[weightName]["W_N"][(coluta, channel)]  = SWNB -SWN
-        return None      
-
-
-    def SARCalibDataTakingMultichannel(self, colutas, channels, msblsb):
-      BitsArrayP_dict = {}
-      BitsArrayN_dict = {}      
-      #Take Data ONCE for parallelization
-      if len(colutas) == 1:
-        self.takeData(coluta=colutas[0])
-      else:
-        self.takeData(trigger=True)
-
-      try: 
-        for coluta in colutas:
-          for channel in channels:
-            MSB_list_string = self.dataMap[coluta][msblsb[(coluta, channel)][0]]
-            LSB_list_string = self.dataMap[coluta][msblsb[(coluta, channel)][1]]
-            BitsArrayP_dict[(coluta, channel)], BitsArrayN_dict[(coluta, channel)] = self.sarCalibListDataToTwentyBits(MSB_list_string, LSB_list_string) 
-      except:
-        return None      
-
-      return BitsArrayP_dict, BitsArrayN_dict
-     
-
-
-
-
 
     ############################################
     ########    Old SAR Calibration      #######
