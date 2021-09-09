@@ -334,7 +334,41 @@ def parseData(fileName,dataType,maxNumReads, attributes):
   else: print("Unknown data type") 
   return chanData
 
-    
+#--------------------------------------------------------------------
+def parseDataHelper(readCount, maxNumReads, fp, struct_len, struct_unpack):
+  data = fp.read(struct_len)
+  if not data: return
+  s = struct_unpack(data)
+  if readCount % np.divide(maxNumReads,10) == 0: print(readCount)
+  return(s)
+  
+
+def parseDataNP(fileName, dataType, maxNumReads, attributes):
+
+  struct_fmt = ">2H"
+  struct_len = struct.calcsize(struct_fmt)
+  struct_unpack = struct.Struct(struct_fmt).unpack_from
+  
+  adc = attributes['adc']
+
+  #get binary data using struct
+  allData = np.empty(maxNumReads+1)
+  readCount = 0
+  print('Parsing binary file......')
+  with open(fileName, mode='rb') as fp:
+    #fileContent = fp.read()
+    helper = np.vectorize(parseDataHelper)
+    allData = helper(range(maxNumReads+1), maxNumReads, fp, struct_len, struct_unpack)
+  
+  #--- parse data, make packets
+  allPackets = make_packets(allData,dataType)
+
+  # -- turn packets in chanData
+  if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
+  elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets,adc)
+  else: print("Unknown data type") 
+  return chanData
+   
 
 #-------------------------------------------------------------------------
 def main(GUI, fileName):
