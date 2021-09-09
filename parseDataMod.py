@@ -197,6 +197,7 @@ def make_chanData_singleADC(allPackets,adc):
     cu_ch0_hi = [convert_to_bin(packet[1][1]), convert_to_bin(packet[6][1]), convert_to_bin(packet[12][0])] 
     cu_ch0_lo = [convert_to_bin(packet[1][0]), convert_to_bin(packet[6][0]), convert_to_bin(packet[11][1])] #ADC ch8
     """
+    """
     #save samples as 16-bits
     cu_ch3_lo = [packet[4][1], packet[10][0], packet[15][0]] # bits 31:16 = ADC ch1
     cu_ch3_hi = [packet[4][0], packet[9][1], packet[14][1]] # ADC ch2  
@@ -216,13 +217,23 @@ def make_chanData_singleADC(allPackets,adc):
     chanData[chanNum-2][1].append(cu_ch2_hi)
     chanData[chanNum-3][0].append(cu_ch3_lo)
     chanData[chanNum-3][1].append(cu_ch3_hi)
-
-  for i in range(len(chanData)):
-    for j in range(2):
-      if len(chanData[i][j]) > 0: 
-        #print(chanData[i][j])
-        #print(np.concatenate(chanData[i][j],axis=0))
-        chanData[i][j] = (np.concatenate(chanData[i][j],axis=0))
+    """
+    #save samples as 16-bits
+    chanData[chanNum-3][0].append(packet[4][1]); chanData[chanNum-3][0].append(packet[10][0]);chanData[chanNum-3][0].append(packet[15][0])
+    chanData[chanNum-3][1].append(packet[4][0]); chanData[chanNum-3][1].append(packet[9][1]); chanData[chanNum-3][1].append(packet[14][1])
+    chanData[chanNum-2][1].append(packet[3][1]); chanData[chanNum-2][1].append(packet[9][0]); chanData[chanNum-2][1].append(packet[14][0])
+    chanData[chanNum-2][0].append(packet[3][0]); chanData[chanNum-2][0].append(packet[8][1]); chanData[chanNum-2][0].append(packet[13][1])
+    chanData[chanNum-1][0].append(packet[2][1]); chanData[chanNum-1][0].append(packet[7][1]); chanData[chanNum-1][0].append(packet[13][0])
+    chanData[chanNum-1][1].append(packet[2][0]); chanData[chanNum-1][1].append(packet[7][0]); chanData[chanNum-1][1].append(packet[12][1])
+    chanData[chanNum  ][1].append(packet[1][1]); chanData[chanNum  ][1].append(packet[6][1]); chanData[chanNum  ][1].append(packet[12][0])
+    chanData[chanNum  ][0].append(packet[1][0]); chanData[chanNum  ][0].append(packet[6][0]); chanData[chanNum  ][0].append(packet[11][1])
+    
+  #for i in range(len(chanData)):
+  #  for j in range(2):
+  #    if len(chanData[i][j]) > 0: 
+  #      #print(chanData[i][j])
+  #      #print(np.concatenate(chanData[i][j],axis=0))
+  #      chanData[i][j] = (np.concatenate(chanData[i][j],axis=0))
 
   print(np.shape(chanData))
   #end for loop
@@ -320,7 +331,7 @@ def parseData(fileName,dataType,maxNumReads, attributes):
       data = fp.read(struct_len)
       if not data: break
       s = struct_unpack(data)
-      if readCount % np.divide(maxNumReads,10) == 0: print(readCount)
+      #if readCount % np.divide(maxNumReads,10) == 0: print(readCount)
       allData.append(s)
       readCount = readCount + 1
       if readCount > maxNumReads: break
