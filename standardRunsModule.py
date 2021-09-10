@@ -69,6 +69,7 @@ class STANDARDRUNS(object):
 
     #interface to GUI settings
     def setCommonGuiSettings(self):
+        self.GUI.incrementRunNumber() #auto-increment run number to reduce chance of mistakes
         if self.measType == "pulse" :
           self.GUI.nSamples = 46000000 #necessary for singleADC pulse measurements
           self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
