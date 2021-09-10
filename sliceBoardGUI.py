@@ -212,6 +212,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
 
     def testFunc(self):
         pass
@@ -1514,6 +1516,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def incrementRunNumber(self):
         self.runNumber += 1
         print("Run Number", self.runNumber)
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {}".format(self.runNumberString))
         with open('../metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber

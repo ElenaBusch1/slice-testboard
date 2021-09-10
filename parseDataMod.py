@@ -335,7 +335,6 @@ def parseData(fileName,dataType,maxNumReads, attributes):
       allData.append(s)
       readCount = readCount + 1
       if readCount > maxNumReads: break
-  
   #--- parse data, make packets
   allPackets = make_packets(allData,dataType)
 
