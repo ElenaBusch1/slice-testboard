@@ -1,6 +1,7 @@
 import time
 import math
 import instrumentControlMod
+from datetime import datetime
 
 class STANDARDRUNS(object):
     def __init__(self,GUI):
@@ -173,7 +174,7 @@ class STANDARDRUNS(object):
           print("Standard Pulse Data, must specify source channel, DONE")
           return
         print("Pulse Data Start")
-
+        startTime = datetime.now()
         #get channel of interest info from GUI
         self.getChId()
 
@@ -195,7 +196,6 @@ class STANDARDRUNS(object):
         #standardAmps = ['0.1','1.0'] #debug amp list
         standardAmps = ['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1.0','2.0','3.0','4.0','5.0','6.0'] #AWG valid voltage range
 
-
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
             self.measStep = stepNum
@@ -213,6 +213,7 @@ class STANDARDRUNS(object):
         #DONE, turn off pulser
         self.setPulserAmplitude('0.0')
         print("Pulse Data Done")
+        print('runtime: ',datetime.now() - startTime)
         return None
 
     #END CLASS

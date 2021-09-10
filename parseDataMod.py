@@ -234,10 +234,17 @@ def make_packets(allData,dataType):
   return allPackets 
 
 #-------------------------------------------------------------------------
-def writeToHDF5(chanData,fileName,attributes,chan=28):
+def writeToHDF5(chanData,fileName,attributes,chan=None):
 
   out_file = h5py.File(fileName.replace('-1.dat','')+'.hdf5','a')
   print("Opening hdf5 file: "+ fileName.replace('-1.dat','')+'.hdf5')
+
+  doFilter = False 
+  if chan != None :
+    doFilter = True
+    chan = int( chan[7:] )
+    if chan < 0 or chan > 127 :
+      doFilter = False
 
   m = str(len(out_file.keys())).zfill(3)
   grp = out_file.create_group("Measurement_"+m)
@@ -248,6 +255,8 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
     if c < 10: cc = '00'+str(c)
     elif c >=10 and c< 100: cc = '0'+str(c)
     elif c >= 100: cc =str(c)
+    if doFilter :
+      if c != chan : continue
 
     out_file.create_group("Measurement_"+m+"/channel"+cc)
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/hi")
@@ -322,7 +331,11 @@ def main(GUI, fileName):
   #makePlots(chanData)
   if False and saveHists:
       makeHistograms(chanData, runNumber)
-  writeToHDF5(chanData,fileName,attributes)
+
+  selChan = None
+  if GUI.filterChanCheckBox.isChecked() :
+    selChan = GUI.measChan
+  writeToHDF5(chanData,fileName,attributes,selChan)
   print('runtime: ',datetime.now() - startTime)
   return None
 
