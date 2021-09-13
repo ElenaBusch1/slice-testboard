@@ -209,17 +209,17 @@ class SARCALIBMODULE(object):
         self.sarWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
         self.mdacWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
         
-        for ch in channels: self.doSarCalibMultichannel(colutas, [ch])      
-        for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
+        #for ch in channels: self.doSarCalibMultichannel(colutas, [ch])      
+        #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
 
-        """
+        
         ## Runs SAR calib in odd then even channels
         self.doSarCalibMultichannel(colutas, channels[::2])
-        self.doSarCalibMultichannel(colutas, channesl[1::2])
+        self.doSarCalibMultichannel(colutas, channels[1::2])
         ## Runs MDAC calib in odd then even channels
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.doMdacCalMultichannel(colutas, channels[1::2])
-        """     
+             
  
         print(self.sarWeights)
         print(self.mdacWeights)
@@ -503,6 +503,7 @@ class SARCALIBMODULE(object):
             for ch in channels:
                 for i in range(8):
                     self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+        """
         try:
             from tabulate import tabulate
         except:
@@ -522,6 +523,7 @@ class SARCALIBMODULE(object):
                     table = tabulate(to_table,  showindex="never", tablefmt="psql")
                     f.write(table)
                     f.write("\n \n")
+        """
 
     def writeMdacCalMultichannel(self, colutas, channels):
         """Writes MDAC constants to board"""
