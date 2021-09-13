@@ -21,6 +21,7 @@ class CALIBMODULE(object):
         #print(result)
         #result = self.getMdacCalib(boardId="34",coluta="coluta20",channel="channel8")
         #print(result)
+        print("WORKED!")
         return None
         
     def checkCalibFile(self):

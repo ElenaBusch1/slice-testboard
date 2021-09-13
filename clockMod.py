@@ -2,6 +2,7 @@ import os
 import h5py
 import numpy as np
 import pyjson5
+import logging
 import findClockParam
 from termcolor import colored
 from timeit import default_timer as timer
@@ -27,10 +28,11 @@ def sendInversionBits(GUI, clock640, colutaName):
             print(colored(f"First write to {colutaName.upper()} failed, trying again...", "yellow"))
         elif attempts == 1:
             print(colored(f"Readback error: write to {colutaName.upper()} failed", "red"))
-            return(False)
+            readbackSuccess = False
+            #return(False)
         attempts += 1
     
-    return(True)
+    return(readbackSuccess)
 
 def writeToHDF5(tables):
   """ Saves clock scan results to an HDF5 """
@@ -74,7 +76,7 @@ def writeToLpGBT(GUI, coluta, lpgbt, reg, value):
     with open("config/lpGBTColutaMapping.txt", "r") as f:
         regToChannel = pyjson5.load(f)
 
-    #Readback
+    ## Readback
     chn = regToChannel[lpgbt][coluta].get(reg)
     if chn is not None:
         attempts = 0
@@ -91,11 +93,12 @@ def writeToLpGBT(GUI, coluta, lpgbt, reg, value):
                 return chn, False
             attempts += 1
     
-    #For frames...?
+    ## For frames...?
     else: GUI.writeToLPGBT(lpgbt, reg, [value], True)
 
 def scanClocks(GUI,colutas): 
     """ Scan all clock parameters """
+    print(GUI.boardID)
     ## Makes sure at least one COLUTA is selected for clock scan
     if colutas is None:
         print(colored("Please select at least one COLUTA", "red"))
@@ -149,6 +152,12 @@ def scanClocks(GUI,colutas):
 
     # is serializer pattern a correct permutations?
     isValid_list = {coluta: {ch: [] for ch in channels} for coluta in colutas}
+    
+    # Keep track of errors to put in log file
+    if not os.path.exists(f"clockScan_board{GUI.boardID}"):
+        os.makedirs(f"clockScan_board{GUI.boardID}") # Creates directory for given board
+        print(f"Creating clockScan_board{GUI.boardID} directory...")
+    logging.basicConfig(filename=f"clockScan_{GUI.boardID}/error.log", encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     for delay_idx in range(0,upper):
         for coluta in colutas:
@@ -156,7 +165,8 @@ def scanClocks(GUI,colutas):
             #Useless to change lpgbt_idx if failed
             if configureSuccess is False:
                 for chn in channels: readback[coluta][chn][delay_idx] = [0]*upper # readback failed so can't trust entire row
-
+                logging.warning(f"Readback failed! {coluta.upper()} while setting INV/Delay640 of {delay_idx}")             
+  
         for lpgbt_idx in range(0,upper):
             value = (lpgbt_idx<<4)+2 # lpgbt clock setting register value
             # lpgt_idx = 1100 (XPhaseSelect)
@@ -176,6 +186,7 @@ def scanClocks(GUI,colutas):
                             chn, configureSuccess = writeToLpGBT(GUI, coluta, lpgbt, reg, value)
                             if configureSuccess is False and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: 
                                 readback[coluta][chn][delay_idx][lpgbt_idx] = 0
+                                logging.warning(f"Readback failed! {lpgbt} while setting INV/Delay640 of {delay_idx} and lpGBT phase of {lpgbt_idx}")
                         except TypeError:
                             continue
                             
@@ -220,9 +231,9 @@ def scanClocks(GUI,colutas):
             datafile.close()
 
     ## Save results in a pretty table
-    if not os.path.exists("clockScan/clockScanResults"):
-        os.makedirs("clockScan/clockScanResults")
-        print("Creating clockScan directory...")
+    if not os.path.exists(f"clockScan_board{GUI.boardID}/clockScanResults"):
+        os.makedirs(f"clockScan_board{GUI.boardID}/clockScanResults")
+        print(f"Creating clockScanResults directory...")
 
     headers = [f'{i}\n' for i in range(0,upper)]
     headers.insert(0,"xPhaseSelect -> \n INV/DELAY640 ")
@@ -232,7 +243,7 @@ def scanClocks(GUI,colutas):
         print('You need the tabulate package...')
 
     for coluta in colutas:
-        with open("clockScan/clockScanResults/clockScanBoard634Repeat"+coluta+".txt", "w") as f:
+        with open(f"clockScan_board{GUI.boardID}/clockScanResults/clockScanBoard{GUI.boardID}Repeat"+coluta+".txt", "w") as f:
             for ch in channels:
                 f.write("Channel "+ch[-1]+"\n")
                 prettyTable = tabulate(LPGBTPhase[coluta][ch], headers, showindex = "always", tablefmt="psql")
@@ -247,10 +258,13 @@ def scanClocks(GUI,colutas):
 
     ## Save results in an hdf5
     writeToHDF5(LPGBTPhase)
+    logging.shutdown()
+    if os.stat(f"clockScan_board{GUI.boardID}/error.log").st_size == 0:
+        os.remove(f"clockScan_board{GUI.boardID}/error.log")
     end = timer()
     print("\n")
     print(colored("Finished ", "cyan") + "clock scan for: " + ", ".join(colutas))
     print(colored("Time elapsed: ", "cyan") + str(timedelta(seconds = end-start)))
     print("\n")
-    if upper == 16: findClockParam.findParams()
+    if upper == 16: findClockParam.findParams(GUI.boardID)
 
