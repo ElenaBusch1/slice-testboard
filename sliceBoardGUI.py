@@ -204,8 +204,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sarMdacCal = SARCALIBMODULE(self)
         self.calibMod = CALIBMODULE()
         self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
-        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
-        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
+        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
         #introducing text #2
         self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
         self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
