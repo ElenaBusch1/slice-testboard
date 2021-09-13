@@ -33,127 +33,6 @@ class SARCALIBMODULE(object):
         self.calibModule = CALIBMODULE()
 
     ############################################
-    ########           Debug            #######
-    ############################################
-
-    def test(self):
-        
-        
-        colutas = [f"coluta{i}" for i in range(13,21)]
-        #colutas.remove("coluta17") #Might have to deactivate this line of code
-
-
-        print("We are doing the multichannel Sar Calibration")
-        self.doSarCalibMultichannelDebug(colutas, [f"channel{j}" for j in range (6,9,2)])
-        print("End Sar Calibration Debugging")
-
-        """
-        #start_time = timeit.default_timer()
-        #print("We are doing the multichannel Mdac Calibration")
-        #self.doMdacCalMultichannel(colutas, [f"channel{j}" for j in range (5,9)])
-        #print("Time for multichannel MDAC calibration:", str(timeit.default_timer()-start_time))       
-
-        #start_time = timeit.default_timer()
-        #self.doMdacCalParallel(["coluta13", "coluta14", "coluta15", "coluta16"],"channel8")
-        #print("Time for *parallel* MDAC calibration:", str(timeit.default_timer()-start_time))
-
-        #self.writeMdacCal("coluta20","channel8")
-
-        #print("SAR WEIGHTS")
-        #print(self.sarWeights)
-        #self.printSarWeights()
-
-        #print("MDAC WEIGHTS")
-        #print(self.mdacWeights)
-
-        #start_time = timeit.default_timer()
-        #self.doMdacCal("coluta13", "channel8")
-        #print("Time for standard MDAC calibration:", str(timeit.default_timer()-start_time))
-
-        print("MDAC WEIGHTS")
-        print(self.mdacWeights)
-        """
-        #self.compareMdacCalibConstants()
-        return None
-
-    def compareMdacCalibConstants(self):
-        colutas = [f"coluta{i}" for i in range(13,21)]
-        channels = [f"channel{j}" for j in range (6,9,2)]
-        # Parallel calibration
-        
-        print("#####################")
-        print("   Parallel Calib    ")
-        print("#####################")
-        start_time = timeit.default_timer()
-        self.doMdacCalMultichannel(colutas, channels)
-        parallel_time = timeit.default_timer()-start_time
-        parallel_constants_1 = self.mdacWeights
-        print(parallel_constants_1)
-        
-        channels = [f"channel{j}" for j in range (6,9,2)]
-        # Parallel calibration
-
-        print("#####################")
-        print("   Parallel Calib    ")
-        print("#####################")
-        start_time = timeit.default_timer()
-        self.doMdacCalMultichannel(colutas, channels)
-        parallel_time = timeit.default_timer()-start_time
-        parallel_constants_2 = self.mdacWeights
-        print(parallel_constants_2)
-
-        for coluta in colutas:
-            parallel_constants_1[coluta].update(parallel_constants_2[coluta])
-        parallel_constants = parallel_constants_1
-        print("Final constants for parallel")
-        print(parallel_constants)
-       
-        with open("parallel_constants.json", "w") as f:
-            json.dump(parallel_constants, f)
- 
-        channels = ["channel5", "channel8"]
-        # Single channel calibration
-        print("#####################")
-        print("   Single Ch Calib   ")
-        print("#####################")
-        start_time = timeit.default_timer()
-        single_constants = {coluta: {} for coluta in colutas}
-        for coluta in colutas:
-            for ch in channels:
-                self.doMdacCal(coluta, ch)
-                single_constants[coluta][ch] = self.mdacWeights
-        single_time = timeit.default_timer()-start_time
-        print("Final constants for single")
-        print(single_constants)
-        with open("single_constants.json", "w") as f:
-            json.dump(single_constants, f)
-
-        """
-        try:
-            from tabulate import tabulate
-        except:
-            print("You need the tabulate package...")
-            print(self.mdacWeights)
-            return
-        print(self.mdacWeights)
-        # Writes output to a table
-        with open("compareMDACCalibConstants.txt", "w") as f:
-            f.write(f"Time for parallel calibration: {parallel_time}\n")
-            f.write(f"Time for single ch. calibration: {single_time}\n\n")
-            
-            for coluta in colutas:
-                f.write("++++++++++++++++++++++++")
-                f.write("++  {coluta}  ++".format(coluta=coluta))
-                f.write("++++++++++++++++++++++++\n\n")
-                for ch in channels:
-                    f.write(f"{ch}\n")
-                    to_table = [[corr, parallel_constants[coluta][ch][corr], single_constants[coluta][ch][corr], (parallel_constants[coluta][ch][corr] - single_constants[coluta][ch][corr])] for corr in parallel_constants[coluta][ch].keys()]
-                    table = tabulate(to_table, headers = ["Weight", "Parallel", "Single Ch.", "Delta"],  showindex="never", tablefmt="psql")
-                    f.write(table)
-                    f.write("\n \n")        
-        print("Calibration constants in compareMDACCalibConstants.txt")
-        """
-    ############################################
     ########        Do Calibration       #######
     ############################################
 
@@ -185,24 +64,7 @@ class SARCALIBMODULE(object):
         print("WRITE MDAC CONSTANTS", "\t", self.guiColutaId, "\t", self.guiColutaChId)
         self.writeMdacCalMultichannel([self.guiColutaId],[self.guiColutaChId])
         return None
-
-    """
-    def runFullCalibInFeb2Gui(self):
-        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
-        #channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
-        #chips = ["coluta20"]
-        channels = ["channel5","channel6","channel7","channel8"]
-        for chip in chips :
-          for chan in channels :
-            self.doSarCalib(chip,chan)
-            self.writeSarConstant(chip,chan)
-            self.calibModule.addSarCalib(self.GUI.boardID,chip,chan,self.sarWeights)
-            self.doMdacCal(chip,chan)
-            self.writeMdacCal(chip,chan)
-            self.calibModule.addMdacCalib(self.GUI.boardID,chip,chan,self.mdacWeights)
-        return None
-    """
-    
+ 
     def runFullCalibInFeb2Gui(self):
         colutas = [f"coluta{i}" for i in range(13,21)]
         channels = [f"channel{i}" for i in range(5,9)]
@@ -211,7 +73,6 @@ class SARCALIBMODULE(object):
         
         #for ch in channels: self.doSarCalibMultichannel(colutas, [ch])      
         #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
-
         
         ## Runs SAR calib in odd then even channels
         self.doSarCalibMultichannel(colutas, channels[::2])
@@ -220,7 +81,6 @@ class SARCALIBMODULE(object):
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.doMdacCalMultichannel(colutas, channels[1::2])
              
- 
         print(self.sarWeights)
         print(self.mdacWeights)
         self.writeMdacCalMultichannel(colutas, channels)
