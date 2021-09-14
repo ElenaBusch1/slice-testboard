@@ -145,88 +145,46 @@ def make_chanData_trigger(allPackets):
 
   return chanData
 
-
 #-------------------------------------------------------------------------
-def make_chanData_singleADC(allPackets,adc):
-
+def make_chanData_singleADC(allData,adc):
+  
+  print('Making packets.....')
+  num = 0
+  #find first packet
+  while num < len(allData) - 16  :
+    if ( (int(allData[num][0]) & 0xFF00) == 0x5900 ) :
+      if ( (int(allData[num+8][0]) & 0xFF00) == 0x6a00 ) :
+        #found first header here
+        break
+    num = num + 1 #keep trying to find header
+  if num == len(allData) - 16 :
+    print("ERROR NO HEADERS FOUND")
+    return None
+  #should have valid first header position, construct output container 
   adcNum = int(adc[6:])
   chanNum = adcNum*4-1
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])
-  reqPacketLength = 16
-  prevCounter = 0
-  prevNum = 0
-  for num,packet in enumerate(allPackets) :
-    #print("NEW PACKET")
-    #print( len(packet) )
-    #for num, line in enumerate(packet) :
-    #  print(num,"\t","0x "+"".join('%02x ' % c for c in line) )
-
-    if len(packet) != reqPacketLength :
-      print("WEIRD ERROR")
-      return chanData
-    #check if last 256 bits have correct header
-    if ( (int( packet[8][0] ) & 0xFF00) != 0x6a00 ) :
-      print("WEIRD ERROR")
-      return chanData
-
-    #something else...
-    #chData = [ packet[4][1], packet[4][0], packet[3][1], packet[3][0], packet[2][1], packet[2][0], packet[1][1], packet[1][0] ]
-    #chanData.append( chData )
-    #chData = [ packet[9][1], packet[9][0], packet[8][1], packet[8][0], packet[7][1], packet[7][0], packet[6][1], packet[6][0] ]
-    #chanData.append( chData )
-    #chData = [ packet[15][0], packet[14][1], packet[14][0], packet[13][1], packet[13][0], packet[12][1], packet[12][0], packet[11][1] ]
-    #chanData.append( chData )
-    
-    #samples only 
-    #chanData.append( (packet[1][1] , packet[1][0]) )
-    #chanData.append( (packet[6][1] , packet[6][0]) )
-    #chanData.append( (packet[12][0], packet[11][1]) )
-    #chanData.append( packet[1][0] )
-    #chanData.append( packet[6][0] )
-    #chanData.append( packet[11][1] ) 
-
-    counter = int(packet[0][1]) & 0xFF
-    """
-    # 3 samples for this ADC in each packet
-    cu_ch3_lo = [convert_to_bin(packet[4][1]), convert_to_bin(packet[10][0]), convert_to_bin(packet[15][0])] # bits 31:16 = ADC ch1
-    cu_ch3_hi = [convert_to_bin(packet[4][0]), convert_to_bin(packet[9][1]), convert_to_bin(packet[14][1])] # ADC ch2  
-    cu_ch2_hi = [convert_to_bin(packet[3][1]), convert_to_bin(packet[9][0]), convert_to_bin(packet[14][0])] # ADC ch3
-    cu_ch2_lo = [convert_to_bin(packet[3][0]), convert_to_bin(packet[8][1]), convert_to_bin(packet[13][1])] 
-    cu_ch1_lo = [convert_to_bin(packet[2][1]), convert_to_bin(packet[7][1]), convert_to_bin(packet[13][0])] 
-    cu_ch1_hi = [convert_to_bin(packet[2][0]), convert_to_bin(packet[7][0]), convert_to_bin(packet[12][1])] 
-    cu_ch0_hi = [convert_to_bin(packet[1][1]), convert_to_bin(packet[6][1]), convert_to_bin(packet[12][0])] 
-    cu_ch0_lo = [convert_to_bin(packet[1][0]), convert_to_bin(packet[6][0]), convert_to_bin(packet[11][1])] #ADC ch8
-    """
+  
+  #loop through headers
+  while num < len(allData) - 16  :
+    if (int(allData[num][0]) & 0xFF00) != 0x5900 or (int(allData[num+8][0]) & 0xFF00) != 0x6a00  : #check if valid header at this position
+      print("ERROR IN PARSING, POSSIBLE CORRUPTION AT LINE",num)
+      return None
+    #num is at valid new header position here
+    #counter = int(allData[num+0][1]) & 0xFF
     #save samples as 16-bits
-    cu_ch3_lo = [packet[4][1], packet[10][0], packet[15][0]] # bits 31:16 = ADC ch1
-    cu_ch3_hi = [packet[4][0], packet[9][1], packet[14][1]] # ADC ch2  
-    cu_ch2_hi = [packet[3][1], packet[9][0], packet[14][0]] # ADC ch3
-    cu_ch2_lo = [packet[3][0], packet[8][1], packet[13][1]] 
-    cu_ch1_lo = [packet[2][1], packet[7][1], packet[13][0]] 
-    cu_ch1_hi = [packet[2][0], packet[7][0], packet[12][1]] 
-    cu_ch0_hi = [packet[1][1], packet[6][1], packet[12][0]] 
-    cu_ch0_lo = [packet[1][0], packet[6][0], packet[11][1]]
+    chanData[chanNum-3][0].append(allData[num+4][1]); chanData[chanNum-3][0].append(allData[num+10][0]);chanData[chanNum-3][0].append(allData[num+15][0])
+    chanData[chanNum-3][1].append(allData[num+4][0]); chanData[chanNum-3][1].append(allData[num+9][1]); chanData[chanNum-3][1].append(allData[num+14][1])
+    chanData[chanNum-2][1].append(allData[num+3][1]); chanData[chanNum-2][1].append(allData[num+9][0]); chanData[chanNum-2][1].append(allData[num+14][0])
+    chanData[chanNum-2][0].append(allData[num+3][0]); chanData[chanNum-2][0].append(allData[num+8][1]); chanData[chanNum-2][0].append(allData[num+13][1])
+    chanData[chanNum-1][0].append(allData[num+2][1]); chanData[chanNum-1][0].append(allData[num+7][1]); chanData[chanNum-1][0].append(allData[num+13][0])
+    chanData[chanNum-1][1].append(allData[num+2][0]); chanData[chanNum-1][1].append(allData[num+7][0]); chanData[chanNum-1][1].append(allData[num+12][1])
+    chanData[chanNum  ][1].append(allData[num+1][1]); chanData[chanNum  ][1].append(allData[num+6][1]); chanData[chanNum  ][1].append(allData[num+12][0])
+    chanData[chanNum  ][0].append(allData[num+1][0]); chanData[chanNum  ][0].append(allData[num+6][0]); chanData[chanNum  ][0].append(allData[num+11][1])
 
-    # add to master channel dataset 
-    chanData[chanNum][0].append(  cu_ch0_lo) #index 0 is low gain, index 1 is high gain
-    chanData[chanNum][1].append(  cu_ch0_hi) 
-    chanData[chanNum-1][0].append(cu_ch1_lo)
-    chanData[chanNum-1][1].append(cu_ch1_hi)
-    chanData[chanNum-2][0].append(cu_ch2_lo)
-    chanData[chanNum-2][1].append(cu_ch2_hi)
-    chanData[chanNum-3][0].append(cu_ch3_lo)
-    chanData[chanNum-3][1].append(cu_ch3_hi)
-
-  for i in range(len(chanData)):
-    for j in range(2):
-      if len(chanData[i][j]) > 0: 
-        #print(chanData[i][j])
-        #print(np.concatenate(chanData[i][j],axis=0))
-        chanData[i][j] = (np.concatenate(chanData[i][j],axis=0))
-
-  print(np.shape(chanData))
-  #end for loop
+    #increment to next packet header in record
+    num = num + 16
   return chanData
 
 #-------------------------------------------------------------------------
@@ -277,10 +235,17 @@ def make_packets(allData,dataType):
   return allPackets 
 
 #-------------------------------------------------------------------------
-def writeToHDF5(chanData,fileName,attributes,chan=28):
+def writeToHDF5(chanData,fileName,attributes,chan=None):
 
   out_file = h5py.File(fileName.replace('-1.dat','')+'.hdf5','a')
   print("Opening hdf5 file: "+ fileName.replace('-1.dat','')+'.hdf5')
+
+  doFilter = False 
+  if chan != None :
+    doFilter = True
+    chan = int( chan[7:] )
+    if chan < 0 or chan > 127 :
+      doFilter = False
 
   m = str(len(out_file.keys())).zfill(3)
   grp = out_file.create_group("Measurement_"+m)
@@ -291,6 +256,8 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
     if c < 10: cc = '00'+str(c)
     elif c >=10 and c< 100: cc = '0'+str(c)
     elif c >= 100: cc =str(c)
+    if doFilter :
+      if c != chan : continue
 
     out_file.create_group("Measurement_"+m+"/channel"+cc)
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/hi")
@@ -316,25 +283,18 @@ def parseData(fileName,dataType,maxNumReads, attributes):
   readCount = 0
   print('Parsing binary file......')
   with open(fileName, mode='rb') as fp:
-    #fileContent = fp.read()
-    #print(fileContent)
-    while True :
-      data = fp.read(struct_len) #b'\x00\x00\x00\x00'
-      print(data)
+    for readCount in range(0,maxNumReads,1):
+      data = fp.read(struct_len)
       if not data: break
       s = struct_unpack(data)
-      #print(type(s))
-      if readCount % np.divide(maxNumReads,10) == 0: print(readCount)
       allData.append(s)
-      readCount = readCount + 1
-      if readCount > maxNumReads: break
-  
-  #--- parse data, make packets
-  allPackets = make_packets(allData,dataType)
 
   # -- turn packets in chanData
-  if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
-  elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets,adc)
+  if dataType=='trigger':
+    allPackets = make_packets(allData,dataType) 
+    chanData = make_chanData_trigger(allPackets)
+  elif dataType=='singleADC': 
+    chanData = make_chanData_singleADC(allData,adc)
   else: print("Unknown data type") 
   return chanData
 
@@ -369,7 +329,11 @@ def main(GUI, fileName):
   #makePlots(chanData)
   if False and saveHists:
       makeHistograms(chanData, runNumber)
-  writeToHDF5(chanData,fileName,attributes)
+
+  selChan = None
+  if GUI.filterChanCheckBox.isChecked() :
+    selChan = GUI.measChan
+  writeToHDF5(chanData,fileName,attributes,selChan)
   print('runtime: ',datetime.now() - startTime)
   return None
 

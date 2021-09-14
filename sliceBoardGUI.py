@@ -212,6 +212,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
 
         self.runNumberString = str(self.runNumber)
         self.setWindowTitle("Run Number: {} ".format(self.runNumberString)) 
@@ -1519,7 +1521,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.runNumber += 1
         print("Run Number", self.runNumber)
         self.runNumberString = str(self.runNumber)
+<<<<<<< HEAD
         self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
+=======
+        self.setWindowTitle("Run Number: {}".format(self.runNumberString))
+>>>>>>> 454f6064f7bff5cb2a6a785f03fa5c9565e6111d
         with open('../metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
