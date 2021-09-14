@@ -7,6 +7,7 @@ import h5py
 import argparse
 import os
 from datetime import datetime
+import cProfile
 
 #-------------------------------------------------------------------------
 def convert_to_bin(num):
@@ -303,9 +304,9 @@ def writeToHDF5(chanData,fileName,attributes,chan=28):
 
 #-------------------------------------------------------------------------
 def parseData(fileName,dataType,maxNumReads, attributes):
-
+  
   struct_fmt = ">2H"
-  struct_len = struct.calcsize(struct_fmt)
+  struct_len = struct.calcsize(struct_fmt) #4
   struct_unpack = struct.Struct(struct_fmt).unpack_from
   
   adc = attributes['adc']
@@ -316,10 +317,13 @@ def parseData(fileName,dataType,maxNumReads, attributes):
   print('Parsing binary file......')
   with open(fileName, mode='rb') as fp:
     #fileContent = fp.read()
+    #print(fileContent)
     while True :
-      data = fp.read(struct_len)
+      data = fp.read(struct_len) #b'\x00\x00\x00\x00'
+      print(data)
       if not data: break
       s = struct_unpack(data)
+      #print(type(s))
       if readCount % np.divide(maxNumReads,10) == 0: print(readCount)
       allData.append(s)
       readCount = readCount + 1
@@ -335,44 +339,7 @@ def parseData(fileName,dataType,maxNumReads, attributes):
   return chanData
 
 #--------------------------------------------------------------------
-def parseDataHelper(readCount, maxNumReads, fp, struct_len, struct_unpack):
-  data = fp.read(struct_len)
-  if not data: return
-  s = struct_unpack(data)
-  if readCount % np.divide(maxNumReads,10) == 0: print(readCount)
-  return(s)
-  
-
-def parseDataNP(fileName, dataType, maxNumReads, attributes):
-
-  struct_fmt = ">2H"
-  struct_len = struct.calcsize(struct_fmt)
-  struct_unpack = struct.Struct(struct_fmt).unpack_from
-  
-  adc = attributes['adc']
-
-  #get binary data using struct
-  allData = np.empty(maxNumReads+1)
-  readCount = 0
-  print('Parsing binary file......')
-  with open(fileName, mode='rb') as fp:
-    #fileContent = fp.read()
-    helper = np.vectorize(parseDataHelper)
-    allData = helper(range(maxNumReads+1), maxNumReads, fp, struct_len, struct_unpack)
-  
-  #--- parse data, make packets
-  allPackets = make_packets(allData,dataType)
-
-  # -- turn packets in chanData
-  if dataType=='trigger': chanData = make_chanData_trigger(allPackets)
-  elif dataType=='singleADC': chanData = make_chanData_singleADC(allPackets,adc)
-  else: print("Unknown data type") 
-  return chanData
-   
-
-#-------------------------------------------------------------------------
 def main(GUI, fileName):
- 
   dataType = GUI.daqMode
   maxNumReads = GUI.nSamples
   try:
@@ -405,4 +372,5 @@ def main(GUI, fileName):
   writeToHDF5(chanData,fileName,attributes)
   print('runtime: ',datetime.now() - startTime)
   return None
+
 
