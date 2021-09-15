@@ -149,6 +149,7 @@ def make_chanData_trigger(allPackets):
 def make_chanData_singleADC(allData,adc):
   
   print('Making packets.....')
+  nums = []
   num = 0
   #find first packet
   while num < len(allData) - 16  :
@@ -166,8 +167,10 @@ def make_chanData_singleADC(allData,adc):
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])
   
+  startTime = datetime.now()
   #loop through headers
   while num < len(allData) - 16  :
+    nums.append(num)
     if (int(allData[num][0]) & 0xFF00) != 0x5900 or (int(allData[num+8][0]) & 0xFF00) != 0x6a00  : #check if valid header at this position
       print("ERROR IN PARSING, POSSIBLE CORRUPTION AT LINE",num)
       return None
@@ -185,6 +188,41 @@ def make_chanData_singleADC(allData,adc):
 
     #increment to next packet header in record
     num = num + 16
+  #print(nums)
+  #chanData = np.asarray(chanData)
+  #print(len(nums))
+  #print(chanData.shape)
+  #print(len(chanData[chanNum][0]))
+  #print(chanData)
+  print('Old runtime to sort data: ',datetime.now() - startTime)
+  return chanData
+
+def new_make_chanData_singleADC(allData, adc):
+  print("Making packets.....")
+  dim = np.shape(allData)[0]
+  a = allData[:, 0]
+  a.astype(int)
+  header_idx = np.where(np.logical_and((a[0:dim-16:] & 0xFF00) == 0x5900, (a[8:dim-8:] & 0xFF00) == 0x6a00))[0]
+  print(header_idx)
+  if header_idx.size == 0: 
+    print("ERROR NO HEADERS FOUND")
+    return None
+
+  adcNum = int(adc[6:])
+  chanNum = adcNum*4-1
+  startTime = datetime.now()
+  chanData = [] # 0, 128
+  for z in range(128): chanData.append([[],[]])
+  for num in header_idx:
+    chanData[chanNum-3][0].append(allData[num+4][1]); chanData[chanNum-3][0].append(allData[num+10][0]);chanData[chanNum-3][0].append(allData[num+15][0])
+    chanData[chanNum-3][1].append(allData[num+4][0]); chanData[chanNum-3][1].append(allData[num+9][1]); chanData[chanNum-3][1].append(allData[num+14][1])
+    chanData[chanNum-2][1].append(allData[num+3][1]); chanData[chanNum-2][1].append(allData[num+9][0]); chanData[chanNum-2][1].append(allData[num+14][0])
+    chanData[chanNum-2][0].append(allData[num+3][0]); chanData[chanNum-2][0].append(allData[num+8][1]); chanData[chanNum-2][0].append(allData[num+13][1])
+    chanData[chanNum-1][0].append(allData[num+2][1]); chanData[chanNum-1][0].append(allData[num+7][1]); chanData[chanNum-1][0].append(allData[num+13][0])
+    chanData[chanNum-1][1].append(allData[num+2][0]); chanData[chanNum-1][1].append(allData[num+7][0]); chanData[chanNum-1][1].append(allData[num+12][1])
+    chanData[chanNum  ][1].append(allData[num+1][1]); chanData[chanNum  ][1].append(allData[num+6][1]); chanData[chanNum  ][1].append(allData[num+12][0])
+    chanData[chanNum  ][0].append(allData[num+1][0]); chanData[chanNum  ][0].append(allData[num+6][0]); chanData[chanNum  ][0].append(allData[num+11][1])
+  print('New runtime to sort data: ',datetime.now() - startTime)
   return chanData
 
 #-------------------------------------------------------------------------
@@ -298,6 +336,20 @@ def parseData(fileName,dataType,maxNumReads, attributes):
   else: print("Unknown data type") 
   return chanData
 
+def new_parseData(fileName,dataType,maxNumReads, attributes):
+  adc = attributes['adc']
+  allData = np.fromfile(fileName, dtype=">2H", count=maxNumReads+1)
+
+  # -- turn packets in chanData
+  if dataType=='trigger':
+    allPackets = make_packets(allData,dataType)
+    chanData = make_chanData_trigger(allPackets)
+  elif dataType=='singleADC':
+    chanData = make_chanData_singleADC(allData,adc)
+    #chanData = new_make_chanData_singleADC(allData,adc)
+  else: print("Unknown data type")
+  return chanData
+
 #--------------------------------------------------------------------
 def main(GUI, fileName):
   dataType = GUI.daqMode
@@ -324,7 +376,7 @@ def main(GUI, fileName):
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
-  chanData = parseData(fileName,dataType,maxNumReads, attributes)
+  chanData = new_parseData(fileName,dataType,maxNumReads, attributes)
   print("Number of samples",len(chanData))
   #makePlots(chanData)
   if False and saveHists:
