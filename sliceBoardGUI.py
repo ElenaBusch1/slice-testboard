@@ -1503,7 +1503,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
         #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
-        time.sleep(5)
+        #time.sleep(5)
         parseDataMod.main(self, outputPathStamped)
         #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
         saveBin = self.saveBinaryCheckBox.isChecked() 

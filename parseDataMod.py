@@ -270,23 +270,8 @@ def writeToHDF5(chanData,fileName,attributes,chan=None):
 
 #-------------------------------------------------------------------------
 def parseData(fileName,dataType,maxNumReads, attributes):
-
-  struct_fmt = ">2H"
-  struct_len = struct.calcsize(struct_fmt)
-  struct_unpack = struct.Struct(struct_fmt).unpack_from
-  
   adc = attributes['adc']
-
-  #get binary data using struct
-  allData = []
-  readCount = 0
-  print('Parsing binary file......')
-  with open(fileName, mode='rb') as fp:
-    for readCount in range(0,maxNumReads,1):
-      data = fp.read(struct_len)
-      if not data: break
-      s = struct_unpack(data)
-      allData.append(s)
+  allData = np.fromfile(fileName, dtype=">2H", count=maxNumReads+1)
 
   # -- turn packets in chanData
   if dataType=='trigger':
@@ -296,8 +281,6 @@ def parseData(fileName,dataType,maxNumReads, attributes):
     chanData = make_chanData_singleADC(allData,adc)
   else: print("Unknown data type") 
   return chanData
-
-    
 
 #-------------------------------------------------------------------------
 def main(GUI, fileName):
