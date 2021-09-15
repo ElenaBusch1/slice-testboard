@@ -7,7 +7,6 @@ import h5py
 import argparse
 import os
 from datetime import datetime
-import cProfile
 
 #-------------------------------------------------------------------------
 def convert_to_bin(num):
@@ -147,7 +146,8 @@ def make_chanData_trigger(allPackets):
 
 #-------------------------------------------------------------------------
 def make_chanData_singleADC(allData,adc):
-  
+
+  startTime = datetime.now()  
   print('Making packets.....')
   nums = []
   num = 0
@@ -167,7 +167,6 @@ def make_chanData_singleADC(allData,adc):
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])
   
-  startTime = datetime.now()
   #loop through headers
   while num < len(allData) - 16  :
     nums.append(num)
@@ -195,22 +194,51 @@ def make_chanData_singleADC(allData,adc):
   #print(len(chanData[chanNum][0]))
   #print(chanData)
   print('Old runtime to sort data: ',datetime.now() - startTime)
+  for data in chanData:
+    data[0] = np.asarray(data[0])
+    data[1] = np.asarray(data[1])
+  print(chanData)
   return chanData
 
 def new_make_chanData_singleADC(allData, adc):
+
+  #startTime = datetime.now()
   print("Making packets.....")
+
   dim = np.shape(allData)[0]
   a = allData[:, 0]
   a.astype(int)
+
   header_idx = np.where(np.logical_and((a[0:dim-16:] & 0xFF00) == 0x5900, (a[8:dim-8:] & 0xFF00) == 0x6a00))[0]
-  print(header_idx)
+  #print(header_idx)
   if header_idx.size == 0: 
     print("ERROR NO HEADERS FOUND")
     return None
 
   adcNum = int(adc[6:])
   chanNum = adcNum*4-1
-  startTime = datetime.now()
+
+  ## Need ideas of how to make this more readable
+  allData = allData[header_idx[0]:]
+  chanData = [[[],[]] for z in range(128)]
+
+  sorting_idx = [[[0,0,1], [0,0,1], [0,1,1], [0,1,1]], # Corresponds to pattern of alternating rows
+                 [[1,1,0], [1,1,0], [1,0,0], [1,0,0]]] 
+
+  data_pattern = [[0,1], [1,0]]
+  for i in range(0,4):
+     shifts = [np.take_along_axis(allData[i+1:,sorting_idx[0][i][0]], header_idx, 0),
+               np.take_along_axis(allData[i+6:,sorting_idx[0][i][1]], header_idx, 0),
+               np.take_along_axis(allData[i+11:,sorting_idx[0][i][2]], header_idx, 0),
+               np.take_along_axis(allData[i+1:,sorting_idx[1][i][0]], header_idx, 0),
+               np.take_along_axis(allData[i+6:,sorting_idx[1][i][1]], header_idx, 0),
+               np.take_along_axis(allData[i+12:,sorting_idx[1][i][2]], header_idx, 0)]
+
+     chanData[chanNum-i][data_pattern[i%2][0]] = np.vstack((shifts[0],shifts[1], shifts[2])).ravel('F')
+     chanData[chanNum-i][data_pattern[i%2][1]] = np.vstack((shifts[3],shifts[4], shifts[5])).ravel('F')
+
+  ## For reference here's the old code
+  """
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])
   for num in header_idx:
@@ -222,7 +250,9 @@ def new_make_chanData_singleADC(allData, adc):
     chanData[chanNum-1][1].append(allData[num+2][0]); chanData[chanNum-1][1].append(allData[num+7][0]); chanData[chanNum-1][1].append(allData[num+12][1])
     chanData[chanNum  ][1].append(allData[num+1][1]); chanData[chanNum  ][1].append(allData[num+6][1]); chanData[chanNum  ][1].append(allData[num+12][0])
     chanData[chanNum  ][0].append(allData[num+1][0]); chanData[chanNum  ][0].append(allData[num+6][0]); chanData[chanNum  ][0].append(allData[num+11][1])
-  print('New runtime to sort data: ',datetime.now() - startTime)
+  """
+  #print('New runtime to sort data: ',datetime.now() - startTime)
+  #print(chanData)
   return chanData
 
 #-------------------------------------------------------------------------
@@ -345,8 +375,8 @@ def new_parseData(fileName,dataType,maxNumReads, attributes):
     allPackets = make_packets(allData,dataType)
     chanData = make_chanData_trigger(allPackets)
   elif dataType=='singleADC':
-    chanData = make_chanData_singleADC(allData,adc)
-    #chanData = new_make_chanData_singleADC(allData,adc)
+    #chanData = make_chanData_singleADC(allData,adc)
+    chanData = new_make_chanData_singleADC(allData,adc)
   else: print("Unknown data type")
   return chanData
 
