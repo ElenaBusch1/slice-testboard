@@ -216,6 +216,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
 
         self.runNumberString = str(self.runNumber)
         self.setWindowTitle("Run Number: {} ".format(self.runNumberString)) 
@@ -1509,7 +1511,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
         #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
-        time.sleep(5)
+        #time.sleep(5)
         parseDataMod.main(self, outputPathStamped)
         #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
         saveBin = self.saveBinaryCheckBox.isChecked() 
@@ -1523,7 +1525,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.runNumber += 1
         print("Run Number", self.runNumber)
         self.runNumberString = str(self.runNumber)
-        self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
+        self.setWindowTitle("Run Number: {}".format(self.runNumberString))
         with open('../metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
