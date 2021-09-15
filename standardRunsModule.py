@@ -71,15 +71,7 @@ class STANDARDRUNS(object):
     def setCommonGuiSettings(self):
         self.GUI.incrementRunNumber() #auto-increment run number to reduce chance of mistakes
         if self.measType == "pulse" :
-<<<<<<< HEAD
-<<<<<<< HEAD
-          self.GUI.nSamples = 13500000 #necessary for singleADC pulse measurements
-=======
-          self.GUI.nSamples = 50000000 #necessary for singleADC pulse measurements
->>>>>>> 97ba741242ea94a2168d85c5f243bbe803d95a86
-=======
           self.GUI.nSamples = 46000000 #necessary for singleADC pulse measurements
->>>>>>> 9734abc533f788b7bd994fb57ffe9cc6505d27b3
           self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
           getattr(self.GUI,'daqModeBox').setCurrentIndex(1) #ensure ADC mode
           self.GUI.n_pulsesBox.setPlainText(str(30)) #ensure 30 pulses

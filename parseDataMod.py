@@ -145,34 +145,50 @@ def make_chanData_trigger(allPackets):
   return chanData
 
 #-------------------------------------------------------------------------
-def make_chanData_singleADC(allData,adc):
-  
-  print('Making packets.....')
-  num = 0
-  #find first packet
-  while num < len(allData) - 16  :
-    if ( (int(allData[num][0]) & 0xFF00) == 0x5900 ) :
-      if ( (int(allData[num+8][0]) & 0xFF00) == 0x6a00 ) :
-        #found first header here
-        break
-    num = num + 1 #keep trying to find header
-  if num == len(allData) - 16 :
+def make_chanData_singleADC(allData, adc):
+
+  print("Making packets.....")
+
+  ## Helpers
+  dim = np.shape(allData)[0]
+  a = allData[:, 0]
+  a.astype(int)
+
+  ## Finds locations of headers in data
+  header_idx = np.where(np.logical_and((a[0:dim-16:] & 0xFF00) == 0x5900, (a[8:dim-8:] & 0xFF00) == 0x6a00))[0]
+  if header_idx.size == 0: 
     print("ERROR NO HEADERS FOUND")
     return None
-  #should have valid first header position, construct output container 
+
+  #FIXME: add check whether each line has an appropriate header like in old version of script
   adcNum = int(adc[6:])
   chanNum = adcNum*4-1
+
+  ## Need ideas of how to make this more readable
+  allData = allData[header_idx[0]:]
+  chanData = [[[],[]] for z in range(128)]
+
+  sorting_idx = [[[0,0,1], [0,0,1], [0,1,1], [0,1,1]], # Corresponds to pattern of alternating rows to read data
+                 [[1,1,0], [1,1,0], [1,0,0], [1,0,0]]] 
+
+  data_pattern = [[0,1], [1,0]] # Filing 0,1,1,0,0,1,1... etc. in chanData
+  for i in range(0,4):
+     shifts = [np.take_along_axis(allData[i+1:,sorting_idx[0][i][0]], header_idx, 0),
+               np.take_along_axis(allData[i+6:,sorting_idx[0][i][1]], header_idx, 0),
+               np.take_along_axis(allData[i+11:,sorting_idx[0][i][2]], header_idx, 0),
+               np.take_along_axis(allData[i+1:,sorting_idx[1][i][0]], header_idx, 0),
+               np.take_along_axis(allData[i+6:,sorting_idx[1][i][1]], header_idx, 0),
+               np.take_along_axis(allData[i+12:,sorting_idx[1][i][2]], header_idx, 0)]
+
+     ## Flattens data by indexing it along each column first
+     chanData[chanNum-i][data_pattern[i%2][0]] = np.vstack((shifts[0],shifts[1], shifts[2])).ravel('F')
+     chanData[chanNum-i][data_pattern[i%2][1]] = np.vstack((shifts[3],shifts[4], shifts[5])).ravel('F')
+
+  ## For reference here's the old code and the structure of data the vectorized operations recreate
+  """
   chanData = [] # 0, 128
   for z in range(128): chanData.append([[],[]])
-  
-  #loop through headers
-  while num < len(allData) - 16  :
-    if (int(allData[num][0]) & 0xFF00) != 0x5900 or (int(allData[num+8][0]) & 0xFF00) != 0x6a00  : #check if valid header at this position
-      print("ERROR IN PARSING, POSSIBLE CORRUPTION AT LINE",num)
-      return None
-    #num is at valid new header position here
-    #counter = int(allData[num+0][1]) & 0xFF
-    #save samples as 16-bits
+  for num in header_idx:
     chanData[chanNum-3][0].append(allData[num+4][1]); chanData[chanNum-3][0].append(allData[num+10][0]);chanData[chanNum-3][0].append(allData[num+15][0])
     chanData[chanNum-3][1].append(allData[num+4][0]); chanData[chanNum-3][1].append(allData[num+9][1]); chanData[chanNum-3][1].append(allData[num+14][1])
     chanData[chanNum-2][1].append(allData[num+3][1]); chanData[chanNum-2][1].append(allData[num+9][0]); chanData[chanNum-2][1].append(allData[num+14][0])
@@ -181,9 +197,7 @@ def make_chanData_singleADC(allData,adc):
     chanData[chanNum-1][1].append(allData[num+2][0]); chanData[chanNum-1][1].append(allData[num+7][0]); chanData[chanNum-1][1].append(allData[num+12][1])
     chanData[chanNum  ][1].append(allData[num+1][1]); chanData[chanNum  ][1].append(allData[num+6][1]); chanData[chanNum  ][1].append(allData[num+12][0])
     chanData[chanNum  ][0].append(allData[num+1][0]); chanData[chanNum  ][0].append(allData[num+6][0]); chanData[chanNum  ][0].append(allData[num+11][1])
-
-    #increment to next packet header in record
-    num = num + 16
+  """
   return chanData
 
 #-------------------------------------------------------------------------
@@ -275,16 +289,15 @@ def parseData(fileName,dataType,maxNumReads, attributes):
 
   # -- turn packets in chanData
   if dataType=='trigger':
-    allPackets = make_packets(allData,dataType) 
+    allPackets = make_packets(allData,dataType)
     chanData = make_chanData_trigger(allPackets)
-  elif dataType=='singleADC': 
+  elif dataType=='singleADC':
     chanData = make_chanData_singleADC(allData,adc)
-  else: print("Unknown data type") 
+  else: print("Unknown data type")
   return chanData
 
-#-------------------------------------------------------------------------
+#--------------------------------------------------------------------
 def main(GUI, fileName):
- 
   dataType = GUI.daqMode
   maxNumReads = GUI.nSamples
   try:
@@ -309,7 +322,7 @@ def main(GUI, fileName):
 
   print('Parsing '+fileName+' of type '+dataType) 
   startTime = datetime.now()
-  chanData = parseData(fileName,dataType,maxNumReads, attributes)
+  chanData = parseData(fileName, dataType, maxNumReads, attributes)
   print("Number of samples",len(chanData))
   #makePlots(chanData)
   if False and saveHists:
@@ -321,4 +334,5 @@ def main(GUI, fileName):
   writeToHDF5(chanData,fileName,attributes,selChan)
   print('runtime: ',datetime.now() - startTime)
   return None
+
 
