@@ -1,3 +1,5 @@
+import sqlite3
+import datetime
 import numpy as np
 import configparser
 import time
@@ -8,6 +10,8 @@ import sys
 import timeit
 import json
 from calibModule import CALIBMODULE
+from PyQt5.QtWidgets import QMessageBox
+
 
 class SARCALIBMODULE(object):
     def __init__(self,GUI):
@@ -21,6 +25,9 @@ class SARCALIBMODULE(object):
         self.testSingleWeight = False #debugging mode
         self.sarWeights = {}
         self.mdacWeights = {}
+
+        #for database
+        self.mdac_test = {}
 
         self.cv3tbVersion = False
         self.feb2Version = True
@@ -36,16 +43,82 @@ class SARCALIBMODULE(object):
     ########           Debug            #######
     ############################################
 
+    #Database Stuff
+    def popup_button(self, i):
+        if(i.text() == "&Yes"):
+            self.saveToDatabase(self.mdac_test)
+        else:
+            print("Nah")
+    
+    def saveToDatabase(self, mdac):
+      #Create a database or connect to one
+      conn = sqlite3.connect('/home/dawillia/FLX/CalibConstants.db')
+      #Create a cursor
+      c = conn.cursor()
+      boardID = "Board47"
+
+      #Create table for calibration
+      c.execute(f"CREATE TABLE if not exists {boardID} (timestamp VARCHAR (20), coluta SMALLINT(20), channel SMALLINT(20), MDACCorrectionCode0 FLOAT, MDACCorrectionCode1 FLOAT, MDACCorrectionCode2 FLOAT, MDACCorrectionCode3 FLOAT, MDACCorrectionCode4 FLOAT, MDACCorrectionCode5 FLOAT, MDACCorrectionCode6 FLOAT, MDACCorrectionCode7 FLOAT, W_1ST_1024 FLOAT, W_1ST_128 FLOAT, W_1ST_2048 FLOAT, W_1ST_256 FLOAT, W_1ST_3584 FLOAT, W_1ST_384 FLOAT, W_1ST_640 FLOAT, W_2ND_0p25 FLOAT, W_2ND_0p5 FLOAT, W_2ND_1 FLOAT, W_2ND_10 FLOAT, W_2ND_128 FLOAT, W_2ND_16 FLOAT, W_2ND_2 FLOAT, W_2ND_224 FLOAT, W_2ND_24 FLOAT, W_2ND_32 FLOAT, W_2ND_4 FLOAT, W_2ND_6 FLOAT, W_2ND_64 FLOAT)")												
+      #Give lists of channels and colutas
+      channels = ["5", "6", "7", "8"]
+      colutas = ["13", "14", "15", "16", "17", "18", "19", "20"]
+
+      current_time = datetime.datetime.now()
+      day = current_time.day
+      month = current_time.month
+      year = current_time.year
+      hour = current_time.hour
+      minute = current_time.minute
+      second = current_time.second
+
+      timestamp = f"'{month}-{day}-{year} {hour}:{minute}:{second}'"
+
+      for coluta in colutas:
+        for channel in channels:
+          c.execute(f"INSERT INTO {boardID} VALUES ({timestamp}, {coluta}, {channel}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);")
+
+      for coluta in mdac:
+        for channel in mdac[coluta]:
+          for weightName in mdac[coluta][channel]:
+            weight =  round(mdac[coluta][channel][weightName], 3)
+            colutaNumber = int(coluta.replace("coluta", ""))
+            channelNumber = int(channel.replace("channel", ""))
+            c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
+
+      # Commit the changes
+      conn.commit()
+
+      # Close our connection
+      conn.close()
+      
+      return None
+
+
     def test(self):
         
-        
-        colutas = [f"coluta{i}" for i in range(13,21)]
+        #colutas = [f"coluta{i}" for i in range(13,21)]
         #colutas.remove("coluta17") #Might have to deactivate this line of code
 
+        self.mdac_test = {'coluta13': {'channel5': {'MDACCorrectionCode0': 215.754327003865, 'MDACCorrectionCode1': 4304.466644261469, 'MDACCorrectionCode2': 4307.238783397748, 'MDACCorrectionCode3': 4305.440598218787, 'MDACCorrectionCode4': 4306.768106200638, 'MDACCorrectionCode5': 4304.109561418249, 'MDACCorrectionCode6': 4304.876155268023, 'MDACCorrectionCode7': 4314.270878843892}, 'channel6': {'MDACCorrectionCode0': 174.29154763905217, 'MDACCorrectionCode1': 4264.344143841372, 'MDACCorrectionCode2': 4264.674844563939, 'MDACCorrectionCode3': 4266.821206519912, 'MDACCorrectionCode4': 4264.075449504285, 'MDACCorrectionCode5': 4266.705931776172, 'MDACCorrectionCode6': 4267.902537388674, 'MDACCorrectionCode7': 4271.635691480424}, 'channel7': {'MDACCorrectionCode0': 168.44160645269721, 'MDACCorrectionCode1': 4255.799193412871, 'MDACCorrectionCode2': 4258.2910435220965, 'MDACCorrectionCode3': 4257.708956477903, 'MDACCorrectionCode4': 4256.30045370526, 'MDACCorrectionCode5': 4258.265333557385, 'MDACCorrectionCode6': 4257.580910771299, 'MDACCorrectionCode7': 4267.952108889262}, 'channel8': {'MDACCorrectionCode0': 239.6503108721222, 'MDACCorrectionCode1': 4327.502604604268, 'MDACCorrectionCode2': 4333.261300621745, 'MDACCorrectionCode3': 4332.799865568812, 'MDACCorrectionCode4': 4330.24584103512, 'MDACCorrectionCode5': 4333.141152747437, 'MDACCorrectionCode6': 4328.974794152244, 'MDACCorrectionCode7': 4338.911275415897}}, \
+'coluta14': {'channel5': {'MDACCorrectionCode0': 215.67770122668435, 'MDACCorrectionCode1': 4310.343639724417, 'MDACCorrectionCode2': 4305.671483784238, 'MDACCorrectionCode3': 4308.127877667619, 'MDACCorrectionCode4': 4304.366829104352, 'MDACCorrectionCode5': 4305.676524953789, 'MDACCorrectionCode6': 4305.626953453201, 'MDACCorrectionCode7': 4312.506637539909}, 'channel6': {'MDACCorrectionCode0': 218.22248361619904, 'MDACCorrectionCode1': 4309.901529154764, 'MDACCorrectionCode2': 4310.338934632835, 'MDACCorrectionCode3': 4312.095446143505, 'MDACCorrectionCode4': 4313.158796840867, 'MDACCorrectionCode5': 4312.538901025038, 'MDACCorrectionCode6': 4319.4730297429005, 'MDACCorrectionCode7': 4319.3992606284655}, 'channel7': {'MDACCorrectionCode0': 190.63854814316892, 'MDACCorrectionCode1': 4279.347336582086, 'MDACCorrectionCode2': 4281.938161653503, 'MDACCorrectionCode3': 4282.4952108889265, 'MDACCorrectionCode4': 4281.58662409679, 'MDACCorrectionCode5': 4281.269702570997, 'MDACCorrectionCode6': 4284.01629978155, 'MDACCorrectionCode7': 4285.548143169215}, 'channel8': {'MDACCorrectionCode0': 135.1371198117963, 'MDACCorrectionCode1': 4230.663922029911, 'MDACCorrectionCode2': 4227.971097294572, 'MDACCorrectionCode3': 4228.510838514535, 'MDACCorrectionCode4': 4226.049067383633, 'MDACCorrectionCode5': 4226.300453705259, 'MDACCorrectionCode6': 4231.708620399932, 'MDACCorrectionCode7': 4232.602083683415}}, \
+'coluta15': {'channel5': {'MDACCorrectionCode0': 191.7223995967065, 'MDACCorrectionCode1': 4285.019660561251, 'MDACCorrectionCode2': 4283.134935304991, 'MDACCorrectionCode3': 4286.050075617543, 'MDACCorrectionCode4': 4283.239119475718, 'MDACCorrectionCode5': 4282.46832465132, 'MDACCorrectionCode6': 4283.078138128045, 'MDACCorrectionCode7': 4293.535708284322}, 'channel6': {'MDACCorrectionCode0': 227.32633170895633, 'MDACCorrectionCode1': 4321.174088388507, 'MDACCorrectionCode2': 4316.862880188204, 'MDACCorrectionCode3': 4319.602587800369, 'MDACCorrectionCode4': 4320.282305494875, 'MDACCorrectionCode5': 4317.358259116116, 'MDACCorrectionCode6': 4318.334901697194, 'MDACCorrectionCode7': 4327.583767434045}, 'channel7': {'MDACCorrectionCode0': 182.95345320114302, 'MDACCorrectionCode1': 4273.506301461939, 'MDACCorrectionCode2': 4273.2544110233575, 'MDACCorrectionCode3': 4276.108721223324, 'MDACCorrectionCode4': 4273.565451184675, 'MDACCorrectionCode5': 4273.368341455218, 'MDACCorrectionCode6': 4273.819694169048, 'MDACCorrectionCode7': 4277.639388338094}, 'channel8': {'MDACCorrectionCode0': 176.31339270710805, 'MDACCorrectionCode1': 4264.913796000672, 'MDACCorrectionCode2': 4263.871114098471, 'MDACCorrectionCode3': 4266.776004032936, 'MDACCorrectionCode4': 4266.319442110569, 'MDACCorrectionCode5': 4263.7973449840365, 'MDACCorrectionCode6': 4264.362964207697, 'MDACCorrectionCode7': 4272.307175264661}}, \
+'coluta16': {'channel5': {'MDACCorrectionCode0': 225.66745084859667, 'MDACCorrectionCode1': 4315.840194925222, 'MDACCorrectionCode2': 4316.803058309528, 'MDACCorrectionCode3': 4317.476894639556, 'MDACCorrectionCode4': 4314.98033943875, 'MDACCorrectionCode5': 4319.3108721223325, 'MDACCorrectionCode6': 4316.513527138296, 'MDACCorrectionCode7': 4321.1019996639225}, 'channel6': {'MDACCorrectionCode0': 194.0351201478743, 'MDACCorrectionCode1': 4284.267181986221, 'MDACCorrectionCode2': 4286.457570156276, 'MDACCorrectionCode3': 4285.15291547639, 'MDACCorrectionCode4': 4285.413375903209, 'MDACCorrectionCode5': 4286.5491514031255, 'MDACCorrectionCode6': 4286.1929087548315, 'MDACCorrectionCode7': 4293.250210048731}, 'channel7': {'MDACCorrectionCode0': 208.68391866913134, 'MDACCorrectionCode1': 4299.632498739707, 'MDACCorrectionCode2': 4304.37808771635, 'MDACCorrectionCode3': 4303.474542093765, 'MDACCorrectionCode4': 4299.3206183834645, 'MDACCorrectionCode5': 4302.860695681398, 'MDACCorrectionCode6': 4301.273399428667, 'MDACCorrectionCode7': 4306.788943034784}, 'channel8': {'MDACCorrectionCode0': 199.68761552680235, 'MDACCorrectionCode1': 4290.009242144177, 'MDACCorrectionCode2': 4288.877499579902, 'MDACCorrectionCode3': 4291.577045874643, 'MDACCorrectionCode4': 4288.46899680726, 'MDACCorrectionCode5': 4291.665098302807, 'MDACCorrectionCode6': 4290.754663081835, 'MDACCorrectionCode7': 4298.459922702066}}, \
+'coluta17': {'channel5': {'MDACCorrectionCode0': 201.2486976978662, 'MDACCorrectionCode1': 4286.447487817174, 'MDACCorrectionCode2': 4288.485800705764, 'MDACCorrectionCode3': 4288.920013443119, 'MDACCorrectionCode4': 4287.940178121324, 'MDACCorrectionCode5': 4286.7825575533525, 'MDACCorrectionCode6': 4287.86439253907, 'MDACCorrectionCode7': 4295.599563098639}, 'channel6': {'MDACCorrectionCode0': 179.33893463283493, 'MDACCorrectionCode1': 4267.893631322466, 'MDACCorrectionCode2': 4264.13157452529, 'MDACCorrectionCode3': 4267.345992270206, 'MDACCorrectionCode4': 4266.290203327171, 'MDACCorrectionCode5': 4266.18786758528, 'MDACCorrectionCode6': 4270.772307175265, 'MDACCorrectionCode7': 4274.973281801378}, 'channel7': {'MDACCorrectionCode0': 192.80826751806399, 'MDACCorrectionCode1': 4280.021845068057, 'MDACCorrectionCode2': 4280.843051587968, 'MDACCorrectionCode3': 4282.431860191564, 'MDACCorrectionCode4': 4281.060494034616, 'MDACCorrectionCode5': 4281.615190724247, 'MDACCorrectionCode6': 4283.109729457235, 'MDACCorrectionCode7': 4290.215930095782}, 'channel8': {'MDACCorrectionCode0': 222.5978827087888, 'MDACCorrectionCode1': 4312.692824735339, 'MDACCorrectionCode2': 4310.687279448832, 'MDACCorrectionCode3': 4317.090404973954, 'MDACCorrectionCode4': 4312.67854142161, 'MDACCorrectionCode5': 4314.555536884557, 'MDACCorrectionCode6': 4315.588808603596, 'MDACCorrectionCode7': 4320.201814821039}}, \
+'coluta18': {'channel5': {'MDACCorrectionCode0': 207.75751974458035, 'MDACCorrectionCode1': 4302.003192740716, 'MDACCorrectionCode2': 4298.834481599732, 'MDACCorrectionCode3': 4299.896656024197, 'MDACCorrectionCode4': 4297.386993782557, 'MDACCorrectionCode5': 4297.138128045707, 'MDACCorrectionCode6': 4301.058981683751, 'MDACCorrectionCode7': 4305.562762560914}, 'channel6': {'MDACCorrectionCode0': 187.95210888926204, 'MDACCorrectionCode1': 4279.9104352209715, 'MDACCorrectionCode2': 4277.20584775668, 'MDACCorrectionCode3': 4277.4411023357425, 'MDACCorrectionCode4': 4276.24819358091, 'MDACCorrectionCode5': 4279.134263149051, 'MDACCorrectionCode6': 4277.140648630482, 'MDACCorrectionCode7': 4282.3764073265}, 'channel7': {'MDACCorrectionCode0': 180.60124348848922, 'MDACCorrectionCode1': 4273.0231893799355, 'MDACCorrectionCode2': 4272.533523777516, 'MDACCorrectionCode3': 4275.609645437742, 'MDACCorrectionCode4': 4272.411527474374, 'MDACCorrectionCode5': 4272.323307007226, 'MDACCorrectionCode6': 4274.529826919846, 'MDACCorrectionCode7': 4279.100151235087}, 'channel8': {'MDACCorrectionCode0': 191.68526298101187, 'MDACCorrectionCode1': 4282.3031423290195, 'MDACCorrectionCode2': 4281.6009074105195, 'MDACCorrectionCode3': 4285.198622080323, 'MDACCorrectionCode4': 4282.363300285667, 'MDACCorrectionCode5': 4282.408166694673, 'MDACCorrectionCode6': 4289.009242144177, 'MDACCorrectionCode7': 4289.981179633675}}, \
+'coluta19': {'channel5': {'MDACCorrectionCode0': 229.26281297260994, 'MDACCorrectionCode1': 4321.073769114435, 'MDACCorrectionCode2': 4319.699546294741, 'MDACCorrectionCode3': 4322.3031423290195, 'MDACCorrectionCode4': 4319.981515711645, 'MDACCorrectionCode5': 4320.312384473197, 'MDACCorrectionCode6': 4320.274239623593, 'MDACCorrectionCode7': 4321.989581582928}, 'channel6': {'MDACCorrectionCode0': 199.85380608301148, 'MDACCorrectionCode1': 4287.494706771971, 'MDACCorrectionCode2': 4289.137791967736, 'MDACCorrectionCode3': 4292.7381952613005, 'MDACCorrectionCode4': 4289.004200974627, 'MDACCorrectionCode5': 4288.903545622585, 'MDACCorrectionCode6': 4287.063350697362, 'MDACCorrectionCode7': 4295.278104520249}, 'channel7': {'MDACCorrectionCode0': 191.14518568307858, 'MDACCorrectionCode1': 4281.799529490841, 'MDACCorrectionCode2': 4282.550663753991, 'MDACCorrectionCode3': 4284.006721559402, 'MDACCorrectionCode4': 4282.16619055621, 'MDACCorrectionCode5': 4282.444127037473, 'MDACCorrectionCode6': 4282.120988069231, 'MDACCorrectionCode7': 4288.176608973282}, 'channel8': {'MDACCorrectionCode0': 201.7723071752648, 'MDACCorrectionCode1': 4291.005041169551, 'MDACCorrectionCode2': 4292.376239287514, 'MDACCorrectionCode3': 4295.6671147706265, 'MDACCorrectionCode4': 4293.405310031927, 'MDACCorrectionCode5': 4292.859519408503, 'MDACCorrectionCode6': 4297.986220803226, 'MDACCorrectionCode7': 4297.653503612838}}, \
+'coluta20': {'channel5': {'MDACCorrectionCode0': 242.01310704083335, 'MDACCorrectionCode1': 4335.267181986221, 'MDACCorrectionCode2': 4333.41438413712, 'MDACCorrectionCode3': 4339.899512686943, 'MDACCorrectionCode4': 4332.927071080491, 'MDACCorrectionCode5': 4338.023357418921, 'MDACCorrectionCode6': 4331.344479919342, 'MDACCorrectionCode7': 4340.4901697193745}, 'channel6': {'MDACCorrectionCode0': 237.66072928919493, 'MDACCorrectionCode1': 4323.80776340111, 'MDACCorrectionCode2': 4322.0944379095945, 'MDACCorrectionCode3': 4326.113762392875, 'MDACCorrectionCode4': 4323.354226180473, 'MDACCorrectionCode5': 4325.119979835322, 'MDACCorrectionCode6': 4323.512350865401, 'MDACCorrectionCode7': 4333.465131910603}, 'channel7': {'MDACCorrectionCode0': 204.00386489665607, 'MDACCorrectionCode1': 4295.618383464964, 'MDACCorrectionCode2': 4294.790287346665, 'MDACCorrectionCode3': 4298.283649806755, 'MDACCorrectionCode4': 4294.725592337423, 'MDACCorrectionCode5': 4298.093765753654, 'MDACCorrectionCode6': 4295.443622920518, 'MDACCorrectionCode7': 4301.67820534364}, 'channel8': {'MDACCorrectionCode0': 208.6130062174425, 'MDACCorrectionCode1': 4298.861367837339, 'MDACCorrectionCode2': 4297.612670139472, 'MDACCorrectionCode3': 4303.448832129054, 'MDACCorrectionCode4': 4299.859687447488, 'MDACCorrectionCode5': 4301.48832129054, 'MDACCorrectionCode6': 4301.976474542094, 'MDACCorrectionCode7': 4304.954461435053}}}
 
-        print("We are doing the multichannel Sar Calibration")
-        self.doSarCalibMultichannelDebug(colutas, [f"channel{j}" for j in range (6,9,2)])
-        print("End Sar Calibration Debugging")
+        msg = QMessageBox()
+        msg.setWindowTitle("Save to Database?")
+        msg.setText("Would you like to save these constants to the database?")
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.buttonClicked.connect(self.popup_button)
+        x = msg.exec_()
+
+        #print("We are doing the multichannel Sar Calibration")
+        #self.doSarCalibMultichannelDebug(colutas, [f"channel{j}" for j in range (6,9,2)])
+        #print("End Sar Calibration Debugging")
 
         """
         #start_time = timeit.default_timer()
@@ -181,20 +254,33 @@ class SARCALIBMODULE(object):
         self.writeMdacCal(self.guiColutaId,self.guiColutaChId)
         return None
 
+
     def runFullCalibInFeb2Gui(self):
-        chips = ["coluta13","coluta14","coluta15","coluta16","coluta17","coluta18","coluta19","coluta20"]
-        #channels = ["channel1","channel2","channel3","channel4","channel5","channel6","channel7","channel8"]
-        #chips = ["coluta20"]
-        channels = ["channel5","channel6","channel7","channel8"]
-        for chip in chips :
-          for chan in channels :
-            self.doSarCalib(chip,chan)
-            self.writeSarConstant(chip,chan)
-            self.calibModule.addSarCalib(self.GUI.boardID,chip,chan,self.sarWeights)
-            self.doMdacCal(chip,chan)
-            self.writeMdacCal(chip,chan)
-            self.calibModule.addMdacCalib(self.GUI.boardID,chip,chan,self.mdacWeights)
-        return None
+        colutas = [f"coluta{i}" for i in range(13,21)]
+        channels = [f"channel{i}" for i in range(5,9)]
+        self.sarWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
+        self.mdacWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
+
+        #for ch in channels: self.doSarCalibMultichannel(colutas, [ch])
+        #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
+
+        ## Runs SAR calib in odd then even channels
+        self.doSarCalibMultichannel(colutas, channels[::2])
+        self.doSarCalibMultichannel(colutas, channels[1::2])
+        ## Runs MDAC calib in odd then even channels
+        self.doMdacCalMultichannel(colutas, channels[::2])
+        self.doMdacCalMultichannel(colutas, channels[1::2])
+
+        print(self.sarWeights)
+        print(self.mdacWeights)
+        self.writeMdacCalMultichannel(colutas, channels)
+        for coluta in colutas:
+            for ch in channels:
+                self.writeSarConstantMultichannel(coluta, ch)
+                self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
+                self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
+
+
 
     def getSarMdacCalibChInFeb2GUI(self):
         colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
