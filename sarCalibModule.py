@@ -27,7 +27,11 @@ class SARCALIBMODULE(object):
         self.mdacWeights = {}
 
         #for database
-        self.mdac_test = {}
+        self.sarEven = {}
+        self.sarOdd = {}
+        self.mdacEven = {}
+        self.mdacEven = {}
+
 
         self.cv3tbVersion = False
         self.feb2Version = True
@@ -52,7 +56,7 @@ class SARCALIBMODULE(object):
     
     def saveToDatabase(self, mdac):
       #Create a database or connect to one
-      conn = sqlite3.connect('/home/dawillia/FLX/CalibConstants.db')
+      conn = sqlite3.connect('calibConstants.db')
       #Create a cursor
       c = conn.cursor()
       boardID = "Board26"
@@ -98,6 +102,11 @@ class SARCALIBMODULE(object):
         
         #colutas = [f"coluta{i}" for i in range(13,21)]
         #colutas.remove("coluta17") #Might have to deactivate this line of code
+
+        
+        self.runFullCalibInFeb2Gui()
+
+
 
         self.mdac_test = {'coluta13': {'channel5': {'MDACCorrectionCode0': 215.754327003865, 'MDACCorrectionCode1': 4304.466644261469, 'MDACCorrectionCode2': 4307.238783397748, 'MDACCorrectionCode3': 4305.440598218787, 'MDACCorrectionCode4': 4306.768106200638, 'MDACCorrectionCode5': 4304.109561418249, 'MDACCorrectionCode6': 4304.876155268023, 'MDACCorrectionCode7': 4314.270878843892}, 'channel6': {'MDACCorrectionCode0': 174.29154763905217, 'MDACCorrectionCode1': 4264.344143841372, 'MDACCorrectionCode2': 4264.674844563939, 'MDACCorrectionCode3': 4266.821206519912, 'MDACCorrectionCode4': 4264.075449504285, 'MDACCorrectionCode5': 4266.705931776172, 'MDACCorrectionCode6': 4267.902537388674, 'MDACCorrectionCode7': 4271.635691480424}, 'channel7': {'MDACCorrectionCode0': 168.44160645269721, 'MDACCorrectionCode1': 4255.799193412871, 'MDACCorrectionCode2': 4258.2910435220965, 'MDACCorrectionCode3': 4257.708956477903, 'MDACCorrectionCode4': 4256.30045370526, 'MDACCorrectionCode5': 4258.265333557385, 'MDACCorrectionCode6': 4257.580910771299, 'MDACCorrectionCode7': 4267.952108889262}, 'channel8': {'MDACCorrectionCode0': 239.6503108721222, 'MDACCorrectionCode1': 4327.502604604268, 'MDACCorrectionCode2': 4333.261300621745, 'MDACCorrectionCode3': 4332.799865568812, 'MDACCorrectionCode4': 4330.24584103512, 'MDACCorrectionCode5': 4333.141152747437, 'MDACCorrectionCode6': 4328.974794152244, 'MDACCorrectionCode7': 4338.911275415897}}, \
 'coluta14': {'channel5': {'MDACCorrectionCode0': 215.67770122668435, 'MDACCorrectionCode1': 4310.343639724417, 'MDACCorrectionCode2': 4305.671483784238, 'MDACCorrectionCode3': 4308.127877667619, 'MDACCorrectionCode4': 4304.366829104352, 'MDACCorrectionCode5': 4305.676524953789, 'MDACCorrectionCode6': 4305.626953453201, 'MDACCorrectionCode7': 4312.506637539909}, 'channel6': {'MDACCorrectionCode0': 218.22248361619904, 'MDACCorrectionCode1': 4309.901529154764, 'MDACCorrectionCode2': 4310.338934632835, 'MDACCorrectionCode3': 4312.095446143505, 'MDACCorrectionCode4': 4313.158796840867, 'MDACCorrectionCode5': 4312.538901025038, 'MDACCorrectionCode6': 4319.4730297429005, 'MDACCorrectionCode7': 4319.3992606284655}, 'channel7': {'MDACCorrectionCode0': 190.63854814316892, 'MDACCorrectionCode1': 4279.347336582086, 'MDACCorrectionCode2': 4281.938161653503, 'MDACCorrectionCode3': 4282.4952108889265, 'MDACCorrectionCode4': 4281.58662409679, 'MDACCorrectionCode5': 4281.269702570997, 'MDACCorrectionCode6': 4284.01629978155, 'MDACCorrectionCode7': 4285.548143169215}, 'channel8': {'MDACCorrectionCode0': 135.1371198117963, 'MDACCorrectionCode1': 4230.663922029911, 'MDACCorrectionCode2': 4227.971097294572, 'MDACCorrectionCode3': 4228.510838514535, 'MDACCorrectionCode4': 4226.049067383633, 'MDACCorrectionCode5': 4226.300453705259, 'MDACCorrectionCode6': 4231.708620399932, 'MDACCorrectionCode7': 4232.602083683415}}, \
@@ -265,9 +274,12 @@ class SARCALIBMODULE(object):
         #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
 
         ## Runs SAR calib in odd then even channels
-        self.doSarCalibMultichannel(colutas, channels[::2])
-        self.doSarCalibMultichannel(colutas, channels[1::2])
+        self.sarEven = self.doSarCalibMultichannelDebug(colutas, channels[::2])
+        print(self.sarEven)
+        #self.doSarCalibMultichannelDebug(colutas, channels[1::2])
         ## Runs MDAC calib in odd then even channels
+
+        """
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.doMdacCalMultichannel(colutas, channels[1::2])
 
@@ -279,7 +291,7 @@ class SARCALIBMODULE(object):
                 self.writeSarConstantMultichannel(coluta, ch)
                 self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
                 self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
-
+        """
 
 
     def getSarMdacCalibChInFeb2GUI(self):
@@ -885,7 +897,7 @@ class SARCALIBMODULE(object):
               sarWeights["W_2ND_0p25"] = 0.25
       print("DONE!!!")
       print(sarWeights)
-      return None
+      return sarWeights
       
 
     def calcWeightsDebug(self, weightsList, weightResultDict):
