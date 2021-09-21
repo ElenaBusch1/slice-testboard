@@ -88,6 +88,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.daqADCSelect = '7'
         self.singleADCMode_ADC = 'trigger'
         self.measChan = "default"
+        self.LAUROCmode = '-99'
 
         # Default attributes for hdf5 output, overwritten by instrument control
         self.runType = 'sine'
@@ -188,6 +189,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # Plotting
         #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
         self.nSamplesBox.document().setPlainText(str(self.nSamples))
+        self.AttValBox.document().setPlainText(str(self.att_val))
         self.nSamplesBox.textChanged.connect(self.updateNSamples)
         #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
         #                                        ylim=[0,65536],ylabel='ADC Counts')
@@ -204,8 +206,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.sarMdacCal = SARCALIBMODULE(self)
         self.calibMod = CALIBMODULE()
         self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
-        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
-        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
+        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
         #introducing text #2
         self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
         self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
@@ -214,6 +216,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.startup()
         #self.lpgbt_i2c_read()
         # self.sendConfigurationsFromLpGBT()
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
+
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {} ".format(self.runNumberString)) 
+
 
     def testFunc(self):
         pass
@@ -786,6 +794,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
+
+        self.sarMdacCal.getFullCalibInFeb2Gui()
 
         print("Done Configuring")
         print("Configuration results")
@@ -1501,7 +1511,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         takeManagerData(outputDirectory, outputFile, self.daqMode, int(self.daqADCSelect))
         #subprocess.call("python takeTriggerData.py -o "+outputPath+" -t "+self.daqMode+" -a "+self.daqADCSelect, shell=True)
         #takeDataMod.takeData(outputPath, self.daqMode, self.daqADCSelect)
-        time.sleep(5)
+        #time.sleep(5)
         parseDataMod.main(self, outputPathStamped)
         #subprocess.call("python scripts/parseData.py -f "+outputPath+" -t "+self.daqMode+" -h "+saveHists, shell=True)        
         saveBin = self.saveBinaryCheckBox.isChecked() 
@@ -1514,6 +1524,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def incrementRunNumber(self):
         self.runNumber += 1
         print("Run Number", self.runNumber)
+        self.runNumberString = str(self.runNumber)
+        self.setWindowTitle("Run Number: {}".format(self.runNumberString))
         with open('../metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
@@ -1610,6 +1622,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         with open("colutaOutput.txt", "w") as f:
             f.write(dataStringChunks16)
         #print(dataStringChunks16)
+
+    def updateAtt(self):
+        self.att_val = int(self.AttValBox.toPlainText())
 
     def updateNSamples(self):
         self.nSamples = int(self.nSamplesBox.toPlainText())
@@ -1759,6 +1774,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         ## cmd_gain_sum not implemented as button in GUI
         lauroc.setConfiguration("datain27", "cmd_gain_sum", '000')
         print(f"Updated {laurocName} datain27, cmd_gain_sum: 000")
+        self.LAUROCmode = mode
 
     def updateErrorConfigurationList(self, readback, chip):
         print("performed test for", chip)

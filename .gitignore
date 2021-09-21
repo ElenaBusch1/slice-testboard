@@ -3,6 +3,9 @@ old/
 *.txt
 configBoard633/
 configBoard634*
+clockScan/clockScan_board633/
+clockScan_board633/
+clockScan_board634/
 config_tmp_*
 *dep.py*
 config/lpGBT16_backup.cfg
