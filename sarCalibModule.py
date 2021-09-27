@@ -26,13 +26,6 @@ class SARCALIBMODULE(object):
         self.sarWeights = {}
         self.mdacWeights = {}
 
-        #for database
-        self.sarEven = {}
-        self.sarOdd = {}
-        self.mdacEven = {}
-        self.mdacEven = {}
-
-
         self.cv3tbVersion = False
         self.feb2Version = True
 
@@ -50,13 +43,13 @@ class SARCALIBMODULE(object):
     #Database Stuff
     def popup_button(self, i):
         if(i.text() == "&Yes"):
-            self.saveToDatabase(self.mdac_test)
+            self.saveToDatabase()
         else:
             print("Nah")
     
-    def saveToDatabase(self, mdac):
+    def saveToDatabase(self):
       #Create a database or connect to one
-      conn = sqlite3.connect('calibConstants.db')
+      conn = sqlite3.connect('testDatabase.db')
       #Create a cursor
       c = conn.cursor()
       boardID = "Board26"
@@ -81,13 +74,22 @@ class SARCALIBMODULE(object):
         for channel in channels:
           c.execute(f"INSERT INTO {boardID} VALUES ({timestamp}, {coluta}, {channel}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);")
 
-      for coluta in mdac:
-        for channel in mdac[coluta]:
-          for weightName in mdac[coluta][channel]:
-            weight =  round(mdac[coluta][channel][weightName], 3)
+      for coluta in self.mdacWeights:
+        for channel in self.mdacWeights[coluta]:
+          for weightName in self.mdacWeights[coluta][channel]:
+            weight =  round(self.mdacWeights[coluta][channel][weightName], 3)
             colutaNumber = int(coluta.replace("coluta", ""))
             channelNumber = int(channel.replace("channel", ""))
             c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
+
+      for coluta in self.sarweights:
+        for channel in self.sarWeights[coluta]:
+          for weightName in self.sarWeights[coluta][channel]:
+            weight =  round(self.sarWeights[coluta][channel][weightName], 3)
+            colutaNumber = int(coluta.replace("coluta", ""))
+            channelNumber = int(channel.replace("channel", ""))
+            c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
+
 
       # Commit the changes
       conn.commit()
@@ -106,8 +108,7 @@ class SARCALIBMODULE(object):
         
         self.runFullCalibInFeb2Gui()
 
-
-
+        """
         self.mdac_test = {'coluta13': {'channel5': {'MDACCorrectionCode0': 215.754327003865, 'MDACCorrectionCode1': 4304.466644261469, 'MDACCorrectionCode2': 4307.238783397748, 'MDACCorrectionCode3': 4305.440598218787, 'MDACCorrectionCode4': 4306.768106200638, 'MDACCorrectionCode5': 4304.109561418249, 'MDACCorrectionCode6': 4304.876155268023, 'MDACCorrectionCode7': 4314.270878843892}, 'channel6': {'MDACCorrectionCode0': 174.29154763905217, 'MDACCorrectionCode1': 4264.344143841372, 'MDACCorrectionCode2': 4264.674844563939, 'MDACCorrectionCode3': 4266.821206519912, 'MDACCorrectionCode4': 4264.075449504285, 'MDACCorrectionCode5': 4266.705931776172, 'MDACCorrectionCode6': 4267.902537388674, 'MDACCorrectionCode7': 4271.635691480424}, 'channel7': {'MDACCorrectionCode0': 168.44160645269721, 'MDACCorrectionCode1': 4255.799193412871, 'MDACCorrectionCode2': 4258.2910435220965, 'MDACCorrectionCode3': 4257.708956477903, 'MDACCorrectionCode4': 4256.30045370526, 'MDACCorrectionCode5': 4258.265333557385, 'MDACCorrectionCode6': 4257.580910771299, 'MDACCorrectionCode7': 4267.952108889262}, 'channel8': {'MDACCorrectionCode0': 239.6503108721222, 'MDACCorrectionCode1': 4327.502604604268, 'MDACCorrectionCode2': 4333.261300621745, 'MDACCorrectionCode3': 4332.799865568812, 'MDACCorrectionCode4': 4330.24584103512, 'MDACCorrectionCode5': 4333.141152747437, 'MDACCorrectionCode6': 4328.974794152244, 'MDACCorrectionCode7': 4338.911275415897}}, \
 'coluta14': {'channel5': {'MDACCorrectionCode0': 215.67770122668435, 'MDACCorrectionCode1': 4310.343639724417, 'MDACCorrectionCode2': 4305.671483784238, 'MDACCorrectionCode3': 4308.127877667619, 'MDACCorrectionCode4': 4304.366829104352, 'MDACCorrectionCode5': 4305.676524953789, 'MDACCorrectionCode6': 4305.626953453201, 'MDACCorrectionCode7': 4312.506637539909}, 'channel6': {'MDACCorrectionCode0': 218.22248361619904, 'MDACCorrectionCode1': 4309.901529154764, 'MDACCorrectionCode2': 4310.338934632835, 'MDACCorrectionCode3': 4312.095446143505, 'MDACCorrectionCode4': 4313.158796840867, 'MDACCorrectionCode5': 4312.538901025038, 'MDACCorrectionCode6': 4319.4730297429005, 'MDACCorrectionCode7': 4319.3992606284655}, 'channel7': {'MDACCorrectionCode0': 190.63854814316892, 'MDACCorrectionCode1': 4279.347336582086, 'MDACCorrectionCode2': 4281.938161653503, 'MDACCorrectionCode3': 4282.4952108889265, 'MDACCorrectionCode4': 4281.58662409679, 'MDACCorrectionCode5': 4281.269702570997, 'MDACCorrectionCode6': 4284.01629978155, 'MDACCorrectionCode7': 4285.548143169215}, 'channel8': {'MDACCorrectionCode0': 135.1371198117963, 'MDACCorrectionCode1': 4230.663922029911, 'MDACCorrectionCode2': 4227.971097294572, 'MDACCorrectionCode3': 4228.510838514535, 'MDACCorrectionCode4': 4226.049067383633, 'MDACCorrectionCode5': 4226.300453705259, 'MDACCorrectionCode6': 4231.708620399932, 'MDACCorrectionCode7': 4232.602083683415}}, \
 'coluta15': {'channel5': {'MDACCorrectionCode0': 191.7223995967065, 'MDACCorrectionCode1': 4285.019660561251, 'MDACCorrectionCode2': 4283.134935304991, 'MDACCorrectionCode3': 4286.050075617543, 'MDACCorrectionCode4': 4283.239119475718, 'MDACCorrectionCode5': 4282.46832465132, 'MDACCorrectionCode6': 4283.078138128045, 'MDACCorrectionCode7': 4293.535708284322}, 'channel6': {'MDACCorrectionCode0': 227.32633170895633, 'MDACCorrectionCode1': 4321.174088388507, 'MDACCorrectionCode2': 4316.862880188204, 'MDACCorrectionCode3': 4319.602587800369, 'MDACCorrectionCode4': 4320.282305494875, 'MDACCorrectionCode5': 4317.358259116116, 'MDACCorrectionCode6': 4318.334901697194, 'MDACCorrectionCode7': 4327.583767434045}, 'channel7': {'MDACCorrectionCode0': 182.95345320114302, 'MDACCorrectionCode1': 4273.506301461939, 'MDACCorrectionCode2': 4273.2544110233575, 'MDACCorrectionCode3': 4276.108721223324, 'MDACCorrectionCode4': 4273.565451184675, 'MDACCorrectionCode5': 4273.368341455218, 'MDACCorrectionCode6': 4273.819694169048, 'MDACCorrectionCode7': 4277.639388338094}, 'channel8': {'MDACCorrectionCode0': 176.31339270710805, 'MDACCorrectionCode1': 4264.913796000672, 'MDACCorrectionCode2': 4263.871114098471, 'MDACCorrectionCode3': 4266.776004032936, 'MDACCorrectionCode4': 4266.319442110569, 'MDACCorrectionCode5': 4263.7973449840365, 'MDACCorrectionCode6': 4264.362964207697, 'MDACCorrectionCode7': 4272.307175264661}}, \
@@ -117,6 +118,7 @@ class SARCALIBMODULE(object):
 'coluta19': {'channel5': {'MDACCorrectionCode0': 229.26281297260994, 'MDACCorrectionCode1': 4321.073769114435, 'MDACCorrectionCode2': 4319.699546294741, 'MDACCorrectionCode3': 4322.3031423290195, 'MDACCorrectionCode4': 4319.981515711645, 'MDACCorrectionCode5': 4320.312384473197, 'MDACCorrectionCode6': 4320.274239623593, 'MDACCorrectionCode7': 4321.989581582928}, 'channel6': {'MDACCorrectionCode0': 199.85380608301148, 'MDACCorrectionCode1': 4287.494706771971, 'MDACCorrectionCode2': 4289.137791967736, 'MDACCorrectionCode3': 4292.7381952613005, 'MDACCorrectionCode4': 4289.004200974627, 'MDACCorrectionCode5': 4288.903545622585, 'MDACCorrectionCode6': 4287.063350697362, 'MDACCorrectionCode7': 4295.278104520249}, 'channel7': {'MDACCorrectionCode0': 191.14518568307858, 'MDACCorrectionCode1': 4281.799529490841, 'MDACCorrectionCode2': 4282.550663753991, 'MDACCorrectionCode3': 4284.006721559402, 'MDACCorrectionCode4': 4282.16619055621, 'MDACCorrectionCode5': 4282.444127037473, 'MDACCorrectionCode6': 4282.120988069231, 'MDACCorrectionCode7': 4288.176608973282}, 'channel8': {'MDACCorrectionCode0': 201.7723071752648, 'MDACCorrectionCode1': 4291.005041169551, 'MDACCorrectionCode2': 4292.376239287514, 'MDACCorrectionCode3': 4295.6671147706265, 'MDACCorrectionCode4': 4293.405310031927, 'MDACCorrectionCode5': 4292.859519408503, 'MDACCorrectionCode6': 4297.986220803226, 'MDACCorrectionCode7': 4297.653503612838}}, \
 'coluta20': {'channel5': {'MDACCorrectionCode0': 242.01310704083335, 'MDACCorrectionCode1': 4335.267181986221, 'MDACCorrectionCode2': 4333.41438413712, 'MDACCorrectionCode3': 4339.899512686943, 'MDACCorrectionCode4': 4332.927071080491, 'MDACCorrectionCode5': 4338.023357418921, 'MDACCorrectionCode6': 4331.344479919342, 'MDACCorrectionCode7': 4340.4901697193745}, 'channel6': {'MDACCorrectionCode0': 237.66072928919493, 'MDACCorrectionCode1': 4323.80776340111, 'MDACCorrectionCode2': 4322.0944379095945, 'MDACCorrectionCode3': 4326.113762392875, 'MDACCorrectionCode4': 4323.354226180473, 'MDACCorrectionCode5': 4325.119979835322, 'MDACCorrectionCode6': 4323.512350865401, 'MDACCorrectionCode7': 4333.465131910603}, 'channel7': {'MDACCorrectionCode0': 204.00386489665607, 'MDACCorrectionCode1': 4295.618383464964, 'MDACCorrectionCode2': 4294.790287346665, 'MDACCorrectionCode3': 4298.283649806755, 'MDACCorrectionCode4': 4294.725592337423, 'MDACCorrectionCode5': 4298.093765753654, 'MDACCorrectionCode6': 4295.443622920518, 'MDACCorrectionCode7': 4301.67820534364}, 'channel8': {'MDACCorrectionCode0': 208.6130062174425, 'MDACCorrectionCode1': 4298.861367837339, 'MDACCorrectionCode2': 4297.612670139472, 'MDACCorrectionCode3': 4303.448832129054, 'MDACCorrectionCode4': 4299.859687447488, 'MDACCorrectionCode5': 4301.48832129054, 'MDACCorrectionCode6': 4301.976474542094, 'MDACCorrectionCode7': 4304.954461435053}}}
 
+        #Put into database?
         msg = QMessageBox()
         msg.setWindowTitle("Save to Database?")
         msg.setText("Would you like to save these constants to the database?")
@@ -124,7 +126,7 @@ class SARCALIBMODULE(object):
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.buttonClicked.connect(self.popup_button)
         x = msg.exec_()
-
+        """
         #print("We are doing the multichannel Sar Calibration")
         #self.doSarCalibMultichannelDebug(colutas, [f"channel{j}" for j in range (6,9,2)])
         #print("End Sar Calibration Debugging")
@@ -269,22 +271,18 @@ class SARCALIBMODULE(object):
         return None
 
     def runFullCalibInFeb2Gui(self):
+
+        print("Doing full calibration")
         colutas = [f"coluta{i}" for i in range(13,21)]
         channels = [f"channel{i}" for i in range(5,9)]
         self.sarWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
-        self.mdacWeights = {coluta: {ch: {} for ch in channels} for coluta in coluta}
-
-        #for ch in channels: self.doSarCalibMultichannel(colutas, [ch])
-        #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
+        self.mdacWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
 
         ## Runs SAR calib in odd then even channels
-        self.sarEven = self.doSarCalibMultichannel(colutas, channels[::2])
-        print("Printing to see if it went thru")
-        print(self.sarEven)
-        #self.doSarCalibMultichannelDebug(colutas, channels[1::2])
-        ## Runs MDAC calib in odd then even channels
+        self.doSarCalibMultichannel(colutas, channels[::2])
+        self.doSarCalibMultichannel(colutas, channels[1::2])
 
-        """
+        ## Runs MDAC calib in odd then even channels
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.doMdacCalMultichannel(colutas, channels[1::2])
 
@@ -299,15 +297,31 @@ class SARCALIBMODULE(object):
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.doMdacCalMultichannel(colutas, channels[1::2])
              
+        print("printing weights")
+        #Sar Weights
         print(self.sarWeights)
+        #Mdac Weights
         print(self.mdacWeights)
+
+
+        #Pop-up window to ask if you want to store into Database
+        msg = QMessageBox()
+        msg.setWindowTitle("Save to Database?")
+        msg.setText("Would you like to save these constants to the database?")
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.buttonClicked.connect(self.popup_button)
+        x = msg.exec_()
+
+ 
+
+
         self.writeMdacCalMultichannel(colutas, channels)
         for coluta in colutas:
             for ch in channels:
                 self.writeSarConstantMultichannel(coluta, ch)
                 self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
                 self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
-        """
 
     def getSarMdacCalibChInFeb2GUI(self):
         colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
@@ -857,8 +871,8 @@ class SARCALIBMODULE(object):
               self.sarWeights[coluta][ch]["W_2ND_0p5"] = 0.5
               self.sarWeights[coluta][ch]["W_2ND_0p25"] = 0.25
       print("DONE!!!")
-      print(sarWeights)
-      return sarWeights
+      print(self.sarWeights)
+      return None
       
 
     def calcWeightsMultichannel(self, weightsList, weightResultDict):
