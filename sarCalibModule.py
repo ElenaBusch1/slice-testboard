@@ -80,7 +80,9 @@ class SARCALIBMODULE(object):
         ## Runs MDAC calib in odd then even channels
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.doMdacCalMultichannel(colutas, channels[1::2])
-             
+            
+        #with open("sarFullCalib.json", "w") as f:
+        #    json.dump(self.sarWeights, f)
         print(self.sarWeights)
         print(self.mdacWeights)
         self.writeMdacCalMultichannel(colutas, channels)
@@ -311,14 +313,20 @@ class SARCALIBMODULE(object):
         initConfig = {coluta : self.getConfig(coluta) for coluta in colutas}
        
         # Sets configuration for MDAC calibration
-        for coluta in colutas:
-            for channel in channels:
-                self.doConfig(coluta, channelLabel[channel], "FLAGEN", str(0))
-                self.doConfig(coluta, channelLabel[channel], "MDACCALEN", str(1))
-                for i in range(8):
-                    self.doConfig(coluta, channelLabel[channel], f"MDACCorrectionCode{i}", '00000000000000000')
-        readbackSuccess = self.GUI.sendUpdatedConfigurations()
-        if not readbackSuccess: sys.exit(f"MDAC Calibration stopped: readback failed while setting up colutas for MDAC calibration!")
+        attempts = 0
+        while attempts < 2:
+            for coluta in colutas:
+                for channel in channels:
+                    self.doConfig(coluta, channelLabel[channel], "FLAGEN", str(0))
+                    self.doConfig(coluta, channelLabel[channel], "MDACCALEN", str(1))
+                    for i in range(8):
+                        self.doConfig(coluta, channelLabel[channel], f"MDACCorrectionCode{i}", '00000000000000000')
+            readbackSuccess = self.GUI.sendUpdatedConfigurations()
+            if not readbackSuccess: 
+                if attempts == 0: print("Readback failed, retrying...")
+                else: sys.exit(f"MDAC Calibration stopped: readback failed while setting up colutas for MDAC calibration!")
+                attempts += 1
+            else: break
  
         # Gets MDAC measurements
         mdacCalList = [128, 128, 64, 64, 32, 32, 16, 16, 8, 8, 4, 4, 2, 2, 1, 1]
@@ -330,16 +338,20 @@ class SARCALIBMODULE(object):
             flashVal = str(format(flashList[stepNum],'08b'))
  
             # Updates MDAC calibration + flash value configurations
-            for coluta in colutas:
-                for channel in channels:
-                    self.doConfig(coluta,channelLabel[channel],"CALMDAC",str(mdacCalVal)) 
-                    self.doConfig(coluta,channelLabel[channel],"CALFLASH",str(flashVal))
-            time.sleep(0.1)
+            attempts = 0
+            while attempts < 2:
+                for coluta in colutas:
+                    for channel in channels:
+                        self.doConfig(coluta,channelLabel[channel],"CALMDAC",str(mdacCalVal)) 
+                        self.doConfig(coluta,channelLabel[channel],"CALFLASH",str(flashVal))
  
-            # Checks readback
-            readbackSuccess = self.GUI.sendUpdatedConfigurations()
-            if not readbackSuccess:
-                sys.exit("MDAC Calibration stopped: readback failed while updating MDAC + flash value configurations!")
+                # Checks readback
+                readbackSuccess = self.GUI.sendUpdatedConfigurations()
+                if not readbackSuccess:
+                    if attempts == 0: print("Readback failed, retrying...")
+                    else: sys.exit("MDAC Calibration stopped: readback failed while updating MDAC + flash value configurations!")
+                    attempts += 1
+                else: break
             
             if len(colutas) == 1:
                 self.takeData(coluta=colutas[0]) # If only one COLUTA, don't take data in all COLUTAs
@@ -549,18 +561,23 @@ class SARCALIBMODULE(object):
       LSBSectionNames = {coluta: {ch: self.chLabelDict[ch][1] for ch in channels} for coluta in colutas}
       initConfigs = {coluta : self.getConfig(coluta) for coluta in colutas}
 
-      for coluta in colutas:
-          for ch in channels:
-              self.doConfig(coluta,MSBSectionNames[coluta][ch],'SHORTINPUT', '1')
-              self.doConfig(coluta,MSBSectionNames[coluta][ch],'DREMDACToSAR', '0')
-              self.doConfig(coluta,MSBSectionNames[coluta][ch],'OutputMode', '1')
-              self.doConfig(coluta,MSBSectionNames[coluta][ch],'EXTToSAR', '0')
-              self.doConfig(coluta,LSBSectionNames[coluta][ch],'DATAMUXSelect', '1')         
+      attempts = 0
+      while attempts < 2:
+          for coluta in colutas:
+              for ch in channels:
+                  self.doConfig(coluta,MSBSectionNames[coluta][ch],'SHORTINPUT', '1')
+                  self.doConfig(coluta,MSBSectionNames[coluta][ch],'DREMDACToSAR', '0')
+                  self.doConfig(coluta,MSBSectionNames[coluta][ch],'OutputMode', '1')
+                  self.doConfig(coluta,MSBSectionNames[coluta][ch],'EXTToSAR', '0')
+                  self.doConfig(coluta,LSBSectionNames[coluta][ch],'DATAMUXSelect', '1')         
 
-      readbackSuccess = self.GUI.sendUpdatedConfigurations()
-      if not readbackSuccess:
-          sys.exit("SAR calibration stopped: readback failed for SAR configurations")
-    
+          readbackSuccess = self.GUI.sendUpdatedConfigurations()
+          if not readbackSuccess:
+              if attempts == 0: print("Readback failed, retrying...")
+              else: sys.exit("SAR calibration stopped: readback failed for SAR configurations")
+              attempts += 1
+          else: break    
+
       weightsList = ["W_2ND_16","W_2ND_24","W_2ND_32","W_2ND_64","W_2ND_128","W_2ND_224",
                      "W_1ST_Unit","W_1ST_128","W_1ST_256","W_1ST_384","W_1ST_640","W_1ST_1024",
                      "W_1ST_2048","W_1ST_3584"] #Note: order matters!!!! must be done from lowest to highest weights
@@ -586,16 +603,21 @@ class SARCALIBMODULE(object):
               CALREGA   = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGA_" + str(calibType))
               CALREGB   = CAL_Config.get("SARCalibrationControls", str(weightName) + "_CALREGB_" + str(calibType))
 
-              for coluta in colutas:
-                  for ch in channels:
-                      self.doConfig(coluta,MSBSectionNames[coluta][ch],'SARCALEN', SARCALEN)
-                      self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALDIR', CALDIR)
-                      self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALPNDAC', CALPNDAC)
-                      self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALREGA', CALREGA)
-                      self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALREGB', CALREGB)
-              readbackSuccess = self.GUI.sendUpdatedConfigurations()
-              if not readbackSuccess:
-                  sys.exit("SAR calibration stopped: failed to write calibration type constants")
+              attempts = 0
+              while attempts < 2:
+                  for coluta in colutas:
+                      for ch in channels:
+                          self.doConfig(coluta,MSBSectionNames[coluta][ch],'SARCALEN', SARCALEN)
+                          self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALDIR', CALDIR)
+                          self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALPNDAC', CALPNDAC)
+                          self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALREGA', CALREGA)
+                          self.doConfig(coluta,MSBSectionNames[coluta][ch],'CALREGB', CALREGB)
+                  readbackSuccess = self.GUI.sendUpdatedConfigurations()
+                  if not readbackSuccess:
+                      if attempts == 0: print("Readback failed, retrying...")
+                      else: sys.exit("SAR calibration stopped: failed to write calibration type constants")
+                      attempts += 1
+                  else: break
 
               self.takeData(trigger=True)
               MSBLists = {coluta : {ch: self.dataMap[coluta][MSBchannels[coluta][ch]] for ch in channels} for coluta in colutas}

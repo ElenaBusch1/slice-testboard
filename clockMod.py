@@ -2,7 +2,6 @@ import os
 import h5py
 import numpy as np
 import pyjson5
-import logging
 import findClockParam
 from termcolor import colored
 from timeit import default_timer as timer
@@ -34,10 +33,10 @@ def sendInversionBits(GUI, clock640, colutaName):
     
     return(readbackSuccess)
 
-def writeToHDF5(tables):
+def writeToHDF5(GUI, tables):
   """ Saves clock scan results to an HDF5 """
-  fileName = 'clockScanBoard634Repeat.hdf5'
-  out_file = h5py.File("clockScan/clockScanResults/" + fileName,'w')
+  fileName = f'clockScanBoard{GUI.boardID}Repeat.hdf5'
+  out_file = h5py.File(f"clockScan_board{GUI.boardID}/clockScanResults/" + fileName,'w')
   print("Opening hdf5 file: " + fileName)
 
   for coluta in tables.keys():
@@ -153,19 +152,16 @@ def scanClocks(GUI,colutas):
     # is serializer pattern a correct permutations?
     isValid_list = {coluta: {ch: [] for ch in channels} for coluta in colutas}
     
-    # Keep track of errors to put in log file
     if not os.path.exists(f"clockScan_board{GUI.boardID}"):
         os.makedirs(f"clockScan_board{GUI.boardID}") # Creates directory for given board
         print(f"Creating clockScan_board{GUI.boardID} directory...")
-    logging.basicConfig(filename=f"clockScan_{GUI.boardID}/error.log", encoding='utf-8', level=logging.DEBUG, format='%(asctime)s %(message)s')
 
     for delay_idx in range(0,upper):
         for coluta in colutas:
             configureSuccess = sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
             #Useless to change lpgbt_idx if failed
             if configureSuccess is False:
-                for chn in channels: readback[coluta][chn][delay_idx] = [0]*upper # readback failed so can't trust entire row
-                logging.warning(f"Readback failed! {coluta.upper()} while setting INV/Delay640 of {delay_idx}")             
+                for chn in channels: readback[coluta][chn][delay_idx] = [0]*upper # readback failed so can't trust entire row             
   
         for lpgbt_idx in range(0,upper):
             value = (lpgbt_idx<<4)+2 # lpgbt clock setting register value
@@ -186,7 +182,6 @@ def scanClocks(GUI,colutas):
                             chn, configureSuccess = writeToLpGBT(GUI, coluta, lpgbt, reg, value)
                             if configureSuccess is False and readback[coluta][chn][delay_idx][lpgbt_idx] > 0: 
                                 readback[coluta][chn][delay_idx][lpgbt_idx] = 0
-                                logging.warning(f"Readback failed! {lpgbt} while setting INV/Delay640 of {delay_idx} and lpGBT phase of {lpgbt_idx}")
                         except TypeError:
                             continue
                             
@@ -257,10 +252,7 @@ def scanClocks(GUI,colutas):
                 #f.write("\n \n")
 
     ## Save results in an hdf5
-    writeToHDF5(LPGBTPhase)
-    logging.shutdown()
-    if os.stat(f"clockScan_board{GUI.boardID}/error.log").st_size == 0:
-        os.remove(f"clockScan_board{GUI.boardID}/error.log")
+    writeToHDF5(GUI, LPGBTPhase)
     end = timer()
     print("\n")
     print(colored("Finished ", "cyan") + "clock scan for: " + ", ".join(colutas))
