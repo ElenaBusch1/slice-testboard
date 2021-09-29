@@ -89,7 +89,7 @@ def table(values, row, col):
     t = tabulate(val, headers = "firstrow", showindex = "always", tablefmt = "psql")
     return(t)
 
-def writeToTable(coluta, maps, data):
+def writeToTable(coluta, maps, data, boardID):
     coords = {}
     yscores = [np.array([np.max(row) for row in chmap]) for chmap in maps]
     yArr = np.transpose(np.array(yscores))
@@ -106,11 +106,11 @@ def writeToTable(coluta, maps, data):
            continue
         else: cols["ch"+str(i+1)] = cols["ch"+str(i)] 
 
-    if not os.path.exists("clockScan/clockParams"):
-        os.makedirs("clockScan/clockParams")
+    if not os.path.exists(f"clockScan_board{boardID}/clockParams"):
+        os.makedirs(f"clockScan_board{boardID}/clockParams")
         print("Creating clockParams directory...")
 
-    with open(f"clockScan/clockParams/{coluta}ClockParams.txt", "w") as f:
+    with open(f"clockScan_board{boardID}/clockParams/{coluta}ClockParams.txt", "w") as f:
         f.write("Setting format: (XPhaseSelect, Global INV/DELAY640, lpGBT Phase) \n")
         for i, chmap in enumerate(maps):
             scanResults = data[i]
@@ -134,7 +134,7 @@ def writeToTable(coluta, maps, data):
      
     return(coords)
 
-def config(results):
+def config(results, boardID):
     """
     Writes config files for passed coluta. Results is a list of tuples
     """
@@ -146,8 +146,8 @@ def config(results):
     with open("config/lpGBT_colutaMap.json", "r") as f:
         mapping = json.load(f)
 
-    if not os.path.exists("clockScan/config"):
-        os.makedirs("clockScan/config")
+    if not os.path.exists(f"clockScan_board{boardID}/config"):
+        os.makedirs(f"clockScan_board{boardID}/config")
         print("Creating config directory...")
 
     ## COLUTA config file 
@@ -160,7 +160,7 @@ def config(results):
             config[f"Phase{i+1}"] = {"Total": "4", "LPGBTPhase": str(bin(results[coluta][ch][2])[2:].zfill(4))}
         INV_DELAY640 = str(bin(results[coluta][ch][1])[2:].zfill(4))
         config["Global"] = {"INV640": INV_DELAY640[0] , "DELAY640": INV_DELAY640[1:]}
-        with open("clockScan/config/" + coluta.upper() + ".cfg", "w") as f:
+        with open(f"clockScan_board{boardID}/config/" + coluta.upper() + ".cfg", "w") as f:
             config.write(f)
     
     ## lpGBT config files   
@@ -175,23 +175,23 @@ def config(results):
                     config.set("ChnCntr" + mapping[lpgbt][coluta][ch], "XPhaseSelect", str(bin(results[coluta][ch][0])[2:].zfill(4)))
             else:
                 continue
-        with open("clockScan/config/" + lpgbt.replace("gbt", "GBT") + ".cfg", "w") as f:
+        with open(f"clockScan_board{boardID}/config/" + lpgbt.replace("gbt", "GBT") + ".cfg", "w") as f:
             config.write(f)
          
-def findParams():
+def findParams(boardID):
     print("Finding best clock parameters...")
     colutas = ["coluta" + str(i) for i in range(13,21)]
     results = {}
     for coluta in colutas:
-        data = readInHDF5("clockScan/clockScanResults/clockScanBoard634Repeat.hdf5", coluta)
+        data = readInHDF5(f"clockScan_board{boardID}/clockScanResults/clockScanBoard{boardID}Repeat.hdf5", coluta)
         if data == None: continue
         
         maps = [scoreMap(X) for X in data] #Map for each channel
-        coords = writeToTable(coluta, maps, data)
+        coords = writeToTable(coluta, maps, data, boardID)
         results[coluta] = coords 
     print("Writing config files...")
-    config(results)    
+    config(results, boardID)    
     print("Finished finding clock parameters")
 
 if __name__ == "__main__":
-    findParams()
+    findParams("TEST")

@@ -31,6 +31,7 @@ from datetime import datetime
 from tests import lpgbt_14_test
 from standardRunsModule import STANDARDRUNS
 from sarCalibModule import SARCALIBMODULE
+from calibModule import CALIBMODULE
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -203,8 +204,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #Calibration runs
         self.sarMdacCal = SARCALIBMODULE(self)
+        self.calibMod = CALIBMODULE()
         self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
         self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
+        #introducing text #2
         self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
         self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
 
