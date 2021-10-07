@@ -151,6 +151,7 @@ def make_chanData_singleADC(allData, adc):
 
   ## Helpers
   dim = np.shape(allData)[0]
+  print(dim)
   a = allData[:, 0]
   a.astype(int)
 
@@ -285,7 +286,10 @@ def writeToHDF5(chanData,fileName,attributes,chan=None):
 #-------------------------------------------------------------------------
 def parseData(fileName,dataType,maxNumReads, attributes):
   adc = attributes['adc']
-  allData = np.fromfile(fileName, dtype=">2H", count=maxNumReads+1)
+  allData = np.fromfile(fileName, dtype=">2H", count=-1)
+
+  if maxNumReads+1 <= allData.shape[0]:
+    allData = allData[:maxNumReads+1][:]
 
   # -- turn packets in chanData
   if dataType=='trigger':
