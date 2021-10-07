@@ -273,7 +273,8 @@ class SARCALIBMODULE(object):
           hiData = data[1]
           if len(loData) == 0 or len(hiData) == 0 : continue
           # Check for fake data in parsed data, corresponds to channel without data recorded
-          if isinstance(loData[0], list) : continue
+          #if isinstance(loData[0], list) : continue
+          if loData[0] == -1: continue
 
           #loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
           #hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]

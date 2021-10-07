@@ -41,7 +41,7 @@ def makeHistograms(chanData, runNumber):
     if (chan) % 4 == 0: adc += 1
     for gain in range(len(chanData[chan])): #lo, hi 
       bin_data = chanData[chan][gain]
-      if np.all(np.asarray(bin_data)==[]): continue #ignore fake data
+      if np.all(np.asarray(bin_data)==-1): continue #ignore fake data #NOTE changing [] to -1
       data = convert_to_dec(bin_data)
       if np.all(np.asarray(data)==0): continue #dont bother plotting
       fig, ax = plt.subplots()
@@ -86,6 +86,45 @@ def make_adc_dict():
     orig_line +=5 #each ADC data = 160 bits = 5 32-bit lines
   
   return d_ADCs
+#-------------------------------------------------------------------------
+def new_make_chanData_trigger(allData):
+  print("Parsing trigger data...")
+  deadbeef = np.where(np.all(allData == np.array([0xdead, 0xbeef]), axis=1))[0] # Finds all 0xdead, 0xbeef pairs
+  deadbeef = deadbeef[:-1] # Removes last packet since it is not complete
+  allData = allData[deadbeef[0]:deadbeef[-1], :] # Slices data to also not include penultimate packet
+  try:
+    allPackets = allData.reshape((deadbeef.shape[0]-1, 168, 2))
+  except ValueError:
+    print("One of more packets not of the required 168 length...")
+    return None
+
+  d_ADCs = make_adc_dict()
+  frame_loc = np.array([d_ADCs[adc][0]+4 for adc in d_ADCs]) #Index of first frames per packet
+  fake_data_loc = np.asarray(np.where(allPackets[:, frame_loc, 1] == int(0xfa1))) #Checks if fake data returns index of packet + index of frame_loc
+  fake_data_loc[1,:] = np.take(frame_loc, fake_data_loc[1,:]) #Replaces index of frame_loc with actual data index
+  
+  allPackets = allPackets.astype(np.int_) #Sets as int to allow for negative numbers
+  ## Flags all fake data with -1
+  allPackets[fake_data_loc[0], fake_data_loc[1], 0] = -1
+  allPackets[fake_data_loc[0], fake_data_loc[1]-4, 1] = -1
+  for i in range(1, 4):
+    allPackets[fake_data_loc[0], fake_data_loc[1]-i, :] = -1
+
+  chanData = [[[],[]] for z in range(128)]
+  chanNum = 127
+  for adc in d_ADCs:
+    corr_chanNum = (chanNum+48)%128
+    chanData[corr_chanNum][0] = allPackets[:, d_ADCs[adc][0], 1]
+    chanData[corr_chanNum][1] = allPackets[:, d_ADCs[adc][0]+1, 0]
+    chanData[corr_chanNum-1][0] = allPackets[:, d_ADCs[adc][0]+2, 0]
+    chanData[corr_chanNum-1][1] = allPackets[:, d_ADCs[adc][0]+1, 1]
+    chanData[corr_chanNum-2][0] = allPackets[:, d_ADCs[adc][0]+2, 1]
+    chanData[corr_chanNum-2][1] = allPackets[:, d_ADCs[adc][0]+3, 0]
+    chanData[corr_chanNum-3][0] = allPackets[:, d_ADCs[adc][0]+4, 0]
+    chanData[corr_chanNum-3][1] = allPackets[:, d_ADCs[adc][0]+3, 1]
+    chanNum -= 4
+
+  return(np.array(chanData))  
 
 #-------------------------------------------------------------------------
 def make_chanData_trigger(allPackets):
@@ -147,7 +186,7 @@ def make_chanData_trigger(allPackets):
 #-------------------------------------------------------------------------
 def make_chanData_singleADC(allData, adc):
 
-  print("Making packets.....")
+  print("Parsing single ADC data...")
 
   ## Helpers
   dim = np.shape(allData)[0]
@@ -158,7 +197,7 @@ def make_chanData_singleADC(allData, adc):
   ## Finds locations of headers in data
   header_idx = np.where(np.logical_and((a[0:dim-16:] & 0xFF00) == 0x5900, (a[8:dim-8:] & 0xFF00) == 0x6a00))[0]
   if header_idx.size == 0: 
-    print("ERROR NO HEADERS FOUND")
+    print("Error no headers found!")
     return None
 
   #FIXME: add check whether each line has an appropriate header like in old version of script
@@ -199,7 +238,7 @@ def make_chanData_singleADC(allData, adc):
     chanData[chanNum  ][1].append(allData[num+1][1]); chanData[chanNum  ][1].append(allData[num+6][1]); chanData[chanNum  ][1].append(allData[num+12][0])
     chanData[chanNum  ][0].append(allData[num+1][0]); chanData[chanNum  ][0].append(allData[num+6][0]); chanData[chanNum  ][0].append(allData[num+11][1])
   """
-  return chanData
+  return(np.array(chanData)) #NOTE changing to numpy array...
 
 #-------------------------------------------------------------------------
 def make_packets(allData,dataType):
@@ -276,10 +315,13 @@ def writeToHDF5(chanData,fileName,attributes,chan=None):
     out_file.create_group("Measurement_"+m+"/channel"+cc)
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/hi")
     out_file.create_group("Measurement_"+m+"/channel"+cc+"/lo")
-    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/lo/samples",data=chanData[c][0], chunks=True, compression="gzip", dtype='u2')
-    out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/hi/samples",data=chanData[c][1], chunks=True, compression="gzip", dtype='u2')
+    ## HI gain
+    if np.all(chanData[c][0]==-1):  out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/lo/samples",data=np.array([]), chunks=True, compression="gzip", dtype='u2')
+    else: out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/lo/samples",data=chanData[c][0], chunks=True, compression="gzip", dtype='u2')
+    ## LO gain
+    if np.all(chanData[c][1]==-1): out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/hi/samples",data=np.array([]), chunks=True, compression="gzip", dtype='u2')
+    else: out_file.create_dataset("Measurement_"+m+"/channel"+cc+"/hi/samples",data=chanData[c][1], chunks=True, compression="gzip", dtype='u2')
   #TODO setHDF5Attributes(out_file["Measurement_" + str(index)], **cut_attrs_dict)
-
 
   out_file.close()  
 
@@ -293,8 +335,9 @@ def parseData(fileName,dataType,maxNumReads, attributes):
 
   # -- turn packets in chanData
   if dataType=='trigger':
-    allPackets = make_packets(allData,dataType)
-    chanData = make_chanData_trigger(allPackets)
+    #allPackets = make_packets(allData,dataType)
+    #chanData = make_chanData_trigger(allPackets)
+    chanData = new_make_chanData_trigger(allData)
   elif dataType=='singleADC':
     chanData = make_chanData_singleADC(allData,adc)
   else: print("Unknown data type")
