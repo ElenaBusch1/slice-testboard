@@ -1,3 +1,5 @@
+import sqlite3
+import datetime
 import numpy as np
 import configparser
 import time
@@ -8,6 +10,9 @@ import sys
 import timeit
 import json
 from calibModule import CALIBMODULE
+from PyQt5.QtWidgets import QMessageBox
+
+
 
 class SARCALIBMODULE(object):
     def __init__(self,GUI):
@@ -31,6 +36,75 @@ class SARCALIBMODULE(object):
         self.chLabelDict = { 'channel1': ('ch1','ch2','channel2'), 'channel2': ('ch2','ch1','channel1'), 'channel3': ('ch3','ch4','channel4'), 'channel4': ('ch4','ch3','channel3') , 'channel5': ('ch5','ch6','channel6'), 'channel6': ('ch6','ch5','channel5'), 'channel7': ('ch7','ch8','channel8'), 'channel8': ('ch8','ch7','channel7') }
 
         self.calibModule = CALIBMODULE()
+
+    ############################################
+    ########        Database Stuff       #######
+    ############################################
+
+ 
+    def popup_button(self, i):
+      if(i.text() == "&Yes"):
+        self.saveToDatabase()
+      else:
+        print("Constants Not Saved to Database")
+
+
+    def saveToDatabase(self):
+      #Create a database or connect to one
+      conn = sqlite3.connect('calibConstants.db')
+
+      #Create a cursor
+      c = conn.cursor()
+      #boardID = self.GUI.boardid
+      boardID = "Board" + self.GUI.boardID
+
+      #Create table for calibration
+      c.execute(f"CREATE TABLE if not exists {boardID} (timestamp VARCHAR (20), coluta SMALLINT(20), channel SMALLINT(20), MDACCorrectionCode0 FLOAT, MDACCorrectionCode1 FLOAT, MDACCorrectionCode2 FLOAT, MDACCorrectionCode3 FLOAT, MDACCorrectionCode4 FLOAT, MDACCorrectionCode5 FLOAT, MDACCorrectionCode6 FLOAT, MDACCorrectionCode7 FLOAT, W_1ST_1024 FLOAT, W_1ST_128 FLOAT, W_1ST_2048 FLOAT, W_1ST_256 FLOAT, W_1ST_3584 FLOAT, W_1ST_384 FLOAT, W_1ST_640 FLOAT, W_2ND_0p25 FLOAT, W_2ND_0p5 FLOAT, W_2ND_1 FLOAT, W_2ND_10 FLOAT, W_2ND_128 FLOAT, W_2ND_16 FLOAT, W_2ND_2 FLOAT, W_2ND_224 FLOAT, W_2ND_24 FLOAT, W_2ND_32 FLOAT, W_2ND_4 FLOAT, W_2ND_6 FLOAT, W_2ND_64 FLOAT)")                                                                     
+      #Give lists of channels and colutas
+      channels = ["5", "6", "7", "8"]
+      colutas = ["13", "14", "15", "16", "17", "18", "19", "20"]
+
+      current_time = datetime.datetime.now()
+      day = current_time.day
+      month = current_time.month
+      year = current_time.year
+      hour = current_time.hour
+      minute = current_time.minute
+      second = current_time.second
+
+      timestamp = f"'{month}-{day}-{year} {hour}:{minute}:{second}'"
+
+      for coluta in colutas:
+        for channel in channels:
+          c.execute(f"INSERT INTO {boardID} VALUES ({timestamp}, {coluta}, {channel}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);")
+
+      for coluta in self.mdacWeights:
+        for channel in self.mdacWeights[coluta]:
+          for weightName in self.mdacWeights[coluta][channel]:
+            weight =  round(self.mdacWeights[coluta][channel][weightName], 3)
+            colutaNumber = int(coluta.replace("coluta", ""))
+            channelNumber = int(channel.replace("channel", ""))
+            c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
+
+      for coluta in self.sarWeights:
+        for channel in self.sarWeights[coluta]:
+          for weightName in self.sarWeights[coluta][channel]:
+            weight =  round(self.sarWeights[coluta][channel][weightName], 3)
+            colutaNumber = int(coluta.replace("coluta", ""))
+            channelNumber = int(channel.replace("channel", ""))
+            c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
+
+
+      # Commit the changes
+      conn.commit()
+
+      # Close our connection
+      conn.close()
+
+      print("Constants Saved to Database")
+
+      return None
+
 
     ############################################
     ########        Do Calibration       #######
@@ -66,6 +140,7 @@ class SARCALIBMODULE(object):
         return None
  
     def runFullCalibInFeb2Gui(self):
+        print("Just to be safe", self.GUI.boardID, type(self.GUI.boardID))
         colutas = [f"coluta{i}" for i in range(13,21)]
         channels = [f"channel{i}" for i in range(5,9)]
         self.sarWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
@@ -83,6 +158,17 @@ class SARCALIBMODULE(object):
              
         print(self.sarWeights)
         print(self.mdacWeights)
+
+        msg = QMessageBox()
+        msg.setWindowTitle("Save to Database?")
+        msg.setText("Would you like to save these constants to the database?")
+        msg.setIcon(QMessageBox.Question)
+        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg.buttonClicked.connect(self.popup_button)
+        x = msg.exec_()
+
+
+        #old version of writing
         self.writeMdacCalMultichannel(colutas, channels)
         for coluta in colutas:
             for ch in channels:
@@ -115,10 +201,23 @@ class SARCALIBMODULE(object):
         for chip in chips :
           for chan in channels :
             result = self.calibModule.getSarCalib(self.GUI.boardID,chip,chan)
+            print("old sar")
+            print(result)
+            col = int(chip.replace("coluta", ""))
+            ch = int(chan.replace("channel", ""))
+            result = self.calibModule.getSarCalibDB("Board" + self.GUI.boardID, col, ch)
+            print("new sar")
+            print(result)
             if result != None :
               self.sarWeights = result
               self.writeSarConstant(chip,chan)
+            ##########
             result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
+            print("old mdac")
+            print(result)
+            result = self.calibModule.getMdacCalibDB("Board" + self.GUI.boardID, col, ch)
+            print("new mdac")
+            print(result)
             if result != None :
               self.mdacWeights = result
               self.writeMdacCal(chip,chan)
