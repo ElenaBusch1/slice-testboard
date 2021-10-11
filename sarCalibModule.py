@@ -21,6 +21,8 @@ class SARCALIBMODULE(object):
         self.testSingleWeight = False #debugging mode
         self.sarWeights = {}
         self.mdacWeights = {}
+        self.toWriteSAR = {}
+        self.toWriteMDAC = {}
 
         self.cv3tbVersion = False
         self.feb2Version = True
@@ -64,6 +66,26 @@ class SARCALIBMODULE(object):
         print("WRITE MDAC CONSTANTS", "\t", self.guiColutaId, "\t", self.guiColutaChId)
         self.writeMdacCalMultichannel([self.guiColutaId],[self.guiColutaChId])
         return None
+
+    def getSARCalibConstants(self, colutas, channels):
+
+       sar_codes = {'SARCorrectionCode20' : "W_1ST_3584",'SARCorrectionCode19' : "W_1ST_2048",'SARCorrectionCode18' : "W_1ST_1024" ,\
+                    'SARCorrectionCode17' : "W_1ST_640" ,'SARCorrectionCode16' : "W_1ST_384" ,'SARCorrectionCode15' : "W_1ST_256"  ,\
+                    'SARCorrectionCode14' : "W_1ST_128" ,'SARCorrectionCode13' : "W_2ND_224" ,'SARCorrectionCode12' : "W_2ND_128"  ,\
+                    'SARCorrectionCode11' : "W_2ND_64"  ,'SARCorrectionCode10' : "W_2ND_32"  ,'SARCorrectionCode9'  : "W_2ND_24"   ,\
+                    'SARCorrectionCode8' : "W_2ND_16"   ,'SARCorrectionCode7'  : "W_2ND_10"  ,'SARCorrectionCode6'  : "W_2ND_6"}
+
+       for coluta in colutas:
+            print("###################")
+            print(f"    {coluta}    ")
+            print("###################\n")
+            for ch in channels:
+                print(f"\n{ch}----------")
+                channelLabel = self.chLabelDict[ch][0]
+                for code in sar_codes:
+                    val = self.GUI.chips[coluta].getConfiguration(channelLabel, code)
+                    print(sar_codes[code]+":", str(int(val, 2)/4))
+
  
     def runFullCalibInFeb2Gui(self):
         colutas = [f"coluta{i}" for i in range(13,21)]
@@ -75,25 +97,25 @@ class SARCALIBMODULE(object):
         #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
         
         ## Runs SAR calib in odd then even channels
-        #self.doSarCalibMultichannel(colutas, channels[::2])
-        #self.doSarCalibMultichannel(colutas, channels[1::2])
+        self.doSarCalibMultichannel(colutas, channels[::2])
+        self.doSarCalibMultichannel(colutas, channels[1::2])
 
-        #for coluta in colutas:
-        #    for ch in channels:
-        #        self.writeSarConstantMultichannel(coluta, ch)
-        #        self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
+        for coluta in colutas:
+            for ch in channels:
+                self.writeSarConstantMultichannel(coluta, ch)
+                self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
 
         ## Runs MDAC calib in odd then even channels
-        even_weights = self.doMdacCalMultichannel(colutas, channels[1::2])
-        odd_weights = self.doMdacCalMultichannel(colutas, channels[::2])
-        print(odd_weights)
-        print(even_weights)
-        #self.writeMdacCalMultichannel(colutas, channels)
-        #for coluta in colutas:
-        #    for ch in channels:
-        #        self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
-           
-            
+        self.getSARCalibConstants(colutas, channels)
+        self.doMdacCalMultichannel(colutas, channels[::2])
+        self.getFullCalibInFeb2Gui() #Reapplies the SAR constants for the calibration
+        self.doMdacCalMultichannel(colutas, channels[1::2])
+        #self.getSARCalibConstants(colutas, channels)
+        self.writeMdacCalMultichannel(colutas, channels)
+        for coluta in colutas:
+            for ch in channels:
+                self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
+               
         print(self.sarWeights)
         print(self.mdacWeights)
 
@@ -123,11 +145,11 @@ class SARCALIBMODULE(object):
           for chan in channels :
             result = self.calibModule.getSarCalib(self.GUI.boardID,chip,chan)
             if result != None :
-              self.sarWeights = result
+              self.toWriteSAR = result
               self.writeSarConstant(chip,chan)
             result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
             if result != None :
-              self.mdacWeights = result
+              self.toWriteMDAC = result
               self.writeMdacCal(chip,chan)
         return None
 
@@ -325,7 +347,7 @@ class SARCALIBMODULE(object):
             print("Could not find channel(s) in MDAC calibration...")
             return None
 
-        weights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
+        #weights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
 
         # Gets initial configurations
         initConfig = {coluta : self.getConfig(coluta) for coluta in colutas}
@@ -386,10 +408,9 @@ class SARCALIBMODULE(object):
         for coluta in colutas:
             for ch in channels:
                 for i in range(8):
-                    #self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
-                    weights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+                    self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+                    #weights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
 
-        return weights
         """
         try:
             from tabulate import tabulate
@@ -525,7 +546,7 @@ class SARCALIBMODULE(object):
           return None
         channelLabel = self.chLabelDict[channel][0]
 
-        mdacCorr = self.mdacWeights
+        mdacCorr = self.toWriteMDAC
         if 'MDACCorrectionCode0' not in mdacCorr :
           return None
         mdacCorrDdpu = {}
@@ -842,9 +863,9 @@ class SARCALIBMODULE(object):
           return None
         channelLabel = self.chLabelDict[channel][0]
 
-        if "W_1ST_3584" not in self.sarWeights :
+        if "W_1ST_3584" not in self.toWriteSAR :
           return None
-        chWeightResultDict = self.sarWeights
+        chWeightResultDict = self.toWriteSAR
 
         #awkward mapping between SAR weight names and DDPU constant names
         sarCalibDdpuConfigs = {"W_1ST_3584" : 'SARCorrectionCode20',"W_1ST_2048" : 'SARCorrectionCode19',"W_1ST_1024" : 'SARCorrectionCode18' ,\
