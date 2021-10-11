@@ -75,20 +75,27 @@ class SARCALIBMODULE(object):
         #for ch in channels: self.doMdacCalMultichannel(colutas, [ch])
         
         ## Runs SAR calib in odd then even channels
-        self.doSarCalibMultichannel(colutas, channels[::2])
-        self.doSarCalibMultichannel(colutas, channels[1::2])
+        #self.doSarCalibMultichannel(colutas, channels[::2])
+        #self.doSarCalibMultichannel(colutas, channels[1::2])
+
+        #for coluta in colutas:
+        #    for ch in channels:
+        #        self.writeSarConstantMultichannel(coluta, ch)
+        #        self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
+
         ## Runs MDAC calib in odd then even channels
-        self.doMdacCalMultichannel(colutas, channels[::2])
-        self.doMdacCalMultichannel(colutas, channels[1::2])
-             
+        even_weights = self.doMdacCalMultichannel(colutas, channels[1::2])
+        odd_weights = self.doMdacCalMultichannel(colutas, channels[::2])
+        print(odd_weights)
+        print(even_weights)
+        #self.writeMdacCalMultichannel(colutas, channels)
+        #for coluta in colutas:
+        #    for ch in channels:
+        #        self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
+           
+            
         print(self.sarWeights)
         print(self.mdacWeights)
-        self.writeMdacCalMultichannel(colutas, channels)
-        for coluta in colutas:
-            for ch in channels:
-                self.writeSarConstantMultichannel(coluta, ch)
-                self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
-                self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
 
     def getSarMdacCalibChInFeb2GUI(self):
         colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
@@ -318,6 +325,8 @@ class SARCALIBMODULE(object):
             print("Could not find channel(s) in MDAC calibration...")
             return None
 
+        weights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
+
         # Gets initial configurations
         initConfig = {coluta : self.getConfig(coluta) for coluta in colutas}
        
@@ -356,10 +365,10 @@ class SARCALIBMODULE(object):
             #if not readbackSuccess:
             #    sys.exit("MDAC Calibration stopped: readback failed while updating MDAC + flash value configurations!")
             
-            if len(colutas) == 1:
-                self.takeData(coluta=colutas[0]) # If only one COLUTA, don't take data in all COLUTAs
-            else:
-                self.takeData(trigger=True) # Takes data on all COLUTA/channels if two or more COLUTAs
+            #if len(colutas) == 1:
+            #    self.takeData(coluta=colutas[0]) # If only one COLUTA, don't take data in all COLUTAs
+            #else:
+            self.takeData(trigger=True) # Takes data on all COLUTA/channels if two or more COLUTAs
 
             for coluta in colutas:
                 for channel in channels:
@@ -377,7 +386,10 @@ class SARCALIBMODULE(object):
         for coluta in colutas:
             for ch in channels:
                 for i in range(8):
-                    self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+                    #self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+                    weights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+
+        return weights
         """
         try:
             from tabulate import tabulate
