@@ -1,5 +1,3 @@
-import sqlite3
-import datetime
 import numpy as np
 import configparser
 import time
@@ -10,9 +8,6 @@ import sys
 import timeit
 import json
 from calibModule import CALIBMODULE
-from PyQt5.QtWidgets import QMessageBox
-
-
 
 class SARCALIBMODULE(object):
     def __init__(self,GUI):
@@ -26,6 +21,8 @@ class SARCALIBMODULE(object):
         self.testSingleWeight = False #debugging mode
         self.sarWeights = {}
         self.mdacWeights = {}
+        self.toWriteSAR = {}
+        self.toWriteMDAC = {}
 
         self.cv3tbVersion = False
         self.feb2Version = True
@@ -36,75 +33,6 @@ class SARCALIBMODULE(object):
         self.chLabelDict = { 'channel1': ('ch1','ch2','channel2'), 'channel2': ('ch2','ch1','channel1'), 'channel3': ('ch3','ch4','channel4'), 'channel4': ('ch4','ch3','channel3') , 'channel5': ('ch5','ch6','channel6'), 'channel6': ('ch6','ch5','channel5'), 'channel7': ('ch7','ch8','channel8'), 'channel8': ('ch8','ch7','channel7') }
 
         self.calibModule = CALIBMODULE()
-
-    ############################################
-    ########        Database Stuff       #######
-    ############################################
-
- 
-    def popup_button(self, i):
-      if(i.text() == "&Yes"):
-        self.saveToDatabase()
-      else:
-        print("Constants Not Saved to Database")
-
-
-    def saveToDatabase(self):
-      #Create a database or connect to one
-      conn = sqlite3.connect('calibConstants.db')
-
-      #Create a cursor
-      c = conn.cursor()
-      #boardID = self.GUI.boardid
-      boardID = "Board" + self.GUI.boardID
-
-      #Create table for calibration
-      c.execute(f"CREATE TABLE if not exists {boardID} (timestamp VARCHAR (20), coluta SMALLINT(20), channel SMALLINT(20), MDACCorrectionCode0 FLOAT, MDACCorrectionCode1 FLOAT, MDACCorrectionCode2 FLOAT, MDACCorrectionCode3 FLOAT, MDACCorrectionCode4 FLOAT, MDACCorrectionCode5 FLOAT, MDACCorrectionCode6 FLOAT, MDACCorrectionCode7 FLOAT, W_1ST_1024 FLOAT, W_1ST_128 FLOAT, W_1ST_2048 FLOAT, W_1ST_256 FLOAT, W_1ST_3584 FLOAT, W_1ST_384 FLOAT, W_1ST_640 FLOAT, W_2ND_0p25 FLOAT, W_2ND_0p5 FLOAT, W_2ND_1 FLOAT, W_2ND_10 FLOAT, W_2ND_128 FLOAT, W_2ND_16 FLOAT, W_2ND_2 FLOAT, W_2ND_224 FLOAT, W_2ND_24 FLOAT, W_2ND_32 FLOAT, W_2ND_4 FLOAT, W_2ND_6 FLOAT, W_2ND_64 FLOAT)")                                                                     
-      #Give lists of channels and colutas
-      channels = ["5", "6", "7", "8"]
-      colutas = ["13", "14", "15", "16", "17", "18", "19", "20"]
-
-      current_time = datetime.datetime.now()
-      day = current_time.day
-      month = current_time.month
-      year = current_time.year
-      hour = current_time.hour
-      minute = current_time.minute
-      second = current_time.second
-
-      timestamp = f"'{month}-{day}-{year} {hour}:{minute}:{second}'"
-
-      for coluta in colutas:
-        for channel in channels:
-          c.execute(f"INSERT INTO {boardID} VALUES ({timestamp}, {coluta}, {channel}, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);")
-
-      for coluta in self.mdacWeights:
-        for channel in self.mdacWeights[coluta]:
-          for weightName in self.mdacWeights[coluta][channel]:
-            weight =  round(self.mdacWeights[coluta][channel][weightName], 3)
-            colutaNumber = int(coluta.replace("coluta", ""))
-            channelNumber = int(channel.replace("channel", ""))
-            c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
-
-      for coluta in self.sarWeights:
-        for channel in self.sarWeights[coluta]:
-          for weightName in self.sarWeights[coluta][channel]:
-            weight =  round(self.sarWeights[coluta][channel][weightName], 3)
-            colutaNumber = int(coluta.replace("coluta", ""))
-            channelNumber = int(channel.replace("channel", ""))
-            c.execute(f"UPDATE {boardID} SET {weightName} = {weight}  WHERE coluta = {colutaNumber} AND channel = {channelNumber};")
-
-
-      # Commit the changes
-      conn.commit()
-
-      # Close our connection
-      conn.close()
-
-      print("Constants Saved to Database")
-
-      return None
-
 
     ############################################
     ########        Do Calibration       #######
@@ -138,9 +66,28 @@ class SARCALIBMODULE(object):
         print("WRITE MDAC CONSTANTS", "\t", self.guiColutaId, "\t", self.guiColutaChId)
         self.writeMdacCalMultichannel([self.guiColutaId],[self.guiColutaChId])
         return None
+
+    def getSARCalibConstants(self, colutas, channels):
+
+       sar_codes = {'SARCorrectionCode20' : "W_1ST_3584",'SARCorrectionCode19' : "W_1ST_2048",'SARCorrectionCode18' : "W_1ST_1024" ,\
+                    'SARCorrectionCode17' : "W_1ST_640" ,'SARCorrectionCode16' : "W_1ST_384" ,'SARCorrectionCode15' : "W_1ST_256"  ,\
+                    'SARCorrectionCode14' : "W_1ST_128" ,'SARCorrectionCode13' : "W_2ND_224" ,'SARCorrectionCode12' : "W_2ND_128"  ,\
+                    'SARCorrectionCode11' : "W_2ND_64"  ,'SARCorrectionCode10' : "W_2ND_32"  ,'SARCorrectionCode9'  : "W_2ND_24"   ,\
+                    'SARCorrectionCode8' : "W_2ND_16"   ,'SARCorrectionCode7'  : "W_2ND_10"  ,'SARCorrectionCode6'  : "W_2ND_6"}
+
+       for coluta in colutas:
+            print("###################")
+            print(f"    {coluta}    ")
+            print("###################\n")
+            for ch in channels:
+                print(f"\n{ch}----------")
+                channelLabel = self.chLabelDict[ch][0]
+                for code in sar_codes:
+                    val = self.GUI.chips[coluta].getConfiguration(channelLabel, code)
+                    print(sar_codes[code]+":", str(int(val, 2)/4))
+
  
     def runFullCalibInFeb2Gui(self):
-        print("Just to be safe", self.GUI.boardID, type(self.GUI.boardID))
         colutas = [f"coluta{i}" for i in range(13,21)]
         channels = [f"channel{i}" for i in range(5,9)]
         self.sarWeights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
@@ -152,29 +99,25 @@ class SARCALIBMODULE(object):
         ## Runs SAR calib in odd then even channels
         self.doSarCalibMultichannel(colutas, channels[::2])
         self.doSarCalibMultichannel(colutas, channels[1::2])
-        ## Runs MDAC calib in odd then even channels
-        self.doMdacCalMultichannel(colutas, channels[::2])
-        self.doMdacCalMultichannel(colutas, channels[1::2])
-             
-        print(self.sarWeights)
-        print(self.mdacWeights)
 
-        msg = QMessageBox()
-        msg.setWindowTitle("Save to Database?")
-        msg.setText("Would you like to save these constants to the database?")
-        msg.setIcon(QMessageBox.Question)
-        msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg.buttonClicked.connect(self.popup_button)
-        x = msg.exec_()
-
-
-        #old version of writing
-        self.writeMdacCalMultichannel(colutas, channels)
         for coluta in colutas:
             for ch in channels:
                 self.writeSarConstantMultichannel(coluta, ch)
                 self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
+
+        ## Runs MDAC calib in odd then even channels
+        #self.getSARCalibConstants(colutas, channels)
+        self.doMdacCalMultichannel(colutas, channels[::2])
+        self.getFullCalibInFeb2Gui() #Reapplies the SAR constants for the calibration
+        self.doMdacCalMultichannel(colutas, channels[1::2])
+        #self.getSARCalibConstants(colutas, channels)
+        self.writeMdacCalMultichannel(colutas, channels)
+        for coluta in colutas:
+            for ch in channels:
                 self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
+               
+        print(self.sarWeights)
+        print(self.mdacWeights)
 
     def getSarMdacCalibChInFeb2GUI(self):
         colutaBox = getattr(self.GUI, 'stdRunsCalibColutaSelectBox')
@@ -201,25 +144,12 @@ class SARCALIBMODULE(object):
         for chip in chips :
           for chan in channels :
             result = self.calibModule.getSarCalib(self.GUI.boardID,chip,chan)
-            print("old sar")
-            print(result)
-            col = int(chip.replace("coluta", ""))
-            ch = int(chan.replace("channel", ""))
-            result = self.calibModule.getSarCalibDB("Board" + self.GUI.boardID, col, ch)
-            print("new sar")
-            print(result)
             if result != None :
-              self.sarWeights = result
+              self.toWriteSAR = result
               self.writeSarConstant(chip,chan)
-            ##########
             result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
-            print("old mdac")
-            print(result)
-            result = self.calibModule.getMdacCalibDB("Board" + self.GUI.boardID, col, ch)
-            print("new mdac")
-            print(result)
             if result != None :
-              self.mdacWeights = result
+              self.toWriteMDAC = result
               self.writeMdacCal(chip,chan)
         return None
 
@@ -372,8 +302,7 @@ class SARCALIBMODULE(object):
           hiData = data[1]
           if len(loData) == 0 or len(hiData) == 0 : continue
           # Check for fake data in parsed data, corresponds to channel without data recorded
-          #if isinstance(loData[0], list) : continue
-          if loData[0] == -1: continue
+          if isinstance(loData[0], list) : continue
 
           #loDataBin = [ parseDataMod.convert_to_bin(x) for x in loData ]
           #hiDataBin = [ parseDataMod.convert_to_bin(x) for x in hiData ]
@@ -418,6 +347,8 @@ class SARCALIBMODULE(object):
             print("Could not find channel(s) in MDAC calibration...")
             return None
 
+        #weights = {coluta: {ch: {} for ch in channels} for coluta in colutas}
+
         # Gets initial configurations
         initConfig = {coluta : self.getConfig(coluta) for coluta in colutas}
        
@@ -456,10 +387,10 @@ class SARCALIBMODULE(object):
             #if not readbackSuccess:
             #    sys.exit("MDAC Calibration stopped: readback failed while updating MDAC + flash value configurations!")
             
-            if len(colutas) == 1:
-                self.takeData(coluta=colutas[0]) # If only one COLUTA, don't take data in all COLUTAs
-            else:
-                self.takeData(trigger=True) # Takes data on all COLUTA/channels if two or more COLUTAs
+            #if len(colutas) == 1:
+            #    self.takeData(coluta=colutas[0]) # If only one COLUTA, don't take data in all COLUTAs
+            #else:
+            self.takeData(trigger=True) # Takes data on all COLUTA/channels if two or more COLUTAs
 
             for coluta in colutas:
                 for channel in channels:
@@ -478,6 +409,8 @@ class SARCALIBMODULE(object):
             for ch in channels:
                 for i in range(8):
                     self.mdacWeights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+                    #weights[coluta][ch][f"MDACCorrectionCode{i}"] = stepMeas[coluta][ch][i*2] - stepMeas[coluta][ch][(i*2)+1]
+
         """
         try:
             from tabulate import tabulate
@@ -613,7 +546,7 @@ class SARCALIBMODULE(object):
           return None
         channelLabel = self.chLabelDict[channel][0]
 
-        mdacCorr = self.mdacWeights
+        mdacCorr = self.toWriteMDAC
         if 'MDACCorrectionCode0' not in mdacCorr :
           return None
         mdacCorrDdpu = {}
@@ -930,9 +863,9 @@ class SARCALIBMODULE(object):
           return None
         channelLabel = self.chLabelDict[channel][0]
 
-        if "W_1ST_3584" not in self.sarWeights :
+        if "W_1ST_3584" not in self.toWriteSAR :
           return None
-        chWeightResultDict = self.sarWeights
+        chWeightResultDict = self.toWriteSAR
 
         #awkward mapping between SAR weight names and DDPU constant names
         sarCalibDdpuConfigs = {"W_1ST_3584" : 'SARCorrectionCode20',"W_1ST_2048" : 'SARCorrectionCode19',"W_1ST_1024" : 'SARCorrectionCode18' ,\
