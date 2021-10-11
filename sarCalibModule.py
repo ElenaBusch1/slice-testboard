@@ -106,7 +106,7 @@ class SARCALIBMODULE(object):
                 self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
 
         ## Runs MDAC calib in odd then even channels
-        self.getSARCalibConstants(colutas, channels)
+        #self.getSARCalibConstants(colutas, channels)
         self.doMdacCalMultichannel(colutas, channels[::2])
         self.getFullCalibInFeb2Gui() #Reapplies the SAR constants for the calibration
         self.doMdacCalMultichannel(colutas, channels[1::2])
