@@ -12,7 +12,7 @@ import clockMod
 import serialMod
 import powerMod
 import parseDataMod
-import instrumentControlMod
+#import instrumentControlMod
 import serializerValidation
 import itertools
 import status
@@ -29,7 +29,7 @@ from flxMod import takeManagerData
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
-from standardRunsModule import STANDARDRUNS
+#from standardRunsModule import STANDARDRUNS
 from sarCalibModule import SARCALIBMODULE
 from calibModule import CALIBMODULE
 
@@ -129,11 +129,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectCopyButtons()
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
-        self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(self.testFunc)
+        #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
+        #self.test2Button.clicked.connect(self.testFunc)
    
         # instrument buttons
-        self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
+        #self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
 
         # Data buttons
         self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
@@ -197,10 +197,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
 
         #Standard Runs
-        self.stdRuns = STANDARDRUNS(self)
-        self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
-        self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
-        self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
+        #self.stdRuns = STANDARDRUNS(self)
+        #self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
+        #self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
+        #self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
 
         #Calibration runs
         self.sarMdacCal = SARCALIBMODULE(self)
@@ -1544,9 +1544,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def makeMetadataJSON(self):
         print("Hello! We need to collect some system information to get started.")
-        runNumber = input("Enter run number: ")
-        boardID = input("Enter boardID: ")
-        awgType = input("Enter AWGtype: ")
+        runNumber = input("Enter run number (recommend 0): ")
+        boardID = input("Enter boardID (BNL board is 634): ")
+        #awgType = input("Enter AWGtype: ")
+        awgType = None
         assembled = input("Is your board fully assembled (8 ADCs, 8 PA/Ss)? Enter y or n: ")
         if (assembled == 'y'):
             colutas = [f'coluta{i}' for i in range(13,21)]
