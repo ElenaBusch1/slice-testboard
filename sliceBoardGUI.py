@@ -202,15 +202,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
         self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
 
-        #Calibration runs
+        ## Calibration runs
         self.sarMdacCal = SARCALIBMODULE(self)
         self.calibMod = CALIBMODULE()
-        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
-        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
-        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
-        #introducing text #2
         self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
         self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
+
+        ## SAR Calibration
+        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
+        self.stdRunsSarCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runSarCalibInFeb2Gui(runAll=True))
+
+        ## MDAC Calibration
+        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+        self.stdRunsMdacCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runMdacCalibInFeb2Gui(runAll=True))
 
         self.isConnected = True
         #self.startup()
@@ -360,7 +364,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
         
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Writing")
+        #print("Writing")
         self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
         readbackSuccess = True
@@ -406,7 +410,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         # readFromLpGBT(lpgbtI2CAddr, 0x179, 16, ICEC_CHANNEL=ICEC_CHANNEL)
         
         # Check to see if the i2c Bus Transaction is finished before proceeding
-        print("Reading")
+        #print("Reading")
         self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
         ReverseReadback = readFromLpGBT(lpgbtI2CAddr, 0x189 - nBytes, nBytes, ICEC_CHANNEL=ICEC_CHANNEL)
@@ -904,6 +908,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtMaster = "lpgbt"+self.chips[lauroc].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
+        #make sure LAUROC clock is on
+        self.chipCP40Control(chip=lauroc,onOff="on")
+
         chip = self.chips[lauroc]
         chipList = list(chip.values())
         sectionChunks = defaultdict()
@@ -931,6 +938,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Readback does not agree with what was written")
         self.configResults[lauroc] = readbackSuccess
         print("Done configuring", lauroc, ", success =", readbackSuccess)
+        #make sure LAUROC clock is off
+        self.chipCP40Control(chip=lauroc,onOff="off")
         self.updateErrorConfigurationList(readbackSuccess, lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
@@ -1139,9 +1148,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     readbackSuccess = self.writeToDataLPGBT(chipName, addr, data)
                     success = readbackSuccess and success
             elif chipName.find('lauroc') == 0:
+                #make sure LAUROC clock is on
+                self.chipCP40Control(chip=chipName,onOff="on")
                 for (addr, data) in updates.items():
                     readbackSuccess = self.writeToLAUROC(chipName, addr, data[1])
                     success = readbackSuccess and success
+                self.chipCP40Control(chip=chipName,onOff="off")
             elif chipName.find('coluta') == 0:
                 for (addr, data) in updates.items():
                     if data[0] == 'global':
@@ -1526,6 +1538,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Run Number", self.runNumber)
         self.runNumberString = str(self.runNumber)
         self.setWindowTitle("Run Number: {}".format(self.runNumberString))
+
         with open('../metadata.txt','r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
@@ -1797,6 +1810,57 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
             self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
 
+    def chipCP40Control(self,chip,onOff):
+        if onOff != "on" and onOff != "off" :
+          return None
+        chipClockMap = { "coluta20":{"lpGBT":"lpgbt16","ctrlReg":"ps2config","ctrlBit":0},\
+                         "coluta19":{"lpGBT":"lpgbt16","ctrlReg":"ps0config","ctrlBit":0},\
+                         "coluta18":{"lpGBT":"lpgbt15","ctrlReg":"ps2config","ctrlBit":0},\
+                         "coluta17":{"lpGBT":"lpgbt14","ctrlReg":"ps2config","ctrlBit":0},\
+                         "coluta16":{"lpGBT":"lpgbt11","ctrlReg":"ps2config","ctrlBit":0},\
+                         "coluta15":{"lpGBT":"lpgbt10","ctrlReg":"ps2config","ctrlBit":0},\
+                         "coluta14":{"lpGBT":"lpgbt10","ctrlReg":"ps0config","ctrlBit":0},\
+                         "coluta13":{"lpGBT":"lpgbt9" ,"ctrlReg":"ps2config","ctrlBit":0},\
+                         "lauroc20":{"lpGBT":"lpgbt16","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+                         "lauroc19":{"lpGBT":"lpgbt15","ctrlReg":"epclk2chncntrh","ctrlBit":0},\
+                         "lauroc18":{"lpGBT":"lpgbt15","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+                         "lauroc17":{"lpGBT":"lpgbt14","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+                         "lauroc16":{"lpGBT":"lpgbt11","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+                         "lauroc15":{"lpGBT":"lpgbt10","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+                         "lauroc14":{"lpGBT":"lpgbt9" ,"ctrlReg":"epclk2chncntrh","ctrlBit":0},\
+                         "lauroc13":{"lpGBT":"lpgbt9" ,"ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+                       }
+        if chip not in chipClockMap :
+          return None
+        ctrlLpGBT = chipClockMap[chip]["lpGBT"]
+        ctrlReg = chipClockMap[chip]["ctrlReg"]
+        ctrlBit = chipClockMap[chip]["ctrlBit"]
+        if ctrlLpGBT not in self.chips :
+          return None
+        if ctrlReg not in self.chips[ctrlLpGBT] :
+          return None
+        ctrlRegVal = self.chips[ctrlLpGBT][ctrlReg]
+        ctrlRegAddr = int(self.chips[ctrlLpGBT][ctrlReg].address , 0 )
+        #get current control reg val
+        regReadVal = self.readFromLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, nBytes=1, disp = False)
+        if len(regReadVal) != 1 :
+          return None
+        regReadVal = regReadVal[0]
+        newRegVal = (regReadVal & 0xFE) #should use the ctrlBit info here
+        if onOff == "on" :
+          newRegVal = (newRegVal | 0x01)
+        #write new val to register
+        #print("Turning",chip,"CP40MHz",onOff)
+        self.writeToLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, dataBits=[newRegVal], disp = False) #GPIO0 LOW OUTPUT bit0 low
+        #check new value
+        regReadVal = self.readFromLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, nBytes=1, disp = False)
+        if len(regReadVal) != 1 :
+          return None
+        regReadVal = regReadVal[0]
+        if regReadVal != newRegVal :
+          print("ERROR: Turning",chip,"CP40MHz",onOff,"failed!")
+          return None
+        return
 
 ## Helper functions
 def u16_to_bytes(val):
