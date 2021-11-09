@@ -202,15 +202,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
         self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
 
-        #Calibration runs
+        ## Calibration runs
         self.sarMdacCal = SARCALIBMODULE(self)
         self.calibMod = CALIBMODULE()
-        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
-        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
-        #self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.test)
-        #introducing text #2
         self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
         self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
+
+        ## SAR Calibration
+        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
+        self.stdRunsSarCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runSarCalibInFeb2Gui(runAll=True))
+
+        ## MDAC Calibration
+        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+        self.stdRunsMdacCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runMdacCalibInFeb2Gui(runAll=True))
 
         self.isConnected = True
         #self.startup()
