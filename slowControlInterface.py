@@ -2,7 +2,7 @@
 
 import sqlite3
 
-
+#This will give you the slow control data given a coluta and phase. The relevant fields can be found in line 5 of this function
 def colutaSlow(database, coluta, phase):
 	conn = sqlite3.connect(database)
 	c = conn.cursor()
@@ -15,6 +15,7 @@ def colutaSlow(database, coluta, phase):
 
 
 
+#This will give you the slow control data given a lpgbt and ChnCntr. The relevant fields can be found in line 5 of this function
 def lpgbtSlow(database, lpgbt, ChnCntr):
 	conn = sqlite3.connect(database)
 	c = conn.cursor()
@@ -25,7 +26,7 @@ def lpgbtSlow(database, lpgbt, ChnCntr):
 	conn.close()
 	return data_dictionary
 
-
+#This is for retrieving binary information
 def convert(bin_number):
 	if bin_number == "N/A":
 		return bin_number
@@ -33,6 +34,9 @@ def convert(bin_number):
 		return bin(int(bin_number, 2))
 
 
+
+#Slow Control Database is meant to be created only once, after which not much changes are expected to be made
+#The code below is for writing into the database
 """
 #SlowControlDatabaseCreator
 
