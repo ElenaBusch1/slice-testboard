@@ -72,6 +72,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.dataWords = 32  # number of bytes for each data FPGA coutner increment
         self.controlWords = 8 # number of bytes for each control FPGA counter increment
 
+        self.i2cCmdFreq = 2
+        self.i2cConfigReg = 0x0
+
         # Readback configs as they are writen
         self.READBACK = False
 
@@ -129,8 +132,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.connectCopyButtons()
 
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
-        self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
+        #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
         self.test2Button.clicked.connect(self.testFunc)
+        self.test3Button.clicked.connect(self.testFunc2)
+        #self.test3Button.clicked.connect(self.doReset)
    
         # instrument buttons
         self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
@@ -228,7 +233,360 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def testFunc(self):
-        pass
+        #self.set_DCDC(dcdcName="PA_A",onOff="off")
+        #self.set_DCDC(dcdcName="PA_B",onOff="off")
+        #self.set_DCDC(dcdcName="ADC_A",onOff="off")
+        #self.set_DCDC(dcdcName="ADC_B",onOff="off")
+        #self.set_DCDC(dcdcName="LPGBT_A",onOff="off")
+        #self.set_DCDC(dcdcName="LPGBT_B",onOff="off")
+
+        #self.function_generator.sendFakeStart()
+        #return
+
+        if False :
+          self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
+          self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="lauroc")
+        
+        if True  :
+          #self.set_DCDC(dcdcName="LPGBT_B",onOff="on")
+          #self.colutaCP40MHzDelayTest(stopLaurocCP40=True)
+          self.laurocCP40MHzPhaseTest()
+          return
+
+        if False :
+          #turn on reset before modifying COLUTA clock
+          testChip = "coluta17"
+          boardSide = "B"
+          delVal = 0x00
+
+          laurocs = ["lauroc13","lauroc14","lauroc15","lauroc16","lauroc17","lauroc18","lauroc19","lauroc20"]
+          for lauroc in laurocs:
+            self.chipCP40Control(chip=lauroc,onOff="off")
+          self.set_RSTB(RST_AB=boardSide,setStartStop="resetStart",chipType="all")
+          self.setCP40MHzDelay(chip=testChip,useFineTune=False,delVal=delVal)
+          #renable chip clock, turn off reset
+          #self.chipCP40Control(chip=coluta,onOff="on")
+          self.set_RSTB(RST_AB=boardSide,setStartStop="resetStop",chipType="coluta")
+
+          #time.sleep(1)
+          #readbackSuccess = self.writeToColuta_singleByteWrite(coluta=testChip,  channel="ch1", READBACK = True,writeVal=0x1, disp=False)
+          #print("readbackSuccess",readbackSuccess)
+          
+          while True :
+            #time.sleep(1)
+            readbackSuccess = self.writeToColuta_singleByteWrite(coluta=testChip,  channel="ch1", READBACK = True,writeVal=0x1, disp=False)
+            print("readbackSuccess",readbackSuccess)
+            time.sleep(1)
+
+          return None
+
+        if False :
+          #while True :
+          self.setAllCP40MHz(onOff="off") #turn off all CP40 clocks
+
+          self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+          self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+          time.sleep(0.5)
+          self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+          self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
+          time.sleep(0.5)
+
+          input("Enter to start lpGBT write")
+
+          self.singleI2CWriteToChip(chip="lpgbt9",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="lpgbt16",data=0x15,disp=True)
+          #self.singleI2CWriteToChip(chip="lauroc20_l15m2",data=0x15,disp=True)
+          return None
+
+        if False :
+        #while True :
+          testChip = getattr(self, 'colutaConfigureBox').currentText()
+          #testChip = "coluta17"
+          #self.singleI2CWriteToChip(chip="lauroc17_l15m2",data=0x15,disp=True)
+          self.i2cCmdFreq = 2
+          #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+          self.i2cConfigReg = 0x0
+          readbackSuccess = self.writeToColuta_singleByteWrite(coluta=testChip,  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
+          #readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta=testChip, channel="ch8", READBACK = True, writeVal= 0x1, disp=True)
+          self.i2cConfigReg = 0x0 #default
+          print("readbackSuccess",readbackSuccess)
+          #time.sleep(1)
+          return None
+
+        if True :
+        #while True :
+          #testChip = getattr(self, 'laurocConfigureBox').currentText()
+          #testChip = "lauroc19"
+          testChip = getattr(self, 'laurocConfigureBox').currentText()
+          #testChip_mod = testChip + "_l15m2"
+          testChip_mod = testChip
+          #self.setCP40MHzInvert(testChip,invVal=0x0,freq=0x1)
+          #testChip = getattr(self, 'colutaConfigureBox').currentText()
+
+          #self.setAllCP40MHz(onOff="off") #turn off all CP40 clocks
+          #self.chipCP40Control(chip=testChip,onOff="on")
+
+          #self.set_DCDC(dcdcName="ADC_A",onOff="off")
+          #self.set_DCDC(dcdcName="ADC_B",onOff="off")
+          #self.set_DCDC(dcdcName="PA_A",onOff="off")
+          #self.set_DCDC(dcdcName="PA_B",onOff="off")
+          #self.set_DCDC(dcdcName="PA_A",onOff="on")
+          #self.set_DCDC(dcdcName="PA_B",onOff="on")
+
+          self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+          #self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+          time.sleep(0.5)
+          self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="lauroc")
+          #self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="lauroc")
+          time.sleep(0.5)
+
+          print("START WRITE")
+          #self.singleI2CWriteToChip(chip="lauroc17_l15m2",data=0x15,disp=True)
+          #readbackSuccess = self.writeToLAUROC(testChip, 0x0, 0x1)
+          self.i2cCmdFreq = 2
+          #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+          self.i2cConfigReg = 0x00
+          readbackSuccess = self.singleI2CWriteToChip(chip=testChip_mod,data=0x80,disp=True,doReadback=True)
+          #readbackSuccess = self.singleI2CReadFromChip(chip=testChip,disp=True)
+          print("readbackSuccess",readbackSuccess)
+          self.i2cCmdFreq = 2 #default
+          self.i2cConfigReg = 0x00 #default
+          return None
+          
+        #return None
+
+        if False  :
+          testChip = getattr(self, 'colutaConfigureBox').currentText()
+          #self.setAllCP40MHz(onOff="off") #turn off all CP40 clocks
+          #self.chipCP40Control(chip=testChip,onOff="on")
+         
+          #self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+          #self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+          #time.sleep(0.5)
+          #self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+          #self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")        
+          readbackSuccess = self.writeToColuta_singleByteWrite(coluta=testChip,  channel="ch1", READBACK = True,writeVal=0x1, disp=False)
+          #self.chipCP40Control(chip=testChip,onOff="on")
+          #readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta=testChip, channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+          #readbackSuccess = self.writeToColuta_singleByteWrite(coluta=testChip,  channel="ch1", READBACK = True,writeVal=0x1, disp=False)
+          #readbackSuccess = self.writeToColuta_singleByteWrite(coluta=testChip,  channel="ch1", READBACK = True,writeVal=0x1, disp=False)
+          print("readbackSuccess",readbackSuccess)
+
+          #self.writeToCOLUTAChannel(testChip, "ch8", READBACK = True)
+        #return None
+        
+        self.i2cCmdFreq = 2
+        self.i2cConfigReg = 0x00
+        #self.setupI2cBus("lauroc20")
+        #while True:
+        if False :
+        #  self.testFunc2()
+           readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta16",  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
+           readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta17",  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
+        #   readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta13", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta14", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta15", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta16", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta17", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta18", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta19", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta20", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #  self.singleI2CWriteToChip(chip="coluta13",data=0x15,disp=True)
+           time.sleep(0.5)
+        ##return None
+        #vtrx = "vtrx6_m2"
+        if False :
+          print("\nALL TEST\n")
+          self.i2cCmdFreq = 2
+          self.i2cConfigReg = 0x00
+          #self.multiI2CWriteToChip(chip="vtrx1_m0",bytes=[0x0,0x1F],disp=True)
+          #self.multiI2CWriteToChip(chip="vtrx1_m1",bytes=[0x0,0x1F],disp=True)
+          #self.multiI2CWriteToChip(chip="vtrx1_m2",bytes=[0x0,0x1F],disp=True)
+          self.singleI2CWriteToChip(chip="vtrx4_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx4_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx4_m2",data=0x15,disp=True)
+          time.sleep(1)
+          #continue
+          self.singleI2CWriteToChip(chip="vtrx2_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx2_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx2_m2",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx3_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx3_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx3_m2",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx4_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx4_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx4_m2",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx5_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx5_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx5_m2",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx6_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx6_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx6_m2",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx7_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx7_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx7_m2",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx8_m0",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx8_m1",data=0x15,disp=True)
+          self.singleI2CWriteToChip(chip="vtrx8_m2",data=0x15,disp=True)
+          #self.singleI2CWriteToChip(chip="lauroc17_l15m2",data=0x15,disp=True)
+          #self.singleI2CWriteToChip(chip="lauroc18_l15m2",data=0x15,disp=True)
+          #self.singleI2CWriteToChip(chip="lauroc19_l15m2",data=0x15,disp=True)
+          #self.singleI2CWriteToChip(chip="lauroc20_l15m2",data=0x15,disp=True)
+          #self.multiI2CWriteToChip(chip="vtrx6",bytes=[0x0,0x1F],disp=True)
+          time.sleep(1)
+        #vtrxList = ["vtrx3","vtrx4","vtrx5","vtrx6"]
+        #for vtrx in vtrxList :
+        #  print(vtrx)
+        #  for regNum in range(0,0x1D+1,1):        
+        #    self.singleI2CWriteToChip(chip=vtrx,data=regNum,disp=False)
+        #    readVal = self.singleI2CReadFromChip(chip=vtrx,disp=False)
+        #    print("REG ADDR\t",hex(regNum),"\tVAL\t",[hex(x) for x in readVal],"\t",hex(readVal[0]))
+        #  time.sleep(1)
+
+        return None
+
+    def turnAllOff(self):
+        self.set_DCDC(dcdcName="ADC_A",onOff="off")
+        self.set_DCDC(dcdcName="ADC_B",onOff="off")
+        self.set_DCDC(dcdcName="PA_A",onOff="off")
+        self.set_DCDC(dcdcName="PA_B",onOff="off")
+
+    def resetAll(self):
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="coluta")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="coluta")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="lauroc")
+        time.sleep(0.5)
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="coluta")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="coluta")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="lauroc")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="lauroc")
+
+    def testFunc2(self):
+        #testChip = getattr(self, 'laurocConfigureBox').currentText()
+        #readbackSuccess = self.writeToLAUROC(testChip, 0x0, 0x1)
+
+        #self.setupI2cBus("coluta13")
+
+        #self.setAllCP40MHz(onOff="off") #turn off all CP40 clocks
+        #laurocs = ["lauroc13","lauroc14","lauroc15","lauroc16"]
+        #for lauroc in laurocs:
+        #  self.chipCP40Control(chip=lauroc,onOff="off")
+        #colutas = ["coluta13","coluta14","coluta15","coluta16"]
+        #for coluta in colutas:
+        #  self.chipCP40Control(chip=coluta,onOff="on")
+
+        #self.set_DCDC(dcdcName="LPGBT_A",onOff="off")
+        #self.set_DCDC(dcdcName="LPGBT_B",onOff="off")
+        #self.set_DCDC(dcdcName="ADC_A",onOff="off")
+        #self.set_DCDC(dcdcName="ADC_B",onOff="off")
+        #self.set_DCDC(dcdcName="PA_A",onOff="off")
+        #self.set_DCDC(dcdcName="PA_B",onOff="off")
+
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+        time.sleep(0.5)
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
+        return None
+
+        if False:        
+          self.turnAllOff()
+          input("Turn DCDC off all ADC + PA")
+
+          self.set_DCDC(dcdcName="LPGBT_A",onOff="off")
+          self.set_DCDC(dcdcName="LPGBT_B",onOff="off")
+          input("Turn DCDC off all ADC + PA + LPGBT")
+          print("DONE CONTROL LPGBT TEST")
+          return
+          #self.configureAll()
+
+        self.turnAllOff()
+        input("Reconfigure, turn DCDC off all ADC + PA")
+
+        self.turnAllOff()
+        self.set_DCDC(dcdcName="ADC_A",onOff="on")
+        input("Turn ADC_A ON only")
+
+        self.turnAllOff()
+        self.set_DCDC(dcdcName="ADC_B",onOff="on")
+        input("Turn ADC_B ON only")
+
+        self.turnAllOff()
+        self.set_DCDC(dcdcName="PA_A",onOff="on")
+        input("Turn PA_A ON only")
+
+        self.turnAllOff()
+        self.set_DCDC(dcdcName="PA_B",onOff="on")
+        input("Turn PA_B ON only")
+
+        self.turnAllOff()
+        self.set_DCDC(dcdcName="ADC_A",onOff="on")
+        self.set_DCDC(dcdcName="ADC_B",onOff="on")
+        self.set_DCDC(dcdcName="PA_A",onOff="on")
+        self.set_DCDC(dcdcName="PA_B",onOff="on")
+        input("Turn on all ADC + PA")
+
+        self.resetAll()
+        input("All Reset")
+
+        colutas = self.allCOLUTAs
+        #laurocs = self.allLAUROCs
+        laurocs = ["lauroc13","lauroc14","lauroc15","lauroc16"]
+        for coluta in colutas:
+            self.resetAll()
+            self.sendFullCOLUTAConfig(coluta)
+            time.sleep(0.5)
+            input("Configure only"+str(coluta))
+
+        for lauroc in laurocs:
+            self.resetAll()
+            self.sendFullLAUROCConfigs(lauroc)
+            time.sleep(0.5)
+            input("Configure only"+str(lauroc))
+
+        self.resetAll()
+        for coluta in colutas:
+            self.sendFullCOLUTAConfig(coluta)
+            time.sleep(0.5)
+        for lauroc in laurocs:
+            self.sendFullLAUROCConfigs(lauroc)
+            time.sleep(0.5)
+        input("All configured")
+
+        #time.sleep(1)
+        #self.set_DCDC(dcdcName="ADC_A",onOff="on")
+        #self.set_DCDC(dcdcName="ADC_B",onOff="on")
+        #self.set_DCDC(dcdcName="PA_A",onOff="on")
+        #self.set_DCDC(dcdcName="PA_B",onOff="on")
+        #self.set_DCDC(dcdcName="LPGBT_A",onOff="on")
+        #self.set_DCDC(dcdcName="LPGBT_B",onOff="on")
+        #self.set_DCDC(dcdcName="ADC_A",onOff="on")
+        #self.set_DCDC(dcdcName="ADC_B",onOff="on")
+        print("DONE")
+        return None
+        #time.sleep(0.5)
+        #self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        #self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="coluta")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="coluta")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="lauroc")
+        time.sleep(0.5)
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="coluta")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="coluta")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="lauroc")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="lauroc")
+        #self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="coluta")
+        #self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="coluta")
+        #time.sleep(0.5)
+        #self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="coluta")
+        #self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="coluta")
+       
+        #self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        #self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+
+        return None
 
     def selectAllColutas(self):
         for coluta in self.allCOLUTAs:
@@ -342,11 +700,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Error: length of data in writeToDataLpgbt too long")
             return
 
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000 #no pull up, low drive strength
+        configRegVal = configRegVal + self.i2cConfigReg
+        self.writeToControlLPGBT("lpgbt"+self.chips[lpgbt].lpgbtMaster, 0x0f7, [configRegVal]) #send I2C address value to control lpGBT
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000000 #SCL driven by CMOS buffer, , freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal  + ((len(data)+2) << 2) #multi-byte write = len(data) + 2
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
+
         #print("Writing", [hex(byte) for byte in data], "to register ", hex(register))
         regH, regL = u16_to_bytes(register)
 
         # We will write 16 bytes to i2cM1Data at a time
-        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + ((len(data)+2) << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
         # Write 2 byte register address, then 14 bytes of configuration
         writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, *data[:2]], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -392,10 +759,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Invalid lpgbtMaster specified (writeToDataLpgbt)")
             return
 
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000 #no pull up, low drive strength
+        configRegVal = configRegVal + self.i2cConfigReg
+        self.writeToControlLPGBT("lpgbt"+self.chips[lpgbt].lpgbtMaster, 0x0f7, [configRegVal]) #send I2C address value to control lpGBT
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10001000 #SCL driven by CMOS buffer, multi-byte write = 2, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
+
         #print("Reading register ", hex(register))
         regH, regL = u16_to_bytes(register)
         # We will write 2 bytes to the data lpGBT
-        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0b10001000, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
         # Write 2 byte register address
         writeToLpGBT(lpgbtI2CAddr, 0x0f9, [regL, regH, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -403,7 +778,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xc], ICEC_CHANNEL=ICEC_CHANNEL)
         # We will read 14 bytes from the data lpGBT
-        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + (nBytes << 2), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(lpgbtI2CAddr, 0x0f9, [0x80 + (nBytes << 2) + int(self.i2cCmdFreq), 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0fd,  [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(lpgbtI2CAddr, 0x0f8, [dataI2CAddr, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL) 
         writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0xd], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -421,24 +796,45 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         """ Writes data to LAUROC one register at a time """
         lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
         laurocI2CAddr = int(self.chips[lauroc].i2cAddress[:4],2)
+        lpgbtName = "lpgbt"+self.chips[lauroc].lpgbtMaster
 
-        if self.chips[lauroc].lpgbtMaster == '12': 
-            ICEC_CHANNEL = 0
-        elif self.chips[lauroc].lpgbtMaster == '13': 
-            ICEC_CHANNEL = 1
-        else: 
-            print("Invalid lpgbtMaster specified (writeToLAUROC)")
-            return
+        #chip I2C address info
+        i2cControl = self.chips[lauroc].i2cMaster
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: (writeToLAUROC) control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: control lpGBT bus not in bus info", i2cControl )
+          return None
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
 
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000 #no pull up, low drive strength
+        configRegVal = configRegVal + self.i2cConfigReg
+        self.writeToLPGBT(lpgbt=lpgbtName, register=configReg, dataBits=[configRegVal], disp = False) #send I2C address value to control lpGBT
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000000 #SCL driven by CMOS buffer, multi-byte write = NA, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=dataReg, dataBits=[i2cCtrlRegVal, 0x00, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x0], disp = False)
+
+        self.writeToLPGBT(lpgbt=lpgbtName, register=addrReg, dataBits=[int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x2], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=addrReg, dataBits=[int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x2], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=addrReg, dataBits=[int(f'0{laurocI2CAddr:04b}010',2), data, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x2], disp = False)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
         #print("Checking Write")
+        """
         outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
         if outcome == 'reset':
             writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
@@ -449,12 +845,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
             outcome = self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
             if outcome == 'reset': print("Failed after reset")
+        """
 
         readbackSuccess = True
         readback = self.readFromLAUROC(lauroc, register)
         if readback[0] != data:
             readbackSuccess = False
-            print("Writing ", lauroc, register, " failed")
+            #print("Writing ", lauroc, register, " failed")
         if self.READBACK:
             print("Writing", lauroc, hex(register), ":", hex(data))
             print("Reading", lauroc, hex(register), ":", hex(readback[0]))
@@ -468,28 +865,44 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         """ Reads from LAUROC one register at a time """
         lpgbtI2CAddr = int(self.chips["lpgbt"+self.chips[lauroc].lpgbtMaster].i2cAddress,2)
         laurocI2CAddr = int(self.chips[lauroc].i2cAddress[:4],2)
+        lpgbtName = "lpgbt"+self.chips[lauroc].lpgbtMaster
 
-        if self.chips[lauroc].lpgbtMaster == '12': 
-            ICEC_CHANNEL = 0
-        elif self.chips[lauroc].lpgbtMaster == '13': 
-            ICEC_CHANNEL = 1
-        else: 
-            print("Invalid lpgbtMaster specified (writeToLAUROC)")
-            return
+        #chip I2C address info
+        i2cControl = self.chips[lauroc].i2cMaster
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6,"readByte":0x163},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd,"readByte":0x178},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104,"readByte":0x18d},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: control lpGBT bus not in bus info", i2cControl )
+          return None
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
+        readByteReg = i2cBusInfo[i2cControl]["readByte"]
 
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x2], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0f8, [int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00], ICEC_CHANNEL = ICEC_CHANNEL)
-        writeToLpGBT(lpgbtI2CAddr, 0x0fd, [0x3], ICEC_CHANNEL = ICEC_CHANNEL)
+        #get readByteReg
+        #readVal = self.readFromLPGBT(lpgbt=controlLpgbt, register=readByteReg, nBytes=1, disp = disp)        #get readByteReg
+        #readVal = self.readFromLPGBT(lpgbt=controlLpgbt, register=readByteReg, nBytes=1, disp = disp)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=addrReg, dataBits=[int(f'0{laurocI2CAddr:04b}000',2), register, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x2], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=addrReg, dataBits=[int(f'0{laurocI2CAddr:04b}001',2), 0, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x2], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=addrReg, dataBits=[int(f'0{laurocI2CAddr:04b}010',2), 0x00, 0x00, 0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x3], disp = False)
 
         # Check to see if the i2c Bus Transaction is finished before proceeding
         #print("Checking Read")
-        self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+        #self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
-        readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
+        #readback = readFromLpGBT(lpgbtI2CAddr, 0x178, 1, ICEC_CHANNEL = ICEC_CHANNEL)
+        readback = self.readFromLPGBT(lpgbt=lpgbtName, register=readByteReg, nBytes=1, disp = False)
         return readback
+
 
     def writeToCOLUTAChannel(self, coluta, channel, READBACK = False):
         """ Write full configuration for given COLUTA channel """
@@ -506,8 +919,18 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
         dataBits = self.colutaI2CWriteControl(coluta, channel, broadcast=False)
         dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
-        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)     #SCL/SDA pull up disabled, low drive strength
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        #colutaI2CAddrH = colutaI2CAddrH + 8 # set SDA drive strength high
+        colutaI2CAddrH = colutaI2CAddrH + self.i2cConfigReg # enable SDA pullup
+        #colutaI2CAddrH = colutaI2CAddrH + 32 # set SCL drive strength high
+        #colutaI2CAddrH = colutaI2CAddrH + 64 # enable SCL pullup
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        #i2cCtrlRegVal = 0b00100000 #SCL NOT driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
 
         readbackSuccess = True
         for word in dataBits64:
@@ -516,7 +939,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #print("0x0f9:", [hex(x) for x in [*dataBits8[4:][::-1], 0x8]])
             #print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
             #print("0x0f7:", [hex(x) for x in [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe]])
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -548,13 +971,22 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[coluta].i2cAddress
         colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])        
-        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)     #SCL/SDA pull up disabled, low drive strength
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        #colutaI2CAddrH = colutaI2CAddrH + 8 # set SDA drive strength high
+        colutaI2CAddrH = colutaI2CAddrH + self.i2cConfigReg # enable SDA pullup
+        #colutaI2CAddrH = colutaI2CAddrH + 32 # set SCL drive strength high
+        #colutaI2CAddrH = colutaI2CAddrH + 64 # enable SCL pullup
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        #i2cCtrlRegVal = 0b00100000 #SCL NOT driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
 
         readBackBits = '01' + word[-14:]
         readBackBits = readBackBits.zfill(64)
         readBackBits8 = [int(readBackBits[8*i:8*(i+1)], 2) for i in range(len(readBackBits)//8)]
-        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+        writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
         writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -582,10 +1014,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[coluta].i2cAddress
         colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])        
-        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
-        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
         dataBitsGlobal = self.colutaI2CWriteControl(coluta, "global")
-        dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]       
+        dataBitsGlobal64 = [dataBitsGlobal[64*i:64*(i+1)] for i in range(len(dataBitsGlobal)//64)]
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)     #SCL/SDA pull up disabled, low drive strength
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        #colutaI2CAddrH = colutaI2CAddrH + 8 # set SDA drive strength high
+        colutaI2CAddrH = colutaI2CAddrH + self.i2cConfigReg # enable SDA pullup
+        #colutaI2CAddrH = colutaI2CAddrH + 32 # set SCL drive strength high
+        #colutaI2CAddrH = colutaI2CAddrH + 64 # enable SCL pullup
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        #i2cCtrlRegVal = 0b00100000 #SCL NOT driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
        
         counter = 1
         full_write = []
@@ -595,7 +1036,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
             for x in dataBits8:
                 full_write.append(x)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [0b10100001, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -624,14 +1065,25 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[coluta].i2cAddress
-        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])        
-        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)     #SCL/SDA pull up disabled, low drive strength
         colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        #colutaI2CAddrH = colutaI2CAddrH + 8 # set SDA drive strength high
+        colutaI2CAddrH = colutaI2CAddrH + self.i2cConfigReg # enable SDA pullup
+        #colutaI2CAddrH = colutaI2CAddrH + 32 # set SCL drive strength high
+        #colutaI2CAddrH = colutaI2CAddrH + 64 # enable SCL pullup
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        #i2cCtrlRegVal = 0b00100000 #SCL NOT driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq)
 
         counter = 1
         full_readback = []
         for _ in range(2):
             addrModification = counter*8
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL + addrModification, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
             readback = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189-8, 8, ICEC_CHANNEL=ICEC_CHANNEL)
@@ -770,6 +1222,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring lpgbt11")
         self.sendFullControlLPGBTConfigs("lpgbt11")
         time.sleep(0.5)
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
         print("Configuring lpgbt10")
         self.sendFullDataLPGBTConfigs("lpgbt10")
         time.sleep(0.5)
@@ -782,6 +1236,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         print("Configuring lpgbt16")
         self.sendFullDataLPGBTConfigs("lpgbt16")
         time.sleep(0.5)
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
+
+        return
  
         #if input("Configure all colutas?(y/n)\n") != 'y':
         #    print("Exiting config all")
@@ -909,7 +1367,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.lpgbtReset(lpgbtMaster)
 
         #make sure LAUROC clock is on
-        self.chipCP40Control(chip=lauroc,onOff="on")
+        #self.chipCP40Control(chip=lauroc,onOff="on")
 
         chip = self.chips[lauroc]
         chipList = list(chip.values())
@@ -928,7 +1386,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             data = sectionChunks[startReg]
             self.writeToLAUROC(lauroc, startReg, data)
             readback = self.readFromLAUROC(lauroc, startReg)
-            if readback[0] != data: readbackSuccess = False
             if self.READBACK:
                 print("Writing", lauroc, hex(startReg), ":", hex(data))
                 print("Reading", lauroc, hex(startReg), ":", hex(readback[0]))
@@ -936,10 +1393,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")
+            if readback[0] != data: 
+              readbackSuccess = False
+              break
         self.configResults[lauroc] = readbackSuccess
         print("Done configuring", lauroc, ", success =", readbackSuccess)
         #make sure LAUROC clock is off
-        self.chipCP40Control(chip=lauroc,onOff="off")
+        #self.chipCP40Control(chip=lauroc,onOff="off")
         self.updateErrorConfigurationList(readbackSuccess, lauroc)
 
     def sendFullCOLUTAConfig(self, colutaName):
@@ -953,14 +1413,22 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtMaster = "lpgbt"+self.chips[coluta].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
+        numRetry = 1
+
         channels = ["ch"+str(i) for i in range(1,9)]
         readbackSuccess = True
         for ch in channels:
             print("Configuring ", ch, coluta)
-            readbackChSucess = self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+            readbackChSucess = False
+            for num in range(0,numRetry,1):
+              readbackChSucess = self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+              if readbackChSucess == True : break
             readbackSuccess = readbackSuccess & readbackChSucess
 
-        globalSuccess = self.writeToCOLUTAGlobal(coluta)
+        globalSuccess = False
+        for num in range(0,numRetry,1):
+          globalSuccess = self.writeToCOLUTAGlobal(coluta)
+          if globalSuccess == True : break
         readbackSuccess = readbackSuccess & globalSuccess
         self.configResults[coluta] = readbackSuccess
         print("Done configuring", coluta, ", success =", readbackSuccess)
@@ -1810,31 +2278,84 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.configurationStatus.setText(f"Unsuccessful Configuration == {self.failedConfigurations}")
             self.configurationStatus.setStyleSheet("background-color: red; border: 1px solid black")
 
+    #Utility functions for board control
+
+    def set_RSTB(self,RST_AB="",setStartStop="",chipType="all"):
+        if RST_AB != "A" and RST_AB != "B" : return None
+        if setStartStop != "resetStart" and setStartStop != "resetStop" : return None
+        chipTypes = ["coluta","lauroc","vtrx","all"]
+        if chipType not in chipTypes : return None
+        #PA_RSTB_A : lpGBT12, GPIO pin 0, dir reg = 0x53 bit 0 , out reg = 0x55 bit 0
+        #PA_RSTB_B : lpGBT13, GPIO pin 0, dir reg  = 0x53 bit 0 , out reg = 0x55 bit 0
+        #ADC_RSTB_A : lpGBT12, GPIO pin 1, dir reg = 0x53 bit 1 , out reg = 0x55 bit 1
+        #ADC_RSTB_B : lpGBT13, GPIO pin 1, dir reg  = 0x53 bit 1 , out reg = 0x55 bit 1
+        lpgbt = "lpgbt12"
+        if RST_AB == "B": lpgbt = "lpgbt13"
+        #get current control reg val
+        ctrlRegAddr = 0x55 #hardcoded, not using config dict here
+        regReadVal = self.readFromLPGBT(lpgbt=lpgbt, register=ctrlRegAddr, nBytes=1, disp = False)
+        if len(regReadVal) != 1 :
+          print("ERROR in set_RSTB, could not read register 0x55")
+          return None
+        regReadVal = regReadVal[0]
+        
+        regMask = 0x00 #reset nothing
+        if lpgbt == "lpgbt12" :
+          #regMask = 0x03 #reset LAUROC+COLUTAs
+          regMask = 0x0B #reset LAUROC+COLUTAs+VTRXs, all
+          if chipType == "lauroc" : regMask = 0x01 #only reset LAUROC
+          if chipType == "coluta" : regMask = 0x02 #only reset COLUTA
+          if chipType == "vtrx"   : regMask = 0x08 #only reset VTRX
+        if lpgbt == "lpgbt13" :
+          #regMask = 0x03 #reset LAUROC+COLUTAS
+          regMask = 0x23 #reset LAUROC+COLUTAs+VTRXs, all
+          if chipType == "lauroc" : regMask = 0x01 #only reset LAUROC
+          if chipType == "coluta" : regMask = 0x02 #only reset COLUTA
+          if chipType == "vtrx"   : regMask = 0x20 #only reset VTRX
+
+        #first set RSTB = 1, ie stop reset
+        self.writeToLPGBT(lpgbt, ctrlRegAddr, [ (regReadVal | regMask) ], disp = False)
+        time.sleep(0.1)        
+        if setStartStop == "resetStart" :
+          #set RSTB = 0, ie start reset
+          self.writeToLPGBT(lpgbt, ctrlRegAddr, [ (regReadVal & ~regMask) ], disp = False)
+          time.sleep(0.1)
+        #print("DONE set_RSTB")
+        return None
+
     def chipCP40Control(self,chip,onOff):
         if onOff != "on" and onOff != "off" :
           return None
-        chipClockMap = { "coluta20":{"lpGBT":"lpgbt16","ctrlReg":"ps2config","ctrlBit":0},\
-                         "coluta19":{"lpGBT":"lpgbt16","ctrlReg":"ps0config","ctrlBit":0},\
-                         "coluta18":{"lpGBT":"lpgbt15","ctrlReg":"ps2config","ctrlBit":0},\
-                         "coluta17":{"lpGBT":"lpgbt14","ctrlReg":"ps2config","ctrlBit":0},\
-                         "coluta16":{"lpGBT":"lpgbt11","ctrlReg":"ps2config","ctrlBit":0},\
-                         "coluta15":{"lpGBT":"lpgbt10","ctrlReg":"ps2config","ctrlBit":0},\
-                         "coluta14":{"lpGBT":"lpgbt10","ctrlReg":"ps0config","ctrlBit":0},\
-                         "coluta13":{"lpGBT":"lpgbt9" ,"ctrlReg":"ps2config","ctrlBit":0},\
-                         "lauroc20":{"lpGBT":"lpgbt16","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
-                         "lauroc19":{"lpGBT":"lpgbt15","ctrlReg":"epclk2chncntrh","ctrlBit":0},\
-                         "lauroc18":{"lpGBT":"lpgbt15","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
-                         "lauroc17":{"lpGBT":"lpgbt14","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
-                         "lauroc16":{"lpGBT":"lpgbt11","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
-                         "lauroc15":{"lpGBT":"lpgbt10","ctrlReg":"epclk0chncntrh","ctrlBit":0},\
-                         "lauroc14":{"lpGBT":"lpgbt9" ,"ctrlReg":"epclk2chncntrh","ctrlBit":0},\
-                         "lauroc13":{"lpGBT":"lpgbt9" ,"ctrlReg":"epclk0chncntrh","ctrlBit":0},\
+        chipClockMap = { "coluta20":{"lpGBT":"lpgbt16","ctrlReg":"ps2config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta19":{"lpGBT":"lpgbt16","ctrlReg":"ps0config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta18":{"lpGBT":"lpgbt15","ctrlReg":"ps2config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta17":{"lpGBT":"lpgbt14","ctrlReg":"ps2config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta16":{"lpGBT":"lpgbt11","ctrlReg":"ps2config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta15":{"lpGBT":"lpgbt10","ctrlReg":"ps2config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta14":{"lpGBT":"lpgbt10","ctrlReg":"ps0config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "coluta13":{"lpGBT":"lpgbt9" ,"ctrlReg":"ps2config"      ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc20":{"lpGBT":"lpgbt16","ctrlReg":"epclk0chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc19":{"lpGBT":"lpgbt15","ctrlReg":"epclk2chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc18":{"lpGBT":"lpgbt15","ctrlReg":"epclk0chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc17":{"lpGBT":"lpgbt14","ctrlReg":"epclk0chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc16":{"lpGBT":"lpgbt11","ctrlReg":"epclk0chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc15":{"lpGBT":"lpgbt10","ctrlReg":"epclk0chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc14":{"lpGBT":"lpgbt9" ,"ctrlReg":"epclk2chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lauroc13":{"lpGBT":"lpgbt9" ,"ctrlReg":"epclk0chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lpgbt9"  :{"lpGBT":"lpgbt12","ctrlReg":"epclk20chncntrh","ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lpgbt10" :{"lpGBT":"lpgbt12","ctrlReg":"epclk20chncntrh","ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lpgbt11" :{"lpGBT":"lpgbt12","ctrlReg":"epclk24chncntrh","ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lpgbt14" :{"lpGBT":"lpgbt13","ctrlReg":"epclk8chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lpgbt15" :{"lpGBT":"lpgbt13","ctrlReg":"epclk9chncntrh" ,"ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
+                         "lpgbt16" :{"lpGBT":"lpgbt13","ctrlReg":"epclk10chncntrh","ctrlBit":0,"bitMask":0x07,"defaultVal":0x01},\
                        }
         if chip not in chipClockMap :
           return None
         ctrlLpGBT = chipClockMap[chip]["lpGBT"]
         ctrlReg = chipClockMap[chip]["ctrlReg"]
         ctrlBit = chipClockMap[chip]["ctrlBit"]
+        ctrlBitMask = chipClockMap[chip]["bitMask"]
+        defaultVal = chipClockMap[chip]["defaultVal"]
         if ctrlLpGBT not in self.chips :
           return None
         if ctrlReg not in self.chips[ctrlLpGBT] :
@@ -1846,11 +2367,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if len(regReadVal) != 1 :
           return None
         regReadVal = regReadVal[0]
-        newRegVal = (regReadVal & 0xFE) #should use the ctrlBit info here
+        newRegVal = (regReadVal & (~ctrlBitMask)) #zero-out relevant control bits, turn off
         if onOff == "on" :
-          newRegVal = (newRegVal | 0x01)
+          newRegVal = (newRegVal | defaultVal)
         #write new val to register
-        #print("Turning",chip,"CP40MHz",onOff)
         self.writeToLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, dataBits=[newRegVal], disp = False) #GPIO0 LOW OUTPUT bit0 low
         #check new value
         regReadVal = self.readFromLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, nBytes=1, disp = False)
@@ -1860,6 +2380,831 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if regReadVal != newRegVal :
           print("ERROR: Turning",chip,"CP40MHz",onOff,"failed!")
           return None
+        return None
+
+
+    def colutaCP40MHzDelayTest_testColuta(self,config=None,results={}):
+        if config == None :
+          return None
+        numTest = 100
+        lpgbtNum = config["lpgbtNum"]
+        delReg = config["delReg"]
+        coluta = config["coluta"]
+        controlLpGBT = config["controlLpGBT"]
+        boardSide = config["boardSide"]
+        results[coluta] = {}
+        goodDelay = []
+
+        adcSide = "ADC_" + str(boardSide)
+        useFineTune = False
+
+        #self.setAllCP40MHz(onOff="off") #turn off all CP40 clocks
+        for delVal in range(0,512,16): #works for coarse or fine tuning
+        #for delVal in range(0,512,1): #only works for fine tuning case
+            print("TESTING",coluta,"DELAY",hex(delVal))
+
+            #power cycle COLUTAs
+            #self.set_DCDC(dcdcName=adcSide,onOff="off")
+            #time.sleep(0.5)
+            #self.set_DCDC(dcdcName=adcSide,onOff="on")
+
+            #turn on reset before modifying COLUTA clock
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStart",chipType="all")
+            self.lpgbtReset(controlLpGBT) #make sure I2C bus still works
+            #self.chipCP40Control(chip=coluta,onOff="off")
+            self.setCP40MHzDelay(chip=coluta,useFineTune=useFineTune,delVal=delVal)
+
+            #renable chip clock, turn off reset
+            #self.chipCP40Control(chip=coluta,onOff="on")
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStop",chipType="coluta")
+
+            #test loop, try COLUTA reg write multiple times and record # successes
+            testCount = 0
+            failCount = 0 
+            writeVal = 1
+            for testNum in range(0,numTest,1):
+                #readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta=coluta, channel="ch8", READBACK = True, writeVal= writeVal, disp=False)
+                readbackSuccess = self.writeToColuta_singleByteWrite(coluta=coluta, channel="ch8", READBACK = True, writeVal= writeVal, disp=False)
+                testCount += 1
+                if readbackSuccess == False : failCount += 1
+                if writeVal == 1 : writeVal = 2
+                else : writeVal = 1
+                if failCount >= 1 : break
+            #end test loop
+            results[coluta][delVal] = [testCount,failCount,numTest]
+            if failCount == 0 : goodDelay.append(delVal)
+            print("\t",hex(delVal),"\t",testCount,"\t",failCount,"\t", 1 - failCount / float(testCount) )
+        #end delay loop
+
+        #print result
+        print( coluta )
+        for delay in results[coluta]:
+            print(hex(delay),"\t",round((delay>>4)*0.78125,2),"\t",results[coluta][delay][0],"\t",results[coluta][delay][1],"\t",results[coluta][delay][0]/results[coluta][delay][2])
+        #end config loop
+
+
+    def setCP40MHzDelay(self,chip,useFineTune=False,delVal=0x0):
+        chipClockMap = { "coluta20":{"lpGBT":"lpgbt16","ctrlReg":0x062},\
+                         "coluta19":{"lpGBT":"lpgbt16","ctrlReg":0x05c},\
+                         "coluta18":{"lpGBT":"lpgbt15","ctrlReg":0x062},\
+                         "coluta17":{"lpGBT":"lpgbt14","ctrlReg":0x062},\
+                         "coluta16":{"lpGBT":"lpgbt11","ctrlReg":0x062},\
+                         "coluta15":{"lpGBT":"lpgbt10","ctrlReg":0x062},\
+                         "coluta14":{"lpGBT":"lpgbt10","ctrlReg":0x05c},\
+                         "coluta13":{"lpGBT":"lpgbt9" ,"ctrlReg":0x062},\
+                       }
+        if chip not in chipClockMap :
+          print("ERROR: setCP40MHzDelay)Chip not in dict, returning")
+          return False
+        lpgbtNum = chipClockMap[chip]["lpGBT"]
+        configReg = chipClockMap[chip]["ctrlReg"]
+
+        #read orig config reg
+        origRegVal = self.readFromLPGBT(lpgbt=lpgbtNum,register=configReg,nBytes=1, disp = False)
+        if len(origRegVal) != 1 :
+          print("lpGBT register read failed", lpgbtNum,configReg,origRegVal)
+          return None
+
+        #make new config reg val
+        newRegVal = (origRegVal[0] & 0x3F)
+        if useFineTune == True : newRegVal = newRegVal + 0x40
+        if delVal >= 256 : newRegVal = newRegVal + 0x80
+
+        #write updated config reg
+        readbackSuccess = self.writeToLPGBT(lpgbt=lpgbtNum,register=configReg,dataBits=[ (newRegVal & 0xFF) ], disp = False)
+        if readbackSuccess == False :
+          print("lpGBT register write failed", lpgbtNum,configReg,dataBits)
+          return None
+
+        #write update delay register
+        readbackSuccess = self.writeToLPGBT(lpgbt=lpgbtNum,register=configReg+1,dataBits=[ (delVal & 0xFF) ], disp = False)
+        if readbackSuccess == False :
+          print("lpGBT register write failed", lpgbtNum,configReg+1,dataBits)
+          return None
+        return None
+
+
+    def colutaCP40MHzDelayTest(self,stopLaurocCP40=False):
+        configList = [{"lpgbtNum":"lpgbt9" ,"delReg":0x063,"coluta":"coluta13","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      {"lpgbtNum":"lpgbt10","delReg":0x05d,"coluta":"coluta14","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      {"lpgbtNum":"lpgbt10","delReg":0x063,"coluta":"coluta15","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      {"lpgbtNum":"lpgbt11","delReg":0x063,"coluta":"coluta16","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      {"lpgbtNum":"lpgbt14","delReg":0x063,"coluta":"coluta17","controlLpGBT":"lpgbt13","boardSide":"B"},\
+                      {"lpgbtNum":"lpgbt15","delReg":0x063,"coluta":"coluta18","controlLpGBT":"lpgbt13","boardSide":"B"},\
+                      {"lpgbtNum":"lpgbt16","delReg":0x05d,"coluta":"coluta19","controlLpGBT":"lpgbt13","boardSide":"B"},\
+                      {"lpgbtNum":"lpgbt16","delReg":0x063,"coluta":"coluta20","controlLpGBT":"lpgbt13","boardSide":"B"},
+        ]
+        results = {}
+
+        #first reset LAUROC+VTRx permanently while COLUTA test runs
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="coluta")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="coluta")
+
+        #turn off LAUROC clocks 
+        laurocs = ["lauroc13","lauroc14","lauroc15","lauroc16","lauroc17","lauroc18","lauroc19","lauroc20"]
+        if stopLaurocCP40 == True :
+          for lauroc in laurocs:
+            self.chipCP40Control(chip=lauroc,onOff="off")
+
+        for config in configList :
+          self.colutaCP40MHzDelayTest_testColuta(config,results)
+
+        #end LAUROC+VTRx reset
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
+          
+        #print results
+        print( results )
+        for coluta in results :
+          print(coluta)
+          for delay in results[coluta]:
+            #print(hex(delay),"\t",round((delay>>4)*0.78125,2),"\t",results[coluta][delay][0],"\t",results[coluta][delay][1])
+            if len(results[coluta][delay]) > 0 :
+              print(hex(delay),"\t",round((delay>>4)*0.78125,2),"\t",1-results[coluta][delay][1]/results[coluta][delay][0])
+        return None
+
+    def setCP40MHzInvert(self,chip,invVal=0x0,freq=0x1):
+        chipClockMap = { "lauroc20":{"lpGBT":"lpgbt16","ctrlReg":0x06c},\
+                         "lauroc19":{"lpGBT":"lpgbt15","ctrlReg":0x070},\
+                         "lauroc18":{"lpGBT":"lpgbt15","ctrlReg":0x06c},\
+                         "lauroc17":{"lpGBT":"lpgbt14","ctrlReg":0x06c},\
+                         "lauroc16":{"lpGBT":"lpgbt11","ctrlReg":0x06c},\
+                         "lauroc15":{"lpGBT":"lpgbt10","ctrlReg":0x06c},\
+                         "lauroc14":{"lpGBT":"lpgbt9","ctrlReg" :0x070},\
+                         "lauroc13":{"lpGBT":"lpgbt9" ,"ctrlReg":0x06c},\
+                         "lauroc20_l15m2":{"lpGBT":"lpgbt16","ctrlReg":0x06c},\
+                         "lauroc19_l15m2":{"lpGBT":"lpgbt15","ctrlReg":0x070},\
+                         "lauroc18_l15m2":{"lpGBT":"lpgbt15","ctrlReg":0x06c},\
+                         "lauroc17_l15m2":{"lpGBT":"lpgbt14","ctrlReg":0x06c},\
+                       }
+        if chip not in chipClockMap :
+          print("ERROR: setCP40MHzDelayChip not in dict, returning")
+          return False
+        lpgbtNum = chipClockMap[chip]["lpGBT"]
+        configReg = chipClockMap[chip]["ctrlReg"]
+
+        #read orig config reg
+        origRegVal = self.readFromLPGBT(lpgbt=lpgbtNum,register=configReg,nBytes=1, disp = False)
+        if len(origRegVal) != 1 :
+          print("lpGBT register read failed", lpgbtNum,configReg,origRegVal)
+          return None
+
+        #make new config reg val
+        newRegVal = (origRegVal[0] & 0xBF)
+        if invVal == 0x1 :
+          newRegVal = newRegVal + 0x40
+        #newRegVal = newRegVal + (freq & 0x7)
+
+        #write updated config reg
+        readbackSuccess = self.writeToLPGBT(lpgbt=lpgbtNum,register=configReg,dataBits=[ (newRegVal & 0xFF) ], disp = False)
+        if readbackSuccess == False :
+          print("lpGBT register write failed", lpgbtNum,configReg,(newRegVal & 0xFF))
+          return None
+        return None
+
+
+    def laurocCP40MHzPhaseTest(self):
+        configList = [#{"lpgbtNum":"lpgbt9" ,"phaseReg":0x06c,"lauroc":"lauroc13","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      #{"lpgbtNum":"lpgbt9" ,"phaseReg":0x070,"lauroc":"lauroc14","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      #{"lpgbtNum":"lpgbt10","phaseReg":0x06c,"lauroc":"lauroc15","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      #{"lpgbtNum":"lpgbt11","phaseReg":0x06c,"lauroc":"lauroc16","controlLpGBT":"lpgbt12","boardSide":"A"},\
+                      #{"lpgbtNum":"lpgbt14","phaseReg":0x06c,"lauroc":"lauroc17","controlLpGBT":"lpgbt13","boardSide":"B"},\
+                      #{"lpgbtNum":"lpgbt15","phaseReg":0x06c,"lauroc":"lauroc18","controlLpGBT":"lpgbt13","boardSide":"B"},\
+                      #{"lpgbtNum":"lpgbt15","phaseReg":0x070,"lauroc":"lauroc19","controlLpGBT":"lpgbt13","boardSide":"B"},\
+                      #{"lpgbtNum":"lpgbt16","phaseReg":0x06c,"lauroc":"lauroc20","controlLpGBT":"lpgbt13","boardSide":"B"},
+                      {"lpgbtNum":"lpgbt14","phaseReg":0x06c,"lauroc":"lauroc17_l15m2","controlLpGBT":"lpgbt15","boardSide":"B"},\
+                      {"lpgbtNum":"lpgbt15","phaseReg":0x06c,"lauroc":"lauroc18_l15m2","controlLpGBT":"lpgbt15","boardSide":"B"},\
+                      {"lpgbtNum":"lpgbt15","phaseReg":0x070,"lauroc":"lauroc19_l15m2","controlLpGBT":"lpgbt15","boardSide":"B"},\
+                      {"lpgbtNum":"lpgbt16","phaseReg":0x06c,"lauroc":"lauroc20_l15m2","controlLpGBT":"lpgbt15","boardSide":"B"},
+        ]
+        results = {}
+
+        testLauroc = getattr(self, 'laurocConfigureBox').currentText()
+        numTest = 100
+        #self.READBACK = False
+
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="lauroc")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="lauroc")
+
+        #time.sleep(1)
+        #readbackSuccess = self.writeToLAUROC("lauroc13", 0x0, 0x2)
+        #print(readbackSuccess)
+        #return None
+
+        for config in configList :
+          lpgbtNum = config["lpgbtNum"]
+          phaseReg = config["phaseReg"]
+          lauroc = config["lauroc"]
+          controlLpGBT = config["controlLpGBT"]
+          boardSide = config["boardSide"]
+          results[lauroc] = {}
+          goodVals = []
+          #self.setAllCP40MHz(onOff="off")
+          for phaseVal in [0,1]:
+            print("TESTING",lauroc,"DELAY",hex(phaseVal))
+            #reset all chips while adjusting clocks
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStart",chipType="lauroc")
+            #self.chipCP40Control(chip=lauroc,onOff="off")
+
+            self.setCP40MHzInvert(lauroc,invVal=phaseVal)
+
+            #stop reset
+            #self.chipCP40Control(chip=lauroc,onOff="on")
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStop",chipType="lauroc")
+            
+            #test loop, try COLUTA reg write multiple times and record # successes
+            testCount = 0
+            failCount = 0
+            writeVal = 1
+            for testNum in range(0,numTest,1):
+              readbackSuccess = self.writeToLAUROC(lauroc, 0x0, writeVal)
+              if readbackSuccess == True :
+                testCount += 1
+              else :
+                failCount += 1
+              if writeVal == 1 :
+                writeVal = 2
+              else :
+                writeVal = 1
+              if failCount > 10 :
+                break
+            results[lauroc][phaseVal] = testCount
+            #self.lpgbtReset(controlLpGBT) #make sure I2C bus still works
+            if testCount == numTest :
+              goodVals.append(phaseVal)
+            #make sure all chips still function
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStart",chipType="lauroc")
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStop",chipType="lauroc")
+
+          #end phase loop
+          if len(goodVals) > 0 :
+            goodVal = goodVals[0]
+            print("Identified good value",lauroc,hex(goodVal))
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStart",chipType="lauroc")
+            #read current reg value and update phase
+            self.setCP40MHzInvert(lauroc,invVal=goodVal)
+            self.set_RSTB(RST_AB=boardSide,setStartStop="resetStop",chipType="lauroc")
+
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
+
+        #end lauroc/config loop
+        print( results )
+        for lauroc in results :
+          print(lauroc)
+          for val in results[lauroc]:
+            #print(delay,"\t",hex(delay),"\t",round(delay*0.78125,2),"\t",results[coluta][delay]/10.)
+            print(val,"\t\t",results[lauroc][val]/float(numTest))
+        pass
+        return None
+
+    def setAllCP40MHz(self,onOff):
+        cp40MHzChips = ["coluta20","coluta19","coluta18","coluta17","coluta16","coluta15","coluta14","coluta13",\
+                        "lauroc20","lauroc19","lauroc18","lauroc17","lauroc16","lauroc15","lauroc14","lauroc13"]
+        for chip in cp40MHzChips :
+          self.chipCP40Control(chip=chip,onOff=onOff)
+
+    def writeToCOLUTAChannel_singleWrite(self, coluta, channel, READBACK = False,writeVal=None,disp=True):
+        """ Write full configuration for given COLUTA channel """
+        if self.chips[coluta].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[coluta].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToCOLUTAChannel)")
+            return
+
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[coluta].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
+        dataBits = self.colutaI2CWriteControl(coluta, channel, broadcast=False)
+        dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)     #SCL/SDA pull up disabled, low drive strength
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        #colutaI2CAddrH = colutaI2CAddrH + 8 # set SDA drive strength high
+        colutaI2CAddrH = colutaI2CAddrH + self.i2cConfigReg # enable SDA pullup
+        #colutaI2CAddrH = colutaI2CAddrH + 32 # set SCL drive strength high
+        #colutaI2CAddrH = colutaI2CAddrH + 64 # enable SCL pullup
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        #i2cCtrlRegVal = 0b00100000 #SCL NOT driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #update frequency
+        #print( dataBits64 )
+        if len(dataBits64) == 0 :
+            return
+        wordNum = 2
+        word = dataBits64[wordNum]
+        dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+        if writeVal != None :
+          dataBits8[0] = writeVal
+          #print( [hex(x) for x in dataBits8] )
+
+        #do a COLUTA write
+        if True :    
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+         
+        if False : 
+            self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
+
+        #do readback
+        readbackSuccess = False
+        if READBACK:
+            readBackBits = '01' + word[-14:]
+            readBackBits = readBackBits.zfill(64)
+            readBackBits8 = [int(readBackBits[8*i:8*(i+1)], 2) for i in range(len(readBackBits)//8)]
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*readBackBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
+            readback = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x189-8, 6, ICEC_CHANNEL=ICEC_CHANNEL) 
+            #if readback[:6] != dataBits8[:6]: readbackSuccess = False
+            #print("Writing", [hex(x) for x in dataBits8[:6]])
+            #print("Reading", [hex(x) for x in readback])
+            if readback[:6] == dataBits8[:6]:
+              readbackSuccess = True
+              #print("Successfully readback what was written!")
+            else:
+              if disp == True :
+                print("Readback does not agree with what was written")     
+
+        return readbackSuccess
+
+    def writeToColuta_singleByteWrite(self, coluta, channel, READBACK = False,writeVal=None,disp=True):
+        """ Write full configuration for given COLUTA channel """
+        if self.chips[coluta].lpgbtMaster == '12': 
+            ICEC_CHANNEL = 0
+        elif self.chips[coluta].lpgbtMaster == '13': 
+            ICEC_CHANNEL = 1
+        else: 
+            print("Invalid lpgbtMaster specified (writeToCOLUTAChannel)")
+            return
+
+        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        colutaI2CAddr = self.chips[coluta].i2cAddress
+        colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
+        dataBits = self.colutaI2CWriteControl(coluta, channel, broadcast=False)
+        dataBits64 = [dataBits[64*i:64*(i+1)] for i in range(len(dataBits)//64)]
+
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        colutaI2CAddrH = int(f'00000{colutaI2CAddr[:3]}', 2)     #SCL/SDA pull up disabled, low drive strength
+        colutaI2CAddrL = int(f'0{colutaI2CAddr[-1]}000000', 2)
+        #colutaI2CAddrH = colutaI2CAddrH + 8 # set SDA drive strength high
+        colutaI2CAddrH = colutaI2CAddrH + self.i2cConfigReg # enable SDA pullup
+        #colutaI2CAddrH = colutaI2CAddrH + 32 # set SCL drive strength high
+        #colutaI2CAddrH = colutaI2CAddrH + 64 # enable SCL pullup
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000100 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        #i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #update frequency
+        if True :
+          writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+          writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+
+        if len(dataBits64) == 0 :
+            return
+
+        if disp == True :
+            print(coluta,"\t",channel)
+            print("I2C ADDRESS\t",hex(colutaI2CAddrH),"\t",hex(colutaI2CAddrL))
+        wordToWrite = 0
+        wordNum = 0
+        #for wordNum, word in enumerate(dataBits64):
+        #    if wordNum != wordToWrite : 
+        #      continue
+        if True :
+            word = dataBits64[wordNum]
+            dataBits8 = [int(word[8*i:8*(i+1)], 2) for i in range(len(word)//8)]
+            if writeVal != None :
+              dataBits8[0] = writeVal
+            #print("NEW WORD")
+            #for data in dataBits8 :
+            #  print("\t", hex(data) )
+
+            #do a COLUTA write  
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+
+            #self.readFromCOLUTAChannel(coluta,word)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xf], ICEC_CHANNEL=ICEC_CHANNEL)
+        #finish word loop
+        time.sleep(0.001)
+
+        #check status bit
+        readbackSuccess = False
+        if READBACK == True :
+          bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+          if bit[0] == 4:
+            readbackSuccess = True
+          #print("readbackSuccess",readbackSuccess)
+        return readbackSuccess
+
+
+    def set_DCDC(self,dcdcName="",onOff=""):
+        if onOff != "on" and onOff != "off" :
+          print("ERROR: (set_DCDC) invalid onOff input",onOff)
+          return None
+        dcdcDict = { "PA_A"   :{"lpGBT":"lpgbt12","GPIO":2 ,"ctrlReg":"piooutl","ctrlBit":2},\
+                     "ADC_A"  :{"lpGBT":"lpgbt12","GPIO":11,"ctrlReg":"pioouth","ctrlBit":3},\
+                     "LPGBT_A":{"lpGBT":"lpgbt13","GPIO":4 ,"ctrlReg":"piooutl","ctrlBit":4},\
+                     "PA_B"   :{"lpGBT":"lpgbt13","GPIO":2 ,"ctrlReg":"piooutl","ctrlBit":2},\
+                     "ADC_B"  :{"lpGBT":"lpgbt13","GPIO":3 ,"ctrlReg":"piooutl","ctrlBit":3},\
+                     "LPGBT_B":{"lpGBT":"lpgbt12","GPIO":4 ,"ctrlReg":"piooutl","ctrlBit":4},\
+                   }
+        if dcdcName not in dcdcDict :
+          print("ERROR: (set_DCDC) invalid DCDC name",dcdcName)
+          return None
+        ctrlLpGBT = dcdcDict[dcdcName]["lpGBT"]
+        ctrlReg = dcdcDict[dcdcName]["ctrlReg"]
+        ctrlBit = dcdcDict[dcdcName]["ctrlBit"]
+        if ctrlLpGBT not in self.chips :
+          print("ERROR: (set_DCDC) invalid control lpGBT",ctrlLpGBT)
+          return None
+        if ctrlReg not in self.chips[ctrlLpGBT] :
+          print("ERROR: (set_DCDC) control register not in lpGBT configuration",ctrlReg)
+          return None
+        ctrlRegAddr = int(self.chips[ctrlLpGBT][ctrlReg].address , 0 )
+        
+        #get current control reg val
+        regReadVal = self.readFromLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, nBytes=1, disp = False)
+        if len(regReadVal) != 1 :
+          print("ERROR: (set_DCDC) register read failed")
+          return None
+        regReadVal = regReadVal[0]
+
+        #define new register value to write
+        ctrlBitMask = (0x1 << ctrlBit)
+        newRegVal = (regReadVal & (~ctrlBitMask)) #zero-out relevant control bits
+        if onOff == "on" :
+          newRegVal = (newRegVal | ctrlBitMask) #set control bit to 1
+        
+        #write new val to register
+        self.writeToLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, dataBits=[newRegVal], disp = False) #GPIO0 LOW OUTPUT bit0 low
+        #check new value
+        regReadVal = self.readFromLPGBT(lpgbt=ctrlLpGBT, register=ctrlRegAddr, nBytes=1, disp = False)
+        if len(regReadVal) != 1 :
+          print("ERROR: (set_DCDC) updated register read failed")
+          return None
+        regReadVal = regReadVal[0]
+        if regReadVal != newRegVal :
+          print("ERROR: (set_DCDC) Setting",dcdcName,onOff,"failed!")
+          return None
+        return None
+
+    def doReset(self) :
+        print("RESET")
+        self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
+        time.sleep(1)
+        self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
+        self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
+
+    def setupI2cBus(self,chip):
+        if chip not in self.chips :
+          print("ERROR: (setupI2cBus) invalid chip ", chip )
+          return None
+        lpgbtName = "lpgbt"+self.chips[chip].lpgbtMaster
+
+        #chip I2C address info dict
+        i2cControl = self.chips[chip].i2cMaster
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: (setupI2cBus) control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: (setupI2cBus) control lpGBT bus not in bus info", i2cControl )
+          return None
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
+
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configVal = 0b00000000
+        #configVal = configVal + 8 # set SDA drive strength high
+        configVal = configVal + self.i2cConfigReg # enable SDA pullup
+        #configVal = configVal + 32 # set SCL drive strength high
+        #configVal = configVal + 64 # enable SCL pullup
+        self.writeToLPGBT(lpgbt=lpgbtName, register=configReg, dataBits=[configVal], disp = False) #send I2C address value to control lpGBT
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #update frequency
+        self.writeToLPGBT(lpgbt=lpgbtName, register=dataReg, dataBits=[i2cCtrlRegVal], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbtName, register=cmdReg, dataBits=[0x0], disp = False)
+        return None
+
+
+    def singleI2CWriteToChip(self,chip=None,data=None,disp=True,doReadback=True):
+        if chip == None :
+          return None
+        if chip not in self.chips :
+          print("ERROR: invalid chip specified",chip)
+          return None
+        controlLpgbtNum = self.chips[chip].lpgbtMaster
+        controlLpgbt = "lpgbt" + str(controlLpgbtNum)        
+        #if controlLpgbt not in ["lpgbt11","lpgbt12","lpgbt13","lpgbt14"] :
+        #  print("ERROR: invalid control lpGBT specified",controlLpgbt)
+        #  return None
+        if controlLpgbt not in self.chips :
+          print("ERROR: control lpGBT not in chips dict",controlLpgbt)
+          return None
+
+        #chip I2C address info
+        i2cControl = self.chips[chip].i2cMaster
+        i2cAddress = self.chips[chip].i2cAddress
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6,"status":0x161},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd,"status":0x176},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104,"status":0x18b},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: control lpGBT bus not in bus info", i2cControl )
+          return None
+        i2cAddress = i2cAddress.replace("x","0") #will not work with addressing on certain chips
+        i2cAddressVal = int(str(i2cAddress),2)
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
+        statusReg = i2cBusInfo[i2cControl]["status"]
+
+        dataVal = 0
+        try:
+            dataVal = int(data)
+        except:
+            print("Invalid value")
+            return
+        if dataVal < 0 or dataVal > 255 :
+            print("Invalid value")
+            return
+
+        #define I2C control register values
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000 
+        configRegVal = configRegVal + self.i2cConfigReg
+
+        #self.i2cCmdFreq = 2
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000000 #SCL driven by CMOS buffer
+        #i2cCtrlRegVal = 0b00000000 #SCL NOT sdriven by CMOS buffer
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #add freq value
+
+        if disp == True :
+          print("Single I2C write")
+          print("Write to bus",i2cControl,"chip",chip,"chip address",i2cAddress,"\t",hex(i2cAddressVal),"\tdataVal",hex(dataVal))
+          print("controlLpgbt", controlLpgbt, "\tconfigReg", hex(configReg), "\tconfigRegVal",hex(configRegVal) )
+          print("controlLpgbt", controlLpgbt, "\tcmdReg", hex(cmdReg), "\ti2cCtrlRegVal",hex(i2cCtrlRegVal) )
+         
+
+        #set correct bits in I2CMX config
+        self.writeToLPGBT(controlLpgbt, configReg, [configRegVal]) #No pull ups, low drive strength, ext addr bits set to 0
+        #self.writeToLPGBT(controlLpgbt, configReg, [0b00001000]) #No pull ups, low drive strength, ext addr bits set to 0
+        #self.writeToLPGBT(controlLpgbt, configReg, [0b00100000]) #No pull ups, SCL hight drive strength, SDA low drive strength, ext addr bits set to 0
+        #self.writeToLPGBT(controlLpgbt, configReg, [0b00111000]) #No pull ups, SCL hight drive strength, SDA low drive strength, ext addr bits set to 0
+
+        #control reg update 
+        self.writeToLPGBT(controlLpgbt, dataReg, [i2cCtrlRegVal]) #SCL CMOS buffer driver, number of bytes, 200kHz
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0x0]) #send I2C write command to control lpGBT
+
+        #actually do write
+        self.writeToLPGBT(controlLpgbt, addrReg, [i2cAddressVal]) #send chip I2C address value to control lpGBT
+        self.writeToLPGBT(controlLpgbt, dataReg, [dataVal]) #I2C data value, contains chip register write info, exact process depends on chip
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0x2])  #send I2C write command to control lpGBT
+
+        readbackSuccess = False
+        if doReadback == True :
+          statusVal = self.readFromLPGBT(lpgbt=controlLpgbt,register=statusReg, nBytes=1, disp = False)
+          if len(statusVal) == 1 :
+            if statusVal[0] == 4:
+              readbackSuccess = True
+
+        if disp == True :
+          #bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+          print("Done write")
+        return readbackSuccess
+
+    def singleI2CReadFromChip(self,chip=None,disp=True):
+        if chip == None :
+          return None
+        if chip not in self.chips :
+          print("ERROR: invalid chip specified",chip)
+          return None
+        controlLpgbtNum = self.chips[chip].lpgbtMaster
+        controlLpgbt = "lpgbt" + str(controlLpgbtNum)        
+        if controlLpgbt not in ["lpgbt11","lpgbt12","lpgbt13","lpgbt14"] :
+          print("ERROR: invalid control lpGBT specified",controlLpgbt)
+          return None
+        if controlLpgbt not in self.chips :
+          print("ERROR: control lpGBT not in chips dict",controlLpgbt)
+          return None
+
+        #chip I2C address info
+        i2cControl = self.chips[chip].i2cMaster
+        i2cAddress = self.chips[chip].i2cAddress
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6,"readByte":0x163},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd,"readByte":0x178},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104,"readByte":0x18d},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: control lpGBT bus not in bus info", i2cControl )
+          return None
+        i2cAddress = i2cAddress.replace("x","0") #will not work with addressing on certain chips
+        i2cAddressVal = int(str(i2cAddress),2)
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
+        readByteReg = i2cBusInfo[i2cControl]["readByte"]
+
+        if disp == True :
+          print("Single Byte I2C read")
+          print("Write to bus",i2cControl,"chip address",i2cAddress,"\t",i2cAddressVal)
+          print("controlLpgbt", controlLpgbt, "cmdReg", hex(cmdReg) )
+
+        #set correct bits in I2CMX config
+        #[0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000
+        configRegVal = configRegVal + self.i2cConfigReg
+        self.writeToLPGBT(controlLpgbt, configReg, [configRegVal]) #No pull ups, low drive strength, ext addr bits set to 0
+
+        #control reg update 
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000000 #SCL driven by CMOS buffer
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #add freq value
+        self.writeToLPGBT(controlLpgbt, dataReg, [i2cCtrlRegVal]) #SCL CMOS buffer driver, number of bytes, 200kHz
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0x0]) #send I2C write command to control lpGBT
+
+        #actually do READ
+        self.writeToLPGBT(controlLpgbt, addrReg, [i2cAddressVal]) #send chip I2C address value to control lpGBT
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0x3]) #send I2C single byte read command to control lpGBT
+
+        #get readByteReg
+        readVal = self.readFromLPGBT(lpgbt=controlLpgbt, register=readByteReg, nBytes=1, disp = disp)
+
+        if disp == True :
+          print("Done read",readVal)
+        return readVal
+
+    def multiI2CWriteToChip(self,chip=None,bytes=None,disp=True):
+        if chip == None :
+          return None
+        if chip not in self.chips :
+          print("ERROR: invalid chip specified",chip)
+          return None
+        controlLpgbtNum = self.chips[chip].lpgbtMaster
+        controlLpgbt = "lpgbt" + str(controlLpgbtNum)        
+        #if controlLpgbt not in ["lpgbt11","lpgbt12","lpgbt13","lpgbt14"] :
+        #  print("ERROR: invalid control lpGBT specified",controlLpgbt)
+        #  return None
+        if controlLpgbt not in self.chips :
+          print("ERROR: control lpGBT not in chips dict",controlLpgbt)
+          return None
+        if len(bytes) == 0 or len(bytes) > 4 :
+          print("ERROR: invalid number of bytes specified:", len(bytes), bytes)
+          return
+        if int(self.i2cCmdFreq) < 0 or int(self.i2cCmdFreq) > 3 :
+          print("ERROR: invalid I2C frequency setting",int(self.i2cCmdFreq))
+          return
+
+        #chip I2C address info
+        i2cControl = self.chips[chip].i2cMaster
+        i2cAddress = self.chips[chip].i2cAddress
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: control lpGBT bus not in bus info", i2cControl )
+          return None
+        i2cAddress = i2cAddress.replace("x","0") #will not work with config process on most chips
+        i2cAddressVal = int(str(i2cAddress),2)
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
+
+        if disp == True :
+          print("Multi-byte I2C write to ",chip)
+          print("\tcontrolLpgbt", controlLpgbt,"\tbus",i2cControl,"\tcmdReg", hex(cmdReg) )
+          print("\tChip I2C address",i2cAddress,"\taddr val",i2cAddressVal,"\twrite bytes", [hex(x) for x in bytes])
+
+        #ICMCONFIG [0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000 + self.i2cConfigReg
+        self.writeToLPGBT(controlLpgbt, configReg, [configRegVal]) #No pull ups, low drive strength, ext addr bits set to 0
+
+        #control reg update
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000000 #SCL driven by CMOS buffer, multi-byte write = 8
+        i2cCtrlRegVal = i2cCtrlRegVal  + (len(bytes) << 2) #multi-byte write = len(data) 
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #add freq value
+        self.writeToLPGBT(controlLpgbt, dataReg, [i2cCtrlRegVal] )#specifies 4 bytes for multi-reg write commands, 200kHz interface
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0x0]) #send I2C write command to control lpGBT
+
+        #actually do write
+        self.writeToLPGBT(controlLpgbt, addrReg, [i2cAddressVal] ) #send I2C chip address value to control lpGBT
+        self.writeToLPGBT(controlLpgbt, dataReg, bytes ) #send I2C data value to control lpGBT
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0x8]) #send I2C multi-byte write command to control lpGBT, I2C_W_MULTI_4BYTE0
+        self.writeToLPGBT(controlLpgbt, cmdReg, [0xC]) #send I2C write command to control lpGBT, I2C_WRITE_MULTI 
+        print("Done write")
+        return
+
+    def multiI2CReadToChip(self,chip=None,nBytes=None,disp=True):
+        if chip == None :
+          return None
+        if chip not in self.chips :
+          print("ERROR: invalid chip specified",chip)
+          return None
+        controlLpgbtNum = self.chips[chip].lpgbtMaster
+        controlLpgbt = "lpgbt" + str(controlLpgbtNum)        
+        if controlLpgbt not in ["lpgbt11","lpgbt12","lpgbt13","lpgbt14"] :
+          print("ERROR: invalid control lpGBT specified",controlLpgbt)
+          return None
+        if controlLpgbt not in self.chips :
+          print("ERROR: control lpGBT not in chips dict",controlLpgbt)
+          return None
+        nBytes = int(nBytes)
+        if nBytes == 0 or nBytes > 4 :
+          print("ERROR: invalid number of bytes specified:", nBytes)
+          return
+        if int(self.i2cCmdFreq) < 0 or int(self.i2cCmdFreq) > 3 :
+          print("ERROR: invalid I2C frequency setting",int(self.i2cCmdFreq))
+          return
+
+        #chip I2C address info
+        i2cControl = self.chips[chip].i2cMaster
+        i2cAddress = self.chips[chip].i2cAddress
+        if i2cControl not in ["0","1","2"]:
+          print("ERROR: control lpGBT bus not valid", i2cControl )
+          return None
+        i2cBusInfo = { "0":{"addr":0x0f1,"i2cmConfig":0x0f0,"data0":0x0f2,"cmd":0x0f6},\
+                       "1":{"addr":0x0f8,"i2cmConfig":0x0f7,"data0":0x0f9,"cmd":0x0fd},\
+                       "2":{"addr":0x0ff,"i2cmConfig":0x0fe,"data0":0x100,"cmd":0x104},\
+                     }
+        if i2cControl not in i2cBusInfo :
+          print("ERROR: control lpGBT bus not in bus info", i2cControl )
+          return None
+        i2cAddress = i2cAddress.replace("x","0") #will not work with config process on most chips
+        i2cAddressVal = int(str(i2cAddress),2)
+        addrReg = i2cBusInfo[i2cControl]["addr"]
+        dataReg = i2cBusInfo[i2cControl]["data0"]
+        cmdReg = i2cBusInfo[i2cControl]["cmd"]
+        configReg = i2cBusInfo[i2cControl]["i2cmConfig"]
+
+        nBytes = 2
+        if disp == True :
+          print("Multi-byte I2C read from ",chip)
+          print("\tcontrolLpgbt", controlLpgbt,"\tbus",i2cControl,"\tcmdReg", hex(cmdReg) )
+          print("\tChip I2C address",i2cAddress,"\taddr val",i2cAddressVal,"\tnumber bytes", nBytes)
+
+        #ICMCONFIG [0x0f7] 6-I2CM1SCLPullUpEnable,5-I2CM1SCLDriveStrength,4-I2CM1SDAPullUpEnable,3-I2CM1SDADriveStrength,2:0-I2CM1AddressExt[2:0]
+        configRegVal = 0b00000000 + self.i2cConfigReg
+        self.writeToControlLPGBT(controlLpgbt, configReg, [configRegVal]) #No pull ups, low drive strength, ext addr bits set to 0
+
+        #control reg update
+        #i2c control reg: [7] - SCLDriveMode,  [6:2] - NBYTE[4:0], [1:0] - FREQ[1:0]
+        i2cCtrlRegVal = 0b10000000 #SCL driven by CMOS buffer, multi-byte write = 8
+        i2cCtrlRegVal = i2cCtrlRegVal  + ((nBytes) << 2) #multi-byte write = len(data) 
+        i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #add freq value
+        self.writeToControlLPGBT(controlLpgbt, dataReg, [i2cCtrlRegVal] )#specifies 4 bytes for multi-reg write commands, 200kHz interface
+        self.writeToControlLPGBT(controlLpgbt, cmdReg, [0x0]) #send I2C write command to control lpGBT
+
+        #actually do write
+        self.writeToControlLPGBT(controlLpgbt, addrReg, [i2cAddressVal] ) #send I2C chip address value to control lpGBT
+        self.writeToControlLPGBT(controlLpgbt, cmdReg, [0xD]) #send I2C read command to control lpGBT, I2C_READ_MULTI
+        print("Done read")
         return
 
 ## Helper functions

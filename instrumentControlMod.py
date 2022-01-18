@@ -426,6 +426,17 @@ class t3awg3252(Device):
         #self.device.write("*TRG")
         self.coluta.sendExternalTrigger()
 
+    def sendFakeStart(self):
+        print("HELLO")
+        if True :
+            self.device.write("SOURce1:FUNCtion:SHAPe SINusoid")
+            self.device.write("SOURce1:FREQuency "+str(freq)+"MHZ")
+            self.device.write("SOURce1:VOLTage "+str(amp))
+            self.device.write("OUTPut1:STATe ON")
+            self.device.write("AFGControl:START")
+        
+        return None
+
 def initializeInstrumentation(coluta):
     '''Import libraries and define relevant attributes for testBoardGUI.'''
     # Try to import VISA. If it fails, show warning and exit.
