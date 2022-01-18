@@ -157,7 +157,11 @@ def config(results, boardID):
     for coluta in results.keys():
         print("Updating " + coluta.upper() + " settings...")
         for i, ch in enumerate(results[coluta].keys()):
-            config[f"Phase{i+1}"] = {"Total": "4", "LPGBTPhase": str(bin(results[coluta][ch][2])[2:].zfill(4))}
+            if results[coluta][ch][2] < 0: #NOTE if COLUTA result is bad, remove hardcoding 
+              config[f"Phase{i+1}"] = {"Total": "4", "LPGBTPhase": str("".zfill(4))}
+              print(f"Could not find clock parameter for {coluta} {ch} LPGBTPhase... setting to default '0000'") 
+            else:
+              config[f"Phase{i+1}"] = {"Total": "4", "LPGBTPhase": str(bin(results[coluta][ch][2])[2:].zfill(4))}
         INV_DELAY640 = str(bin(results[coluta][ch][1])[2:].zfill(4))
         config["Global"] = {"INV640": INV_DELAY640[0] , "DELAY640": INV_DELAY640[1:]}
         with open(f"clockScan_board{boardID}/config/" + coluta.upper() + ".cfg", "w") as f:

@@ -249,8 +249,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         
         if True  :
           #self.set_DCDC(dcdcName="LPGBT_B",onOff="on")
-          #self.colutaCP40MHzDelayTest(stopLaurocCP40=True)
-          self.laurocCP40MHzPhaseTest()
+          self.colutaCP40MHzDelayTest(stopLaurocCP40=True)
+          #self.laurocCP40MHzPhaseTest()
           return
 
         if False :
@@ -1723,6 +1723,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     except AttributeError:
                         continue
                     if isinstance(box, QtWidgets.QPlainTextEdit):
+                        print( chipName, sectionName ,  settingName, setting )
                         decimalString = str(int(setting, 2))
                         box.document().setPlainText(decimalString)
                     elif isinstance(box, QtWidgets.QComboBox):
