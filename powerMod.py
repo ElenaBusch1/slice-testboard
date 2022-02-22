@@ -194,6 +194,54 @@ def checkAllTemps(GUI):
         else:
             box.document().setPlainText(f'{tempVal:.2f}')
 
+def returnAllTemps(GUI):
+    #temperatures = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'B1', 'B2', 'B3', 'B4', 'VTRx3', 'VTRx4', 'VTRx5', 'VTRx6']
+    #vref = 0.95
+    #IDAC = 200
+    resistorDividerMainPS24V = 40.322
+    resistorDividerMainPS48V = 81.508
+    IDACCalibration = 0.272
+    tempMeasurements = {}
+    for temp in GUI.temperatureSettings.keys():
+        ## Find correct lpGBT and ADC pin
+        lpgbt = GUI.temperatureSettings[temp][0]
+        adc = GUI.temperatureSettings[temp][1]
+        if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
+            GUI.lpgbtReset("lpgbt12")
+        elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
+            GUI.lpgbtReset("lpgbt13")
+        ## Read Temperature
+        print(temp)
+        ADC_INP_INN = (int(adc)<<4)+int('1111',2)
+        if temp in ['VTRx3', 'VTRRx4', 'VTRx5', 'VTRx6']:
+            IDACCur = 10
+        else:
+            IDACCur = IDAC
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, ADC_INP_INN, True, 0, IDACCur)
+        adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+        ## Convert ADC counts to temp
+        vref = vREF[lpgbt][int(adc)]
+        voltage = adcCounts*(vref/1024)
+        resistivity = IDACCalibration*voltage/(IDAC*1E-6)
+        tempVal = computeTemp(resistivity)
+        tempMeasurements[temp] = tempVal
+    
+    # write 14 to ADCInPSelect[3:0] - internal lpgbt temp
+    lpgbts = ['lpgbt'+str(x) for x in range(9,17)]
+    for lpgbt in lpgbts:
+        ## Read temps
+        print(lpgbt)
+        if lpgbt in ['lpgbt9', 'lpgbt10', 'lpgbt11']:
+            GUI.lpgbtReset("lpgbt12")
+        elif lpgbt in ['lpgbt14', 'lpgbt15', 'lpgbt16']:
+            GUI.lpgbtReset("lpgbt13")
+        adc = '14'
+        ADC_INP_INN = (int(adc)<<4)+int('1111',2)
+        adcH, adcL = checkVoltages(GUI, int(adc), lpgbt, ADC_INP_INN, False)
+        adcCounts = (int(bin(adcH)[7:9],2)<<8) + adcL
+        tempVal = (adcCounts - 486.2)/2.105
+        tempMeasurements[temp] = tempVal
+    return tempMeasurements
 
 def checkVoltages(GUI, adc, lpgbt, ADC_INP_INN, tempEnable=False, vrefTune = 0, IDACCur = 106):
     """ Checks voltage on given ADC """

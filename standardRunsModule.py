@@ -2,6 +2,7 @@ import time
 import math
 import instrumentControlMod
 from datetime import datetime
+import powerMod
 
 class STANDARDRUNS(object):
     def __init__(self,GUI):
@@ -79,6 +80,10 @@ class STANDARDRUNS(object):
           self.GUI.nSamples = 10000000 
           self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
           getattr(self.GUI,'daqModeBox').setCurrentIndex(0) #ensure trigger
+        if self.measType ==  "pedestalVsTime" :
+          self.GUI.nSamples = 100000
+          getattr(self.GUI,'daqModeBox').setCurrentIndex(0) #ensure trigger
+          self.GUI.nSamplesBox.setPlainText(str(self.GUI.nSamples)) #set this somewhere else?
         return None
 
     #interface to GUI
@@ -197,6 +202,7 @@ class STANDARDRUNS(object):
         #standardAmps = ['0.1','1.0'] #debug amp list
         #standardAmps = ['0.1','0.2','0.3','0.4','0.5','0.6','0.7','0.8','0.9','1.0','2.0','3.0','4.0','5.0','6.0'] #AWG valid voltage range
         standardAmps = ['0.25','0.5','0.75','1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0','5.5','6.0'] #AWG valid voltage range
+        #standardAmps = ['0.25','0.5','0.75','1.0','1.5','2.0','2.5','3.0','3.5','4.0','4.5','5.0'] #AWG valid voltage range
 
         for stepNum,amp in enumerate(standardAmps):
             print(f'Starting pulse amplitude {amp} measurements')
@@ -217,5 +223,35 @@ class STANDARDRUNS(object):
         print("Pulse Data Done")
         print('runtime: ',datetime.now() - startTime)
         return None
+
+    def T_DependenceMeas(self):
+
+        print("Running time/temperature measurements!")
+
+        starttime = time.time()
+        self.measType = "pedestalVsTime"
+        self.measStep = 0
+        self.setCommonGuiSettings()
+        self.updateGuiMetadata()
+
+        while True:
+            #initialize GUI parameters
+            print(self.measStep, ":", time.time())
+            #record board temp values
+            tempMeasurements = powerMod.returnAllTemps(self.GUI)
+            tempString = ""
+            for tempKey in tempMeasurements : tempString = tempString + str(tempKey) + "=" + str(round(tempMeasurements[tempKey],2)) + ","
+            self.GUI.misc = tempString
+            #update metadata for measurement
+            self.updateGuiMetadata()
+            #take waveform data
+            self.takeData()
+            self.measStep += 1
+            if time.time() - starttime >= 3600: break
+            #if self.measStep >=  : break
+            #time.sleep(60-((time.time()-starttime) % 60))
+            time.sleep(60)
+        print("Time/temperature measurements done!")
+
 
     #END CLASS

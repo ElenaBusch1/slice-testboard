@@ -59,6 +59,7 @@ class CALIBMODULE(object):
           return None
         if self.reqSarWeightName not in data["sliceBoardCalibs"][boardId][coluta][channel]["sarVals"] :
           return None
+        print("CALIB MODULE: have SAR calib for",boardId,coluta,channel)
         return data["sliceBoardCalibs"][boardId][coluta][channel]["sarVals"]
           
     def addSarCalib(self,boardId,coluta,channel,sarVals):
@@ -102,6 +103,7 @@ class CALIBMODULE(object):
           return None
         if self.reqMdacWeightName not in data["sliceBoardCalibs"][boardId][coluta][channel]["mdacVals"] :
           return None
+        print("CALIB MODULE: have MDAC calib for",boardId,coluta,channel)
         return data["sliceBoardCalibs"][boardId][coluta][channel]["mdacVals"]
           
     def addMdacCalib(self,boardId,coluta,channel,mdacVals):

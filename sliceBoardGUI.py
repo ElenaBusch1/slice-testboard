@@ -32,6 +32,7 @@ from tests import lpgbt_14_test
 from standardRunsModule import STANDARDRUNS
 from sarCalibModule import SARCALIBMODULE
 from calibModule import CALIBMODULE
+from clockScanQuickMod import CLOCKSCANQUICK
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -92,6 +93,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.singleADCMode_ADC = 'trigger'
         self.measChan = "default"
         self.LAUROCmode = '-99'
+        self.misc = ""
 
         # Default attributes for hdf5 output, overwritten by instrument control
         self.runType = 'sine'
@@ -244,10 +246,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #return
 
         if False :
+          self.stdRuns.T_DependenceMeas()
+          return
+
+        if False :
+          clockScan = CLOCKSCANQUICK(self)
+          clockScan.testFunc()
+          return
+
+        if False :
           self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
           self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="lauroc")
         
-        if True  :
+        if True :
           #self.set_DCDC(dcdcName="LPGBT_B",onOff="on")
           self.colutaCP40MHzDelayTest(stopLaurocCP40=True)
           #self.laurocCP40MHzPhaseTest()
@@ -298,7 +309,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
           #self.singleI2CWriteToChip(chip="lauroc20_l15m2",data=0x15,disp=True)
           return None
 
-        if False :
+        if True :
         #while True :
           testChip = getattr(self, 'colutaConfigureBox').currentText()
           #testChip = "coluta17"
@@ -1097,17 +1108,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def lpgbtReset(self, lpgbt):
         print("Resetting", lpgbt, "master")
         chip = self.chips[lpgbt]
-        if lpgbt == 'lpgbt12':
-            ICEC = 0
-        elif lpgbt == 'lpgbt13':
-            ICEC = 1
-        else:
-            print("Invalid lpgbtMaster specified (lpgbtReset)")
-            sys.exit(1)
+        #if lpgbt == 'lpgbt12':
+        #    ICEC = 0
+        #elif lpgbt == 'lpgbt13':
+        #    ICEC = 1
+        #else:
+        #    print("Invalid lpgbtMaster specified (lpgbtReset)")
+        #    sys.exit(1)
 
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
-        writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+        #writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+        #writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x07], ICEC_CHANNEL = ICEC)
+        #writeToLpGBT(int(chip.i2cAddress, 2), 0x12c, [0x00], ICEC_CHANNEL = ICEC)
+        self.writeToLPGBT(lpgbt=lpgbt, register=0x12c, dataBits=[0x00], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbt, register=0x12c, dataBits=[0x07], disp = False)
+        self.writeToLPGBT(lpgbt=lpgbt, register=0x12c, dataBits=[0x00], disp = False)
 
     def i2cTransactionCheck(self, lpgbtI2CAddr, ICEC_CHANNEL):
         lpgbt = 'lpgbt13'
@@ -1239,8 +1253,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
         self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
 
-        return
- 
         #if input("Configure all colutas?(y/n)\n") != 'y':
         #    print("Exiting config all")
         #    return
@@ -1249,13 +1261,24 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
 
+        #lauroc = "lauroc13"
+        #print("Configuring", lauroc)
+        #self.sendFullLAUROCConfigs(lauroc)
+
+        #self.sarMdacCal.getFullCalibInFeb2Gui()
+
+
         #if input("Configure all laurocs?(y/n)\n") != 'y':
         #    print("Exiting config all")
         #    return 
-        for lauroc in laurocs:
+        goodLaurocs = ["lauroc13","lauroc15","lauroc17"]
+        #for lauroc in laurocs:
+        for lauroc in goodLaurocs:
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
+
+        return
 
         self.sarMdacCal.getFullCalibInFeb2Gui()
 
@@ -1413,7 +1436,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtMaster = "lpgbt"+self.chips[coluta].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
-        numRetry = 1
+        numRetry = 5
 
         channels = ["ch"+str(i) for i in range(1,9)]
         readbackSuccess = True
@@ -1617,11 +1640,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     success = readbackSuccess and success
             elif chipName.find('lauroc') == 0:
                 #make sure LAUROC clock is on
-                self.chipCP40Control(chip=chipName,onOff="on")
+                #self.chipCP40Control(chip=chipName,onOff="on")
                 for (addr, data) in updates.items():
                     readbackSuccess = self.writeToLAUROC(chipName, addr, data[1])
                     success = readbackSuccess and success
-                self.chipCP40Control(chip=chipName,onOff="off")
+                #self.chipCP40Control(chip=chipName,onOff="off")
             elif chipName.find('coluta') == 0:
                 for (addr, data) in updates.items():
                     if data[0] == 'global':

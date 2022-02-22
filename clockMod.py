@@ -120,6 +120,7 @@ def scanClocks(GUI,colutas):
     valid = {}
     LPGBTPhase = {}
     readback = {}
+    isStable_list = {}
     for coluta in colutas:
         colutaChip = GUI.chips[coluta]
         i2cLabels[coluta] = colutaChip.i2cAddress[6:10] # collect I2C address - used in serializer pattern
@@ -131,15 +132,25 @@ def scanClocks(GUI,colutas):
         i2cLabel = i2cLabels[coluta]
         valid[coluta] = {}
         LPGBTPhase[coluta] = {}
+        isStable_list[coluta] = {}
         readback[coluta] = {}
         for chn in channels:
             sertest_true = '1010'+i2cLabel+channelSerializers[chn]+'01001'  # correct serializer pattern
             sertest_repl = sertest_true*2
             sertest_valid = [sertest_repl[i:(16+i)] for i in range (0,16)]  # valid permutations of serializer pattern
             valid[coluta][chn] = sertest_valid[:] # save all valid permutations to dictionary 
+
+            # Hacking, please FIXME
+            #if coluta == "coluta19" and chn == "ch7":
+            #    sertest_true = '1010'+i2cLabel+"010"+'01001'  # correct serializer pattern
+            #    sertest_repl = sertest_true*2
+            #    sertest_valid = [sertest_repl[i:(16+i)] for i in range (0,16)]  # valid permutations of serializer pattern
+            #    valid[coluta][chn] += sertest_valid[:] # save all valid permutations to dictionary 
+
             LPGBTPhase[coluta][chn] = [[] for i in range(0,upper)]  # dictionary to save lpGBT phase result
             readback[coluta][chn] = [[1]*upper for i in range(0, upper)] # map with failed readbacks
-    
+            isStable_list[coluta][chn] = [[] for i in range(0,upper)]
+
     ## Uncomment to see serializer mode in hex
     #for coluta in colutas:
     #    for chn in channelSerializers.keys():
@@ -147,7 +158,7 @@ def scanClocks(GUI,colutas):
     #return
 
     # is serializer pattern the same across all samples?
-    isStable_list = {coluta: {ch: [] for ch in channels} for coluta in colutas}
+    #isStable_list = {coluta: {ch: [] for ch in channels} for coluta in colutas}
 
     # is serializer pattern a correct permutations?
     isValid_list = {coluta: {ch: [] for ch in channels} for coluta in colutas}
@@ -161,7 +172,9 @@ def scanClocks(GUI,colutas):
             configureSuccess = sendInversionBits(GUI, delay_idx, coluta) # set the COLUTA clock setting
             #Useless to change lpgbt_idx if failed
             if configureSuccess is False:
-                for chn in channels: readback[coluta][chn][delay_idx] = [0]*upper # readback failed so can't trust entire row             
+                print("WRITING TO COLUTA FAILED, ABORTING")
+                return
+                for chn in channels: readback[coluta][chn][delay_idx] = [0]*upper # readback failed so can't trust entire row     
   
         for lpgbt_idx in range(0,upper):
             value = (lpgbt_idx<<4)+2 # lpgbt clock setting register value
@@ -208,16 +221,24 @@ def scanClocks(GUI,colutas):
                     #frame_list = [chunk[64:80] for chunk in repeats]
                     binary_list = [str(bin(x))[2:].zfill(16) for x in samples[ch]]
                     isStable = (len(set(binary_list)) == 1)  # test if data is stable
-                    isStable_list[coluta][ch].append(isStable)
+                    #isStable_list[coluta][ch].append(isStable)
+                    ser_word = list(set(binary_list))[0]
+                    if isStable:
+                        isStable_list[coluta][ch][delay_idx].append(int(ser_word,2))
+                    elif not isStable:
+                        isStable_list[coluta][ch][delay_idx].append(-1)
                     isValid = set(binary_list).issubset(valid[coluta][ch]) # test if data is a valid serializer pattern
                     isValid_list[coluta][ch].append(isValid)
                     if isStable and isValid:
                         phase = valid[coluta][ch].index(binary_list[0]) # save the phase needed for the correct permutation
                     else:
                         phase = -1 # invalid
+                        print("INVALID PHASE")
+                        #return
                     
                     if readback[coluta][ch][delay_idx][lpgbt_idx] == 0:
                         phase = -2 # flags failed writes
+                        #print("FAILED READBACK")
 
                     LPGBTPhase[coluta][ch][delay_idx].append(phase)
                     #dictionary readback success in same format -- 1 or 0 if combination successful
@@ -230,7 +251,7 @@ def scanClocks(GUI,colutas):
         os.makedirs(f"clockScan_board{GUI.boardID}/clockScanResults")
         print(f"Creating clockScanResults directory...")
 
-    headers = [f'{i}\n' for i in range(0,upper)]
+    headers = [f'{i}\n' for i in range(0, upper)]
     headers.insert(0,"xPhaseSelect -> \n INV/DELAY640 ")
     try:
         from tabulate import tabulate
@@ -243,6 +264,11 @@ def scanClocks(GUI,colutas):
                 f.write("Channel "+ch[-1]+"\n")
                 prettyTable = tabulate(LPGBTPhase[coluta][ch], headers, showindex = "always", tablefmt="psql")
                 f.write(prettyTable)
+                f.write("\n \n")
+                
+                f.write("Stability \n")
+                stabTable = tabulate(isStable_list[coluta][ch], headers, showindex = "always", tablefmt="psql")
+                f.write(stabTable)
                 f.write("\n \n")
 
                 #Uncomment to see readback tables
