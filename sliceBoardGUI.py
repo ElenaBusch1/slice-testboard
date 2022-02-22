@@ -136,7 +136,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
         #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
         self.test2Button.clicked.connect(self.testFunc)
-        self.test3Button.clicked.connect(self.testFunc2)
+        #self.test3Button.clicked.connect(self.testFunc2)
         #self.test3Button.clicked.connect(self.doReset)
    
         # instrument buttons
@@ -243,7 +243,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.set_DCDC(dcdcName="LPGBT_B",onOff="off")
 
         #self.function_generator.sendFakeStart()
-        #return
+        return
 
         if False :
           self.stdRuns.T_DependenceMeas()
@@ -1271,14 +1271,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #if input("Configure all laurocs?(y/n)\n") != 'y':
         #    print("Exiting config all")
         #    return 
-        goodLaurocs = ["lauroc13","lauroc15","lauroc17"]
-        #for lauroc in laurocs:
-        for lauroc in goodLaurocs:
+        #goodLaurocs = ["lauroc13","lauroc15","lauroc17"]
+        for lauroc in laurocs:
+        #for lauroc in goodLaurocs:
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
 
-        return
+        #return
 
         self.sarMdacCal.getFullCalibInFeb2Gui()
 
