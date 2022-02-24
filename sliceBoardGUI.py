@@ -242,6 +242,25 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.function_generator.sendFakeStart()
         #return
+        if True :
+          print("I2C ERROR TEST")
+          print("LAUROC13")
+          self.readFromLPGBT("lpgbt9", 0x19f, 1, disp=True)
+          print("LAUROC14")
+          self.readFromLPGBT("lpgbt9", 0x1a0, 1, disp=True)
+          print("LAUROC15")
+          self.readFromLPGBT("lpgbt10", 0x19f, 1, disp=True)
+          print("LAUROC16")
+          self.readFromLPGBT("lpgbt11", 0x19f, 1, disp=True)
+          print("LAUROC17")
+          self.readFromLPGBT("lpgbt14", 0x19f, 1, disp=True)
+          print("LAUROC18")
+          self.readFromLPGBT("lpgbt15", 0x19f, 1, disp=True)
+          print("LAUROC19")
+          self.readFromLPGBT("lpgbt15", 0x1a0, 1, disp=True)
+          print("LAUROC20")
+          self.readFromLPGBT("lpgbt16", 0x19f, 1, disp=True)
+          return
 
         if False :
           self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
@@ -1238,8 +1257,6 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         time.sleep(0.5)
         self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
         self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
-
-        return
  
         #if input("Configure all colutas?(y/n)\n") != 'y':
         #    print("Exiting config all")
@@ -1248,6 +1265,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Configuring", coluta)
             self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
+
+        return
 
         #if input("Configure all laurocs?(y/n)\n") != 'y':
         #    print("Exiting config all")
