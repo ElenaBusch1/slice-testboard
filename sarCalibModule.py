@@ -303,7 +303,9 @@ class SARCALIBMODULE(object):
               self.toWriteSAR = result
               self.writeSarConstant(chip,chan)
             result = self.calibModule.getMdacCalib(self.GUI.boardID,chip,chan)
+            #print("HERE")
             if result != None :
+              #print("HERE2")
               self.toWriteMDAC = result
               self.writeMdacCal(chip,chan)
         return None
@@ -530,6 +532,7 @@ class SARCALIBMODULE(object):
                         val = 0
                         print("INVALID value in MDAC calibration!")
                     binString = format(val,'017b') # Binary string with 17 zeroes as placeholders
+                    #print("MDAC", COLUTA,ch,corr)
                     self.doConfig(coluta, channelLabel[ch], corr, binString)
                     boxName = coluta + channelLabel[ch] + corr + "Box"
                     self.GUI.updateBox(boxName, binString)
@@ -640,6 +643,7 @@ class SARCALIBMODULE(object):
           binString = format(val4x,'0'+str(valLength)+'b')
           self.doConfig(coluta,channelLabel,corr,binString)
           boxName = coluta + channelLabel + corr + "Box"
+          #print("MDAC",coluta,channel,corr,val)
           self.GUI.updateBox(boxName, binString)
         readbackSuccess = self.GUI.sendUpdatedConfigurations()
         if not readbackSuccess:

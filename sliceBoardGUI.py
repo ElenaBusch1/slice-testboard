@@ -243,6 +243,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.set_DCDC(dcdcName="LPGBT_B",onOff="off")
 
         #self.function_generator.sendFakeStart()
+        self.sarMdacCal.getFullCalibInFeb2Gui()
         return
 
         if False :
