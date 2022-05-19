@@ -232,7 +232,8 @@ class SARCALIBMODULE(object):
             readbackSuccess = self.GUI.sendUpdatedConfigurations()
             if not readbackSuccess:
                 if attempts == 0: print("Readback failed, retrying...")
-                else: sys.exit("Calibration stopped: failed to write constants")
+                else: sys.exit("Calibration stopped: failed to write constants") #NOTE FIXME
+                #else: print("Bad channel" + 50*"*")
                 attempts += 1
             else: break
         return
@@ -850,7 +851,7 @@ class SARCALIBMODULE(object):
     def writeSarConstantMultichannel(self,colutas,channels):
 
       print("Writing SAR constants...")
-      self.scaleFactor = 0.97
+      self.scaleFactor = 0.98
 
       for coluta in colutas:
         for channel in channels:
@@ -923,7 +924,7 @@ class SARCALIBMODULE(object):
         return
 
     def writeSarConstant(self,coluta,channel):
-        self.scaleFactor = 0.97
+        self.scaleFactor = 0.98
         if channel not in self.chLabelDict :
           return None
         channelLabel = self.chLabelDict[channel][0]
@@ -974,7 +975,8 @@ class SARCALIBMODULE(object):
           self.GUI.updateBox(boxName, binString)
         readbackSuccess = self.GUI.sendUpdatedConfigurations()
         if not readbackSuccess:
-          sys.exit("WRITING SAR CONST FAILED: ONE OR MORE READBACKS FAILED")
+          #sys.exit("WRITING SAR CONST FAILED: ONE OR MORE READBACKS FAILED")
+          print("Readback failed", 50*"*") #NOTE FIXME
         #look at current channel DDPU config
         #print(self.GUI.chips[coluta][channelLabel])
         #print(chWeightResultDict)

@@ -32,6 +32,7 @@ from tests import lpgbt_14_test
 from standardRunsModule import STANDARDRUNS
 from sarCalibModule import SARCALIBMODULE
 from calibModule import CALIBMODULE
+from clockScanQuickMod import CLOCKSCANQUICK
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -241,8 +242,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.set_DCDC(dcdcName="LPGBT_B",onOff="off")
 
         #self.function_generator.sendFakeStart()
+        if False :
+          clockScanQuick = CLOCKSCANQUICK(self)
+          clockScanQuick.testFunc()
+          return
+
         #return
-        if True :
+        if False :
           print("I2C ERROR TEST")
           print("LAUROC13")
           self.readFromLPGBT("lpgbt9", 0x19f, 1, disp=True)
@@ -266,7 +272,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
           self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
           self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="lauroc")
         
-        if True  :
+        if True :
           #self.set_DCDC(dcdcName="LPGBT_B",onOff="on")
           self.colutaCP40MHzDelayTest(stopLaurocCP40=True)
           #self.laurocCP40MHzPhaseTest()
@@ -1266,7 +1272,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
 
-        return
+        #return
 
         #if input("Configure all laurocs?(y/n)\n") != 'y':
         #    print("Exiting config all")
@@ -1275,6 +1281,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
+        #return
 
         self.sarMdacCal.getFullCalibInFeb2Gui()
 
@@ -1432,7 +1439,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         lpgbtMaster = "lpgbt"+self.chips[coluta].lpgbtMaster
         self.lpgbtReset(lpgbtMaster)
 
-        numRetry = 1
+        numRetry = 3
 
         channels = ["ch"+str(i) for i in range(1,9)]
         readbackSuccess = True
