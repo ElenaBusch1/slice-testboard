@@ -43,7 +43,9 @@ class SARCALIBMODULE(object):
        
         if runAll:
           self.colutasToCalibrate = [f"coluta{i}" for i in range(13,21)]
+          #self.colutasToCalibrate = [f"coluta{i}" for i in range(13,14)]
           self.channelsToCalibrate = [f"channel{i}" for i in range(5,9)]
+          #self.channelsToCalibrate = [f"channel{i}" for i in range(8,9)]
         else: self.getSarMdacCalibChInFeb2GUI("SAR")
 
         print("=====================")
@@ -55,13 +57,15 @@ class SARCALIBMODULE(object):
         print("")
         print("=====================")
         self.sarWeights = {coluta: {ch: {} for ch in self.channelsToCalibrate} for coluta in self.colutasToCalibrate}
-
-        if runAll:
-          print("========= Odd channels")
-          self.doSarCalibMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[::2])
-          print("========= Even channels")
-          self.doSarCalibMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[1::2])
-        else: self.doSarCalibMultichannel(self.colutasToCalibrate,self.channelsToCalibrate)
+        for ch in self.channelsToCalibrate:
+          self.doSarCalibMultichannel(self.colutasToCalibrate, [ch])
+        #if runAll:
+        #  print("========= Odd channels")
+        #  self.doSarCalibMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[::2])
+        # print("========= Even channels")
+        #  self.doSarCalibMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[1::2])
+        #else: self.doSarCalibMultichannel(self.colutasToCalibrate,self.channelsToCalibrate)
+        #for coluta in self.colutasToCalibrate:
         
         self.writeSarConstantMultichannel(self.colutasToCalibrate,self.channelsToCalibrate)
         self.printCalibConstants("SAR")
@@ -72,7 +76,9 @@ class SARCALIBMODULE(object):
 
         if runAll:
           self.colutasToCalibrate = [f"coluta{i}" for i in range(13,21)]
+          #self.colutasToCalibrate = [f"coluta{i}" for i in range(13,14)]
           self.channelsToCalibrate = [f"channel{i}" for i in range(5,9)]
+          #self.channelsToCalibrate = [f"channel{i}" for i in range(8,9)]
         else: self.getSarMdacCalibChInFeb2GUI("MDAC")
 
         print("=====================")
@@ -84,14 +90,16 @@ class SARCALIBMODULE(object):
         print("")
         print("=====================")
         self.mdacWeights = {coluta: {ch: {} for ch in self.channelsToCalibrate} for coluta in self.colutasToCalibrate}
-        if runAll:
-          print("========= Odd channels")
-          self.doMdacCalMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[::2])
-          self.getFullCalibInFeb2Gui() #Reapplies the SAR constants for the calibration
-          print("========= Even channels")
-          self.doMdacCalMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[1::2])
-        else: 
-          self.doMdacCalMultichannel(self.colutasToCalibrate,self.channelsToCalibrate)
+        for ch in self.channelsToCalibrate:
+          self.doMdacCalMultichannel(self.colutasToCalibrate,[ch]) #new
+        #if runAll:
+        #  print("========= Odd channels")
+        #  self.doMdacCalMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[::2])
+        #  self.getFullCalibInFeb2Gui() #Reapplies the SAR constants for the calibration
+        #  print("========= Even channels")
+        #  self.doMdacCalMultichannel(self.colutasToCalibrate, self.channelsToCalibrate[1::2])
+        #else: 
+        #  self.doMdacCalMultichannel(self.colutasToCalibrate,self.channelsToCalibrate)
 
         self.writeMdacCalMultichannel(self.colutasToCalibrate,self.channelsToCalibrate)
         self.printCalibConstants("MDAC")
@@ -99,19 +107,27 @@ class SARCALIBMODULE(object):
 
     ## Runs both SAR and MDAC calibrations for all COLUTA/channels
     def runFullCalibInFeb2Gui(self):
-
+        
         self.runSarCalibInFeb2Gui(runAll=True)
         for coluta in self.colutasToCalibrate:
             for ch in self.channelsToCalibrate: 
                 self.calibModule.addSarCalib(self.GUI.boardID,coluta,ch,self.sarWeights[coluta][ch])
-
+        
         self.runMdacCalibInFeb2Gui(runAll=True)
         for coluta in self.colutasToCalibrate:
             for ch in self.channelsToCalibrate:
                 self.calibModule.addMdacCalib(self.GUI.boardID,coluta,ch,self.mdacWeights[coluta][ch])
-               
+       
         self.printCalibConstants("SAR")
         self.printCalibConstants("MDAC")
+        
+        #calibrate COLUTA ch 5 and ch 7 seaparately
+        """
+        self.doMdacCal("coluta13","channel5")
+        self.calibModule.addMdacCalib(self.GUI.boardID,"coluta13","channel5",self.mdacWeights)
+        self.doMdacCal("coluta13","channel7")
+        self.calibModule.addMdacCalib(self.GUI.boardID,"coluta13","channel7",self.mdacWeights)
+        """
 
     ## Prints calibration constants in a table at the end of calibration
     def printCalibConstants(self, calibType):

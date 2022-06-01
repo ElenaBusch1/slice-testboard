@@ -15,12 +15,12 @@ class STANDARDRUNS(object):
         self.testNum = 0
         self.measStep = 0
         self.awgChan = "1" #default?
-        self.doAwgControl = True
+        self.doAwgControl = False
         self.updateGuiMetadata()
 
-        instrumentControlMod.initializeInstrumentation(self.GUI)
-        if self.GUI.function_generator == None :
-          self.doAwgControl = False
+        #instrumentControlMod.initializeInstrumentation(self.GUI)
+        #if self.GUI.function_generator == None :
+        #  self.doAwgControl = False
 
         self.chan32BitModePairs = { "ch1":"ch2","ch2":"ch1","ch3":"ch4","ch4":"ch3",\
                                     "ch5":"ch6","ch6":"ch5","ch7":"ch8","ch8":"ch7" }

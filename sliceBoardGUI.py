@@ -139,7 +139,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #self.test3Button.clicked.connect(self.doReset)
    
         # instrument buttons
-        self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
+        #self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
 
         # Data buttons
         self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
@@ -1649,12 +1649,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     success = readbackSuccess and success
                 self.chipCP40Control(chip=chipName,onOff="off")
             elif chipName.find('coluta') == 0:
+                numRetry = 3
                 for (addr, data) in updates.items():
                     if data[0] == 'global':
-                        readbackSuccess = self.writeToCOLUTAGlobal(chipName)
+                        readbackSuccess = False 
+                        for num in range(0,numRetry,1):
+                            readbackSuccess = self.writeToCOLUTAGlobal(chipName)
+                            if readbackSuccess : break
                         success = readbackSuccess and success
                     else:
-                        readbackSuccess = self.writeToCOLUTAChannel(chipName, data[0])
+                        readbackSuccess = False 
+                        for num in range(0,numRetry,1):
+                            readbackSuccess = self.writeToCOLUTAChannel(chipName, data[0])
+                            if readbackSuccess : break
                         success = readbackSuccess and success
             else:
                 print('ChipName Not recognized: ', chipName)
