@@ -233,6 +233,25 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
 
     def testFunc(self):
+        testNum = 0
+        #extended data stability test
+        #while False :
+        if False :
+          chanData = self.takeTriggerData_noDataFile(measType="test")
+          #testStr = ""
+          testStr = str( int(testNum) ) + "\t" + str( len( chanData[58][0] ) )
+          for chan in [58,59]:
+            for gain in [0,1]:
+              mean = np.mean(chanData[chan][gain])
+              std = np.std(chanData[chan][gain])
+              testStr = testStr + "\t" + str(mean) + "\t" + str(std)
+          print(testStr)
+          file1 = open("dataStabilityTest.txt", "a")  # append mode
+          file1.write(testStr+"\n")
+          file1.close()
+          testNum = testNum + 1
+          #time.sleep(0.01)
+        #return
         #self.set_DCDC(dcdcName="PA_A",onOff="off")
         #self.set_DCDC(dcdcName="PA_B",onOff="off")
         #self.set_DCDC(dcdcName="ADC_A",onOff="off")
@@ -242,7 +261,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         #self.function_generator.sendFakeStart()
         #return
-        if True :
+        if False :
           print("I2C ERROR TEST")
           print("LAUROC13")
           self.readFromLPGBT("lpgbt9", 0x19f, 1, disp=True)
@@ -266,7 +285,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
           self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="lauroc")
           self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="lauroc")
         
-        if True  :
+        if False :
           #self.set_DCDC(dcdcName="LPGBT_B",onOff="on")
           self.colutaCP40MHzDelayTest(stopLaurocCP40=True)
           #self.laurocCP40MHzPhaseTest()
@@ -332,7 +351,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
           #time.sleep(1)
           return None
 
-        if True :
+        if False :
         #while True :
           #testChip = getattr(self, 'laurocConfigureBox').currentText()
           #testChip = "lauroc19"
@@ -394,15 +413,25 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
           #self.writeToCOLUTAChannel(testChip, "ch8", READBACK = True)
         #return None
         
-        self.i2cCmdFreq = 2
-        self.i2cConfigReg = 0x00
-        #self.setupI2cBus("lauroc20")
+        #self.i2cCmdFreq = 3
+        #self.i2cConfigReg = 0x00
+        ##self.setupI2cBus("lauroc20")
+        #numTest = 0
+        #numGood = 0
+        #file1 = open("i2cTest.txt", "w")
+        #L = ["Start I2C test\n"]
+        #file1.writelines(L)
+        #file1.close()
+
         #while True:
         if False :
-        #  self.testFunc2()
-           readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta16",  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
-           readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta17",  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
-        #   readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta13", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
+        #   self.singleI2CWriteToChip(chip="coluta13",data=0x15,disp=True)
+          self.testFunc2()
+          #readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta13",  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
+          #readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta14",  channel="ch1", READBACK = True,writeVal=0x1, disp=True)
+          #continue
+          #return None
+        #   readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta13", channel="ch8", READBACK = True, writeVal= 0x1, disp=True)
         #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta14", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
         #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta15", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
         #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta16", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
@@ -411,8 +440,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta19", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
         #  readbackSuccess = self.writeToCOLUTAChannel_singleWrite(coluta="coluta20", channel="ch8", READBACK = False, writeVal= 0x1, disp=False)
         #  self.singleI2CWriteToChip(chip="coluta13",data=0x15,disp=True)
-           time.sleep(0.5)
-        ##return None
+          #print( readbackSuccess )
+          chList = ["ch1","ch2","ch3","ch4","ch5","ch6","ch7","ch8"]
+          for ch in chList :
+            readbackSuccess = self.writeToColuta_singleByteWrite(coluta="coluta13",  channel=ch, READBACK = True,writeVal=0x1, disp=True)
+            if readbackSuccess :
+              numGood += 1
+            numTest = numTest + 1
+            if numTest % 1 == 0 :
+              print("NUM TEST",numTest,"NUM GOOD",numGood)
+              file1 = open("i2cTest.txt", "a")  # append mode
+              file1.write("NUM TEST\t"+str(numTest)+"\tNUM GOOD\t"+str(numGood)+"\n")
+              file1.close()
+            time.sleep(0.01)
+        #return None
         #vtrx = "vtrx6_m2"
         if False :
           print("\nALL TEST\n")
@@ -461,7 +502,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #    readVal = self.singleI2CReadFromChip(chip=vtrx,disp=False)
         #    print("REG ADDR\t",hex(regNum),"\tVAL\t",[hex(x) for x in readVal],"\t",hex(readVal[0]))
         #  time.sleep(1)
-
+        if True:
+          print("HERE")
+          print("LAUROC15")
+          self.singleI2CWriteToChip(chip="lauroc15",data=0x14,disp=True)
+          print("VTRX4")
+          self.singleI2CWriteToChip(chip="vtrx4",data=0x14,disp=True)
+          print("VTRX5")
+          self.singleI2CWriteToChip(chip="vtrx5",data=0x14,disp=True)
+          print("COLUTA14")
+          self.writeToCOLUTAChannel_singleWrite(coluta="coluta14", channel="ch8", READBACK = False, writeVal= 0x1, disp=True)
+          print("COLUTA15")
+          self.writeToCOLUTAChannel_singleWrite(coluta="coluta15", channel="ch8", READBACK = False, writeVal= 0x1, disp=True)
+          #print("VTRX5 with 10-bit address")
+          #self.writeToCOLUTAChannel_singleWrite(coluta="coluta15_vtrxTest", channel="ch8", READBACK = False, writeVal= 0x1, disp=True)
         return None
 
     def turnAllOff(self):
@@ -1266,7 +1320,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
 
-        return
+        #return
 
         #if input("Configure all laurocs?(y/n)\n") != 'y':
         #    print("Exiting config all")
@@ -1275,6 +1329,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
+        return
 
         self.sarMdacCal.getFullCalibInFeb2Gui()
 
@@ -2769,15 +2824,17 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def writeToColuta_singleByteWrite(self, coluta, channel, READBACK = False,writeVal=None,disp=True):
         """ Write full configuration for given COLUTA channel """
-        if self.chips[coluta].lpgbtMaster == '12': 
-            ICEC_CHANNEL = 0
-        elif self.chips[coluta].lpgbtMaster == '13': 
-            ICEC_CHANNEL = 1
-        else: 
-            print("Invalid lpgbtMaster specified (writeToCOLUTAChannel)")
-            return
+        #if self.chips[coluta].lpgbtMaster == '12': 
+        #    ICEC_CHANNEL = 0
+        #elif self.chips[coluta].lpgbtMaster == '13': 
+        #    ICEC_CHANNEL = 1
+        #else: 
+        #    print("Invalid lpgbtMaster specified (writeToCOLUTAChannel)")
+        #    return
+        controlLpgbtNum = self.chips[coluta].lpgbtMaster
+        controlLpgbt = "lpgbt" + str(controlLpgbtNum)   
 
-        lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
+        #lpgbtI2CAddr = self.chips["lpgbt"+self.chips[coluta].lpgbtMaster].i2cAddress
         colutaI2CAddr = self.chips[coluta].i2cAddress
         colutaI2CAddr = "".join(colutaI2CAddr.split("_")[1:2])
         dataBits = self.colutaI2CWriteControl(coluta, channel, broadcast=False)
@@ -2795,8 +2852,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #i2cCtrlRegVal = 0b10100000 #SCL driven by CMOS buffer, multi-byte write = 8, freq = 100kHz
         i2cCtrlRegVal = i2cCtrlRegVal + int(self.i2cCmdFreq) #update frequency
         if True :
-          writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-          writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+          #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+          #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+          self.writeToLPGBT(controlLpgbt, 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], disp = False)
+          self.writeToLPGBT(controlLpgbt, 0x0fd, [0x0], disp = False)
 
         if len(dataBits64) == 0 :
             return
@@ -2819,12 +2878,19 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #  print("\t", hex(data) )
 
             #do a COLUTA write  
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
+            #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            
+            self.writeToLPGBT(controlLpgbt, 0x0f9, [*dataBits8[4:][::-1]], disp = False)
+            self.writeToLPGBT(controlLpgbt, 0x0fd, [0x8], disp = False)
+            self.writeToLPGBT(controlLpgbt, 0x0f9, [*dataBits8[:4][::-1]], disp = False)
+            self.writeToLPGBT(controlLpgbt, 0x0fd, [0x9], disp = False)
+            self.writeToLPGBT(controlLpgbt, 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], disp = False)
+            self.writeToLPGBT(controlLpgbt, 0x0fd, [0xe], disp = False)
 
             #self.readFromCOLUTAChannel(coluta,word)
             #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
@@ -2835,7 +2901,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #check status bit
         readbackSuccess = False
         if READBACK == True :
-          bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+          #bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+          bit = self.readFromLPGBT(controlLpgbt, 0x176, 1, disp =False)
           if bit[0] == 4:
             readbackSuccess = True
           #print("readbackSuccess",readbackSuccess)
@@ -3020,10 +3087,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
         readbackSuccess = False
         if doReadback == True :
-          statusVal = self.readFromLPGBT(lpgbt=controlLpgbt,register=statusReg, nBytes=1, disp = False)
+          statusVal = self.readFromLPGBT(lpgbt=controlLpgbt,register=statusReg, nBytes=1, disp = disp)
           if len(statusVal) == 1 :
             if statusVal[0] == 4:
               readbackSuccess = True
+            if disp == True :
+              print("statusVal",statusVal)
+              print("readbackSuccess",readbackSuccess)
 
         if disp == True :
           #bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
