@@ -1272,14 +1272,14 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #if input("Configure all laurocs?(y/n)\n") != 'y':
         #    print("Exiting config all")
         #    return 
-        #goodLaurocs = ["lauroc13","lauroc15","lauroc17"]
-        for lauroc in laurocs:
-        #for lauroc in goodLaurocs:
+        goodLaurocs = ["lauroc15","lauroc17"]
+        #for lauroc in laurocs:
+        for lauroc in goodLaurocs:
             print("Configuring", lauroc)
             self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
 
-        #return
+        return
 
         self.sarMdacCal.getFullCalibInFeb2Gui()
 
