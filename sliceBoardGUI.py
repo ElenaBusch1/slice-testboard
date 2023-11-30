@@ -21,11 +21,22 @@ import threading
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
-from flxMod import icWriteToLpGBT as writeToLpGBT
-from flxMod import icReadLpGBT as readFromLpGBT
-from flxMod import ecReadLpGBT as ecReadFromLpGBT
-from flxMod import icWriteToLpGBT, ecWriteToLpGBT
-from flxMod import takeManagerData
+from latournettMod import LATOURNETT
+latournett = LATOURNETT()
+#from flxMod import icWriteToLpGBT as writeToLpGBT
+def writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
+    return latournett.writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+#from flxMod import icReadLpGBT as readFromLpGBT
+def readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
+    return latournett.readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+#from flxMod import ecReadLpGBT as ecReadFromLpGBT
+def ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
+    return latournett.ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+#from flxMod import icWriteToLpGBT, ecWriteToLpGBT
+def ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
+    return latournett.ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+#from flxMod import takeManagerData
+
 from monitoring import MPLCanvas
 from datetime import datetime
 from tests import lpgbt_14_test
@@ -33,6 +44,8 @@ from standardRunsModule import STANDARDRUNS
 from sarCalibModule import SARCALIBMODULE
 from calibModule import CALIBMODULE
 from clockScanQuickMod import CLOCKSCANQUICK
+
+i2cTransactionCheck_enable = True
 
 qtCreatorFile = os.path.join(os.path.abspath("."), "sliceboard.ui")
 Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
@@ -952,17 +965,31 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #print("0x0f9:", [hex(x) for x in [*dataBits8[:4][::-1], 0x9]])
             #print("0x0f7:", [hex(x) for x in [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00, 0x00, 0x00, 0xe]])
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [i2cCtrlRegVal, 0x00, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x0], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_WRITE_CR
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_W_MULTI_4BYTE0
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_W_MULTI_4BYTE1
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_WRITE_MULTI_EXT
+
+            # Check I2C transaction status
+            timeout = 1
+            time_start = time.time()
+            while i2cTransactionCheck_enable:
+                status_reads_nb += 1
+                bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
+                if bit[0] == 4:
+                    break
+                status_reads_not_ready_nb += 1
+                time_now = time.time()
+                if time_now-time_start>=timeout:
+                    raise Exception('Timed out I2C transaction: I2CM1STATUS=0x{bit[0]:02x}')
+
             readback = self.readFromCOLUTAChannel(coluta, word)
             if readback[:6] != dataBits8[:6]: readbackSuccess = False
             if READBACK:
-                print("Writing", [hex(x) for x in dataBits8[:6]])
+                print("Writing", coluta , int(lpgbtI2CAddr, 2), [hex(x) for x in dataBits8[:6]])
                 print("Reading", [hex(x) for x in readback])
                 if readback[:6] == dataBits8[:6]:
                     print("Successfully readback what was written!")
@@ -1428,6 +1455,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
+        time_start = time.time()
         #colutaName = "coluta20"
         if colutaName == 'box':
             coluta = getattr(self, 'colutaConfigureBox').currentText()
@@ -1457,6 +1485,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.configResults[coluta] = readbackSuccess
         print("Done configuring", coluta, ", success =", readbackSuccess)
         self.updateErrorConfigurationList(readbackSuccess, coluta)
+        time_now = time.time()
+        print(f'time to configure COLUTA: {time_now-time_start}')
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
@@ -2695,6 +2725,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def writeToCOLUTAChannel_singleWrite(self, coluta, channel, READBACK = False,writeVal=None,disp=True):
         """ Write full configuration for given COLUTA channel """
+        global i2cTransactionCheck_enable
         if self.chips[coluta].lpgbtMaster == '12': 
             ICEC_CHANNEL = 0
         elif self.chips[coluta].lpgbtMaster == '13': 
@@ -2739,8 +2770,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
-         
-        if False : 
+
+        if i2cTransactionCheck_enable: 
             self.i2cTransactionCheck(lpgbtI2CAddr, ICEC_CHANNEL)
 
         #do readback
@@ -2825,11 +2856,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
 
             #do a COLUTA write  
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[4:][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x8], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_W_MULTI_4BYTE0
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f9, [*dataBits8[:4][::-1]], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0x9], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_W_MULTI_4BYTE1
             writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
-            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL)
+            writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0fd, [0xe], ICEC_CHANNEL=ICEC_CHANNEL) # I2C_WRITE_MULTI_EXT
 
             #self.readFromCOLUTAChannel(coluta,word)
             #writeToLpGBT(int(lpgbtI2CAddr, 2), 0x0f7, [colutaI2CAddrH, colutaI2CAddrL, 0x00, 0x00], ICEC_CHANNEL=ICEC_CHANNEL)
