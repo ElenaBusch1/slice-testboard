@@ -34,15 +34,17 @@ import numpy as np
 from time import  sleep
 #ELENA'S FIX -- IF NOT CONNECTED TO FELIX
 if 'LPGBT_LATS' not in os.environ:
-	from pyFlxlpGBT import  * 
-
-# First, instantiate a lpGBTManager to handle communication with the FLX Card 
-# For example, card 0 , setting verbosity level to INFO 
-
-	manager = lpGBTManager(cardnr=0,verbose="INFO")
-	manager.ReadFEB2Registers()
-	manager.InitializeFEB2()
-else: manager = None
+    try:
+        from flxMod import takeManagerData
+    except Exception as e:
+        raise Exception('Could not import FELIX library flxMod. You can try an alternative: define "export LPGBT_LATS=1" to use LATOURNETT')
+    # First, instantiate a lpGBTManager to handle communication with the FLX Card 
+    # For example, card 0 , setting verbosity level to INFO 
+    manager = lpGBTManager(cardnr=0,verbose="INFO")
+    manager.ReadFEB2Registers()
+    manager.InitializeFEB2()
+else:
+    manager = None
 
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_PACKING
 #from HDLC_ICEC_LIB_CK_ANALOG_TB import IC_DEPACKING

@@ -26,7 +26,10 @@ if 'LPGBT_LATS' in os.environ:
     from latournettMod import LATOURNETT
     latournett = LATOURNETT()
 else:
-    from flxMod import takeManagerData
+    try:
+        from flxMod import takeManagerData
+    except Exception as e:
+        raise Exception('Could not import FELIX library flxMod. You can try an alternative: define "export LPGBT_LATS=1" to use LATOURNETT')
 
 def writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
     if 'LPGBT_LATS' in os.environ:
@@ -68,14 +71,14 @@ Ui_MainWindow, QtBaseClass = uic.loadUiType(qtCreatorFile)
 
 class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, qApp, pArgs):
-        QtWidgets.QMainWindow.__init__(self)
-        Ui_MainWindow.__init__(self)
-
         # General GUI options and signals
         self.pArgs = pArgs
         self.qApp = qApp
         #self.pOptions = pOptions
-        self.setupUi(self)
+        if self.qApp is not None:
+            QtWidgets.QMainWindow.__init__(self)
+            Ui_MainWindow.__init__(self)
+            self.setupUi(self)
 
         # Used to find serial port
         self.description = 'TESTBOARDAB'
@@ -157,63 +160,64 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.setupConfigurations()
         self.configResults = {} #config status dict
 
-        # Establish link between GUI buttons and internal configuration dictionaries
-        self.connectButtons()
-        self.connectPowerButtons()
-        self.connectCopyButtons()
+        if self.qApp is not None:
+            # Establish link between GUI buttons and internal configuration dictionaries
+            self.connectButtons()
+            self.connectPowerButtons()
+            self.connectCopyButtons()
 
-        #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
-        #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
-        self.test2Button.clicked.connect(self.testFunc)
-        #self.test3Button.clicked.connect(self.testFunc2)
-        #self.test3Button.clicked.connect(self.doReset)
+            #self.test2Button.clicked.connect(lambda: powerMod.vrefTest(self))
+            #self.test3Button.clicked.connect(lambda: parseDataMod.main(self, "lauroc-1.dat"))
+            self.test2Button.clicked.connect(self.testFunc)
+            #self.test3Button.clicked.connect(self.testFunc2)
+            #self.test3Button.clicked.connect(self.doReset)
    
-        # instrument buttons
-        self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
+            # instrument buttons
+            self.initializeInstrumentButton.clicked.connect(lambda:instrumentControlMod.initializeInstrumentation(self))
 
-        # Data buttons
-        self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
-        self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
-        self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
-        self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
+            # Data buttons
+            self.takePedestalDataButton.clicked.connect(lambda: self.takeTriggerData("pedestal"))
+            self.takeSineDataButton.clicked.connect(lambda: self.takeTriggerData("sine"))
+            self.takePulseDataButton.clicked.connect(lambda: self.takeTriggerData("pulse"))
+            self.incrementRunNumberButton.clicked.connect(self.incrementRunNumber)
 
-        #self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
-        self.serializerValidationButton.clicked.connect(lambda: serializerValidation.validateData(self, self.allCOLUTAs))
-        self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.getColutasClockScan()))
-        self.selectAllColutaClockScanButton.clicked.connect(self.selectAllColutas)
-        self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
-        self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
-        self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
+            #self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.allCOLUTAs))
+            self.serializerValidationButton.clicked.connect(lambda: serializerValidation.validateData(self, self.allCOLUTAs))
+            self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.getColutasClockScan()))
+            self.selectAllColutaClockScanButton.clicked.connect(self.selectAllColutas)
+            self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
+            self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
+            self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
 
-        self.lpgbtI2CWriteButton.clicked.connect(self.sendLPGBTRegisters)
-        self.lpgbtI2CReadButton.clicked.connect(self.readLPBGTRegisters)
+            self.lpgbtI2CWriteButton.clicked.connect(self.sendLPGBTRegisters)
+            self.lpgbtI2CReadButton.clicked.connect(self.readLPBGTRegisters)
 
-        #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
-        #self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
-        #self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
-        self.configureAllButton.clicked.connect(self.configureAll)
-        self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
-        self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
-        self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
-        self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
-        #self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
-        #self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
-        #self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
-        #self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
+            #self.configureClocksButton.clicked.connect(self.configure_clocks_test)
+            #self.configurelpgbt12icButton.clicked.connect(self.sendUpdatedConfigurations)
+            #self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
+            self.configureAllButton.clicked.connect(self.configureAll)
+            self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
+            self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
+            self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
+            self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
+            #self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
+            #self.dataLpGBTConfigsButton.clicked.connect(self.collectDataLpgbtConfigs)
+            #self.controlLpGBTConfigsButton.clicked.connect(self.collectControlLpgbtConfigs)
+            #self.colutaConfigsButton.clicked.connect(self.collectColutaConfigs)
 
-        #Configuration Buttons
-        self.readTemperatureButton.clicked.connect(lambda: powerMod.checkAllTemps(self))
-        self.readVoltageButton.clicked.connect(lambda: powerMod.checkAllVoltages(self))
-        self.selectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self, '1'))
-        self.selectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '1'))
-        self.unselectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self, '0'))
-        self.unselectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '0'))
-        self.calculateVREFButton.clicked.connect(lambda: powerMod.vrefTest(self))
-        self.scanVREFTUNEButton.clicked.connect(lambda: powerMod.vrefCalibrate(self))
-        self.readbackConfigCheckBox.stateChanged.connect(self.updateReadback)
-        #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
-        #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
-        #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
+            #Configuration Buttons
+            self.readTemperatureButton.clicked.connect(lambda: powerMod.checkAllTemps(self))
+            self.readVoltageButton.clicked.connect(lambda: powerMod.checkAllVoltages(self))
+            self.selectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self, '1'))
+            self.selectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '1'))
+            self.unselectAllVoltagesButton.clicked.connect(lambda: powerMod.selectAllVoltages(self, '0'))
+            self.unselectAllTemperaturesButton.clicked.connect(lambda: powerMod.selectAllTemps(self, '0'))
+            self.calculateVREFButton.clicked.connect(lambda: powerMod.vrefTest(self))
+            self.scanVREFTUNEButton.clicked.connect(lambda: powerMod.vrefCalibrate(self))
+            self.readbackConfigCheckBox.stateChanged.connect(self.updateReadback)
+            #self.configureControlLpGBTButton.clicked.connect(self.sendUpdatedConfigurations)
+            #self.laurocConfigureButton.clicked.connect(self.sendUpdatedConfigurations)
+            #self.powerConfigureButton.clicked.connect(self.sendPowerUpdates)
 
         copyConfig = lambda w,x,y,z : lambda : self.copyConfigurations(w,sourceSectionName=x,targetChipNames=y,targetSectionNames=z)
         allDREChannels = ["ch1", "ch2", "ch3", "ch4"]
@@ -221,46 +225,47 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         allDataLpGBTs = ["lpgbt9", "lpgbt10", "lpgbt11", "lpgbt14", "lpgbt15", "lpgbt16"]
         allControlLpGBTs = ["lpgbt12", "lpgbt13"]
 
-    
-        # Plotting
-        #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
-        self.nSamplesBox.document().setPlainText(str(self.nSamples))
-        self.AttValBox.document().setPlainText(str(self.att_val))
-        self.nSamplesBox.textChanged.connect(self.updateNSamples)
-        #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
-        #                                        ylim=[0,65536],ylabel='ADC Counts')
-        #self.dataGridLayout.addWidget(self.dataDisplay,0,0)
-        #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
+        if self.qApp is not None:
+            # Plotting
+            #self.takeSamplesButton.clicked.connect(lambda: self.takeSamples())
+            self.nSamplesBox.document().setPlainText(str(self.nSamples))
+            self.AttValBox.document().setPlainText(str(self.att_val))
+            self.nSamplesBox.textChanged.connect(self.updateNSamples)
+            #self.dataDisplay = MPLCanvas(self.dataDisplayWidget,x=np.arange(2),style='r.',
+            #                                        ylim=[0,65536],ylabel='ADC Counts')
+            #self.dataGridLayout.addWidget(self.dataDisplay,0,0)
+            #self.displayGridLayout.addWidget(self.dataDisplay,0,0)
 
-        #Standard Runs
-        self.stdRuns = STANDARDRUNS(self)
-        self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
-        self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
-        self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
+            #Standard Runs
+            self.stdRuns = STANDARDRUNS(self)
+            self.stdRunsPulseDataButton.clicked.connect(self.stdRuns.doPulseRun)
+            self.stdRun32BitPedestalDataButton.clicked.connect(self.stdRuns.do32BitModePedestalRun)
+            self.stdRun32BitSerializerDataButton.clicked.connect(lambda: self.stdRuns.get32BitModeSerializerData(even=True, Odd=False))
 
-        ## Calibration runs
-        self.sarMdacCal = SARCALIBMODULE(self)
-        self.calibMod = CALIBMODULE()
-        self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
-        self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
+            ## Calibration runs
+            self.sarMdacCal = SARCALIBMODULE(self)
+            self.calibMod = CALIBMODULE()
+            self.stdRunsCalibAllButton.clicked.connect(self.sarMdacCal.runFullCalibInFeb2Gui)
+            self.stdRunsLoadCalibButton.clicked.connect(self.sarMdacCal.getFullCalibInFeb2Gui)
 
-        ## SAR Calibration
-        self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
-        self.stdRunsSarCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runSarCalibInFeb2Gui(runAll=True))
+            ## SAR Calibration
+            self.stdRunsSarCalibButton.clicked.connect(self.sarMdacCal.runSarCalibInFeb2Gui)
+            self.stdRunsSarCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runSarCalibInFeb2Gui(runAll=True))
 
-        ## MDAC Calibration
-        self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
-        self.stdRunsMdacCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runMdacCalibInFeb2Gui(runAll=True))
+            ## MDAC Calibration
+            self.stdRunsMdacCalibButton.clicked.connect(self.sarMdacCal.runMdacCalibInFeb2Gui)
+            self.stdRunsMdacCalibAllButton.clicked.connect(lambda: self.sarMdacCal.runMdacCalibInFeb2Gui(runAll=True))
 
-        self.isConnected = True
-        #self.startup()
-        #self.lpgbt_i2c_read()
-        # self.sendConfigurationsFromLpGBT()
-        self.runNumberString = str(self.runNumber)
-        self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
+            self.isConnected = True
 
-        self.runNumberString = str(self.runNumber)
-        self.setWindowTitle("Run Number: {} ".format(self.runNumberString)) 
+            #self.startup()
+            #self.lpgbt_i2c_read()
+            # self.sendConfigurationsFromLpGBT()
+            self.runNumberString = str(self.runNumber)
+            self.setWindowTitle("Run Number: {} ".format(self.runNumberString))
+
+            self.runNumberString = str(self.runNumber)
+            self.setWindowTitle("Run Number: {} ".format(self.runNumberString)) 
 
 
     def testFunc(self):
@@ -1333,9 +1338,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.updateErrorConfiguration()
           
 
-    def sendFullLPGBTConfigs(self):
+    def sendFullLPGBTConfigs(self, lpgbt=None):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
-        lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        if lpgbt is None:
+            lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        raise Exception(lpgbt)
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.sendFullControlLPGBTConfigs(lpgbt)
         else:
@@ -1608,7 +1615,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             lpgbt, pin = [x.strip() for x in powerconfig["temperatureSettings"][tempSetting].split(',')]
             self.temperatureSettings[tempSetting] = [lpgbt, pin]
 
-        self.updateGUIText()
+        if self.qApp is not None:
+            self.updateGUIText()
 
 
     def updateConfigurations(self, boxName, chipName, sectionName, settingName):
