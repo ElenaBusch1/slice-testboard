@@ -2345,6 +2345,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.updateErrorConfiguration()
 
     def updateErrorConfiguration(self):
+        if self.qApp is None:
+            return
         #The line of code below removes any duplicate entries
         self.failedConfigurations = list(dict.fromkeys(self.failedConfigurations))
         if len(self.failedConfigurations) == 0:

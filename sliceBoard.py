@@ -5,6 +5,7 @@ parser.add_argument('-d', '--debug', action='store_true', help='Enter debug mode
 parser.add_argument('-n', '--no-connect', action='store_true', help='For testing without a board.')
 parser.add_argument('-c', '--command', dest='command', action='store_true', help='Use command line, i.e. no GUI')
 parser.add_argument('--configure_lpgbt', dest='configure_lpgbt', required=False, default=None, help='Configure lpGBT, i.e. lpgbt12')
+parser.add_argument('--configure_all', dest='configure_all', action='store_true', help='Configure all')
 args = parser.parse_args()
 
 if (__name__ == "__main__") and (not args.command):
@@ -24,4 +25,9 @@ else:
     slice_board = sliceBoardGUI.sliceBoardGUI(None, args)
     if args.configure_lpgbt is not None:
         slice_board.sendFullLPGBTConfigs(lpgbt=args.configure_lpgbt)
+    elif args.configure_all:
+        slice_board.configureAll()
+    else:
+        print('Need to choose what to do, see --help')
+        sys.exit(1)
 
