@@ -21,21 +21,37 @@ import threading
 from functools import partial
 import configureLpGBT1213
 from collections import OrderedDict, defaultdict
-from latournettMod import LATOURNETT
-latournett = LATOURNETT()
-#from flxMod import icWriteToLpGBT as writeToLpGBT
+
+if 'LPGBT_LATS' in os.environ:
+    from latournettMod import LATOURNETT
+    latournett = LATOURNETT()
+else:
+    from flxMod import takeManagerData
+
 def writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
-    return latournett.writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
-#from flxMod import icReadLpGBT as readFromLpGBT
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+    else:
+        return icWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+
 def readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
-    return latournett.readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
-#from flxMod import ecReadLpGBT as ecReadFromLpGBT
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+    else:
+        return icReadLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+
 def ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
-    return latournett.ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
-#from flxMod import icWriteToLpGBT, ecWriteToLpGBT
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+    else:
+        return ecReadLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+
 def ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
-    return latournett.ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
-#from flxMod import takeManagerData
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+    else:
+        raise Exception('should call flxMod module ecWriteToLpGBT function')
+        return ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
 
 from monitoring import MPLCanvas
 from datetime import datetime
@@ -977,11 +993,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             timeout = 1
             time_start = time.time()
             while i2cTransactionCheck_enable:
-                status_reads_nb += 1
                 bit = readFromLpGBT(int(lpgbtI2CAddr, 2), 0x176, 1, ICEC_CHANNEL=ICEC_CHANNEL)
                 if bit[0] == 4:
                     break
-                status_reads_not_ready_nb += 1
                 time_now = time.time()
                 if time_now-time_start>=timeout:
                     raise Exception('Timed out I2C transaction: I2CM1STATUS=0x{bit[0]:02x}')

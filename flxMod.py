@@ -33,7 +33,7 @@ from typing import List
 import numpy as np
 from time import  sleep
 #ELENA'S FIX -- IF NOT CONNECTED TO FELIX
-if True:
+if 'LPGBT_LATS' not in os.environ:
 	from pyFlxlpGBT import  * 
 
 # First, instantiate a lpGBTManager to handle communication with the FLX Card 
