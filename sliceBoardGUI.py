@@ -1338,11 +1338,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.updateErrorConfiguration()
           
 
-    def sendFullLPGBTConfigs(self, lpgbt=None):
+    def sendFullLPGBTConfigs(self, state=False, lpgbt=None):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
         if lpgbt is None:
             lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
-        raise Exception(lpgbt)
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             self.sendFullControlLPGBTConfigs(lpgbt)
         else:

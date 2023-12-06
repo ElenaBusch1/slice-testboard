@@ -23,5 +23,5 @@ else:
     import sliceBoardGUI
     slice_board = sliceBoardGUI.sliceBoardGUI(None, args)
     if args.configure_lpgbt is not None:
-        slice_board.sendFullLPGBTConfigs(args.configure_lpgbt)
+        slice_board.sendFullLPGBTConfigs(lpgbt=args.configure_lpgbt)
 
