@@ -9,7 +9,7 @@ parser.add_argument('--configure_lauroc', dest='configure_lauroc', required=Fals
 parser.add_argument('--configure_all', dest='configure_all', action='store_true', help='Configure all')
 args = parser.parse_args()
 
-if (__name__ == "__main__") and (args.configure_lpgbt is None) and (not args.configure_all):
+if (__name__ == "__main__") and (args.configure_lpgbt is None) and (args.configure_coluta is None) and (args.configure_lauroc is None) and (not args.configure_all):
     from PyQt5 import QtWidgets, QtGui
     import sliceBoardGUI
 
@@ -26,11 +26,11 @@ else:
     slice_board = sliceBoardGUI.sliceBoardGUI(None, args)
     result = True
     if args.configure_lpgbt is not None:
-        result &= slice_board.sendFullLPGBTConfigs(lpgbt=args.configure_lpgbt)
+        result &= slice_board.sendFullLPGBTConfigs(args.configure_lpgbt)
     if args.configure_coluta is not None:
-        result &= slice_board.sendFullCOLUTAConfig(colutaName=args.configure_coluta)
+        result &= slice_board.sendFullCOLUTAConfig(args.configure_coluta)
     if args.configure_lauroc is not None:
-        result &= slice_board.sendFullLAUROCConfigs(laurocName=args.configure_lauroc)
+        result &= slice_board.sendFullLAUROCConfigs(args.configure_lauroc)
     if args.configure_all:
         result &= slice_board.configureAll()
     if not result:

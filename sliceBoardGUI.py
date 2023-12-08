@@ -31,9 +31,9 @@ else:
     except Exception as e:
         raise Exception('Could not import FELIX library flxMod. You can try an alternative: define "export LPGBT_LATS=1" to use LATOURNETT')
 
-def writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
+def writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies=False):
     if 'LPGBT_LATS' in os.environ:
-        return latournett.writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+        return latournett.writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies)
     else:
         return icWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
 
@@ -49,9 +49,9 @@ def ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
     else:
         return ecReadLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
 
-def ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
+def ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies=False):
     if 'LPGBT_LATS' in os.environ:
-        return latournett.ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+        return latournett.ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies)
     else:
         raise Exception('should call flxMod module ecWriteToLpGBT function')
         return ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
@@ -197,7 +197,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             #self.lpgbt11ConfigureButton.clicked.connect(self.i2cDataLpGBT)
             self.configureAllButton.clicked.connect(self.configureAll)
             self.coluta16ConfigureButton.clicked.connect(lambda: self.sendFullCOLUTAConfig("box"))
-            self.lpgbtConfigureButton.clicked.connect(self.sendFullLPGBTConfigs)
+            self.lpgbtConfigureButton.clicked.connect(lambda: self.sendFullLPGBTConfigs("box"))
             self.laurocControlConfigureButton.clicked.connect(lambda: self.sendFullLAUROCConfigs("box"))
             self.sendUpdatedConfigurationsButton.clicked.connect(self.sendUpdatedConfigurations)
             #self.laurocConfigsButton.clicked.connect(self.collectLaurocConfigs)
@@ -674,7 +674,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Reading", lpgbt, hex(register), ":", [hex(x) for x in readback])
         return readback
 
-    def writeToControlLPGBT(self, lpgbt, register, dataBits):
+    def writeToControlLPGBT(self, lpgbt, register, dataBits, ignore_replies=False):
         """ Writes max 4 bytes through the EC or IC channels"""
         chip = self.chips[lpgbt]
         if lpgbt[-2:] == '11' or lpgbt[-2:] == '12': 
@@ -688,18 +688,20 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if len(dataBits) > 4:
             print("Error: trying to send more than 4 dataBits in writeToControlLPGBT")
 
+        readbackSuccess = True
+
         if lpgbt in ['lpgbt11', 'lpgbt14']:
-            ecWriteToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
+            readbackSuccess &= ecWriteToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL, ignore_replies=ignore_replies)
         elif lpgbt in ['lpgbt12', 'lpgbt13']:
-            writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL)
+            readbackSuccess &= writeToLpGBT(int(chip.i2cAddress, 2), register, dataBits, ICEC_CHANNEL=ICEC_CHANNEL, ignore_replies=ignore_replies)
         else:
             print("Invalid lpGBT specified (writeToControlLpgbt)")
 
-        readbackSuccess = True
-        readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
-        if dataBits != readback:
-            print("Writing ", lpgbt, register, " failed")
-            readbackSuccess = False        
+        if not ignore_replies:
+            readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
+            if dataBits != readback:
+                print("Writing ", lpgbt, register, " failed")
+                readbackSuccess = False        
         return readbackSuccess
         """
         print("DATA BITS HERE -------------------- ", dataBits)
@@ -1343,10 +1345,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.updateErrorConfiguration()
           
 
-    def sendFullLPGBTConfigs(self, state=False, lpgbt=None):
+    def sendFullLPGBTConfigs(self, lpgbtName):
         """ Directs 'Configure LpGBT' button to data or control lpgbt methods """
-        if lpgbt is None:
+        if lpgbtName == 'box':
             lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
+        else:
+            lpgbt = lpgbtName
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
             return self.sendFullControlLPGBTConfigs(lpgbt)
         else:
@@ -1368,14 +1372,23 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     bits = 0
                 sectionChunks[startReg].append(bits)
 
-        readbackSuccess = True
-        ## Set all configs once without reading back to enable readbacks
-        for (register, dataBits) in sectionChunks.items():
-            self.writeToControlLPGBT(lpgbt, register, dataBits)
+        # Configure first the CHIPADR to have correct uplink polarity
+        self.writeToControlLPGBT(lpgbt, 0x36, [sectionChunks[0x34][2]], ignore_replies=True)
 
-        ## Configure again and check configurations
+        readbackSuccess = True
+        # Set all configs once without reading back to enable readbacks
         for (register, dataBits) in sectionChunks.items():
-            self.writeToControlLPGBT(lpgbt, register, dataBits)
+            readbackSuccess &= self.writeToControlLPGBT(lpgbt, register, dataBits)
+        if readbackSuccess:
+            print("Successfully wrote configuration")
+        else:
+            print("Writing configuration failed")
+
+        # Check configuration
+        for (register, dataBits) in sectionChunks.items():
+            if not readbackSuccess:
+                # Skip reading back data if failed writing configuration
+                break
             readback = self.readFromControlLPGBT(lpgbt, register, len(dataBits))
             if readback[:len(dataBits)] != dataBits: 
                 readbackSuccess = False
@@ -1389,6 +1402,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     print("Successfully readback what was written!")
                 else:
                     print("Readback does not agree with what was written")     
+        if readbackSuccess:
+            print("Successfully readback what was written")
 
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)

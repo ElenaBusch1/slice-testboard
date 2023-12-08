@@ -28,13 +28,13 @@ class LATOURNETT(object):
         data = self.context.latournett_ctx_0.LPGBT_IC_Read_RAM(lpgbt_link=ICEC_CHANNEL, lpgbt_address=GBTX_I2CADDR, memory_address=GBTX_ADDR, nb_data_bytes=GBTX_LEN, ic_n_ec=False)
         return data
 
-    def writeToLpGBT(self, GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
+    def writeToLpGBT(self, GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies):
         context = self.__GetFirmwareControl()
-        result = self.context.latournett_ctx_0.LPGBT_IC_Write_RAM(lpgbt_link=ICEC_CHANNEL, lpgbt_address=GBTX_I2CADDR, memory_address=GBTX_ADDR, memory_bytes=data_orig, ic_n_ec=True)
+        result = self.context.latournett_ctx_0.LPGBT_IC_Write_RAM(lpgbt_link=ICEC_CHANNEL, lpgbt_address=GBTX_I2CADDR, memory_address=GBTX_ADDR, memory_bytes=data_orig, ic_n_ec=True, ignore_replies=ignore_replies)
         return result
 
-    def ecWriteToLpGBT(self, GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL):
+    def ecWriteToLpGBT(self, GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies):
         context = self.__GetFirmwareControl()
-        result = self.context.latournett_ctx_0.LPGBT_IC_Write_RAM(lpgbt_link=ICEC_CHANNEL, lpgbt_address=GBTX_I2CADDR, memory_address=GBTX_ADDR, memory_bytes=data_orig, ic_n_ec=False)
+        result = self.context.latournett_ctx_0.LPGBT_IC_Write_RAM(lpgbt_link=ICEC_CHANNEL, lpgbt_address=GBTX_I2CADDR, memory_address=GBTX_ADDR, memory_bytes=data_orig, ic_n_ec=False, ignore_replies=ignore_replies)
         return result
 
