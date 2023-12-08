@@ -1003,7 +1003,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
                     break
                 time_now = time.time()
                 if time_now-time_start>=timeout:
-                    raise Exception('Timed out I2C transaction: I2CM1STATUS=0x{bit[0]:02x}')
+                    print(f'Timed out I2C transaction: I2CM1STATUS=0x{bit[0]:02x}')
+                    readbackSuccess = False
+                    break
+            if not readbackSuccess:
+                break
 
             readback = self.readFromCOLUTAChannel(coluta, word)
             if readback[:6] != dataBits8[:6]: readbackSuccess = False
@@ -1268,34 +1272,35 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
     def configureAll(self):
         self.configResults = {}
         """ Configures LPGBT9-16, COLUTA13-20 and LAUROC13-20 """
+        result = True
         colutas = self.allCOLUTAs
         laurocs = self.allLAUROCs
 
         print("Configuring lpgbt12")
-        self.sendFullControlLPGBTConfigs("lpgbt12")
+        result &= self.sendFullControlLPGBTConfigs("lpgbt12")
         time.sleep(0.5)
         print("Configuring lpgbt13")
-        self.sendFullControlLPGBTConfigs("lpgbt13")
+        result &= self.sendFullControlLPGBTConfigs("lpgbt13")
         time.sleep(0.5)
         print("Configuring lpgbt14")
-        self.sendFullControlLPGBTConfigs("lpgbt14")
+        result &= self.sendFullControlLPGBTConfigs("lpgbt14")
         time.sleep(0.5)
         print("Configuring lpgbt11")
-        self.sendFullControlLPGBTConfigs("lpgbt11")
+        result &= self.sendFullControlLPGBTConfigs("lpgbt11")
         time.sleep(0.5)
         self.set_RSTB(RST_AB="A",setStartStop="resetStart",chipType="all")
         self.set_RSTB(RST_AB="B",setStartStop="resetStart",chipType="all")
         print("Configuring lpgbt10")
-        self.sendFullDataLPGBTConfigs("lpgbt10")
+        result &= self.sendFullDataLPGBTConfigs("lpgbt10")
         time.sleep(0.5)
         print("Configuring lpgbt9")
-        self.sendFullDataLPGBTConfigs("lpgbt9")
+        result &= self.sendFullDataLPGBTConfigs("lpgbt9")
         time.sleep(0.5)
         print("Configuring lpgbt15")
-        self.sendFullDataLPGBTConfigs("lpgbt15")
+        result &= self.sendFullDataLPGBTConfigs("lpgbt15")
         time.sleep(0.5)
         print("Configuring lpgbt16")
-        self.sendFullDataLPGBTConfigs("lpgbt16")
+        result &= self.sendFullDataLPGBTConfigs("lpgbt16")
         time.sleep(0.5)
         self.set_RSTB(RST_AB="A",setStartStop="resetStop",chipType="all")
         self.set_RSTB(RST_AB="B",setStartStop="resetStop",chipType="all")
@@ -1305,7 +1310,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #    return
         for coluta in colutas:
             print("Configuring", coluta)
-            self.sendFullCOLUTAConfig(coluta)
+            result &= self.sendFullCOLUTAConfig(coluta)
             time.sleep(0.5) 
 
         #lauroc = "lauroc13"
@@ -1322,10 +1327,10 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #for lauroc in laurocs:
         for lauroc in goodLaurocs:
             print("Configuring", lauroc)
-            self.sendFullLAUROCConfigs(lauroc)
+            result &= self.sendFullLAUROCConfigs(lauroc)
             time.sleep(0.5)
 
-        return
+        return result
 
         self.sarMdacCal.getFullCalibInFeb2Gui()
 
@@ -1343,9 +1348,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         if lpgbt is None:
             lpgbt = getattr(self, 'lpgbtConfigureBox').currentText()
         if lpgbt in ['lpgbt11', 'lpgbt12', 'lpgbt13', 'lpgbt14']:
-            self.sendFullControlLPGBTConfigs(lpgbt)
+            return self.sendFullControlLPGBTConfigs(lpgbt)
         else:
-            self.sendFullDataLPGBTConfigs(lpgbt)
+            return self.sendFullDataLPGBTConfigs(lpgbt)
 
     def sendFullControlLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given control lpgbt"""
@@ -1388,8 +1393,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
         self.updateErrorConfigurationList(readbackSuccess, lpgbt)
-
-
+        return readbackSuccess
 
     def sendFullDataLPGBTConfigs(self, lpgbt):
         """ Sends all current configurations for given data lpgbt"""
@@ -1425,6 +1429,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.configResults[lpgbt] = readbackSuccess
         print("Done configuring", lpgbt, ", success =", readbackSuccess)
         self.updateErrorConfigurationList(readbackSuccess, lpgbt)
+        return readbackSuccess
 
     def sendFullLAUROCConfigs(self, laurocName):
         """ Sends all current configurations for given lauroc """
@@ -1472,6 +1477,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         #make sure LAUROC clock is off
         #self.chipCP40Control(chip=lauroc,onOff="off")
         self.updateErrorConfigurationList(readbackSuccess, lauroc)
+        return readbackSuccess
 
     def sendFullCOLUTAConfig(self, colutaName):
         """ Configure all coluta channels and global bits """
@@ -1493,9 +1499,9 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             print("Configuring ", ch, coluta)
             readbackChSucess = False
             for num in range(0,numRetry,1):
-              readbackChSucess = self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
-              if readbackChSucess == True : break
-            readbackSuccess = readbackSuccess & readbackChSucess
+                readbackChSucess = self.writeToCOLUTAChannel(coluta, ch, self.READBACK)
+                if readbackChSucess == True : break
+            readbackSuccess &= readbackChSucess
 
         globalSuccess = False
         for num in range(0,numRetry,1):
@@ -1507,6 +1513,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.updateErrorConfigurationList(readbackSuccess, coluta)
         time_now = time.time()
         print(f'time to configure COLUTA: {time_now-time_start}')
+        return readbackSuccess
 
     def colutaI2CWriteControl(self, chipName, sectionName, broadcast=False):
         """Same as fifoAWriteControl(), except for I2C."""
