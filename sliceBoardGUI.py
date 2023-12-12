@@ -185,7 +185,7 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.serializerValidationButton.clicked.connect(lambda: serializerValidation.validateData(self, self.allCOLUTAs))
             self.clockScanButton.clicked.connect(lambda: clockMod.scanClocks(self, self.getColutasClockScan()))
             self.selectAllColutaClockScanButton.clicked.connect(self.selectAllColutas)
-            self.dcdcConverterButton.clicked.connect(powerMod.enableDCDCConverter)
+            self.dcdcConverterButton.clicked.connect(lambda: powerMod.enableDCDCConverter(self.chips))
             self.lpgbt12ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt12"))
             self.lpgbt13ResetButton.clicked.connect(lambda: self.lpgbtReset("lpgbt13"))
 

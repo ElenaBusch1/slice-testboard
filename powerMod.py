@@ -1,5 +1,39 @@
-from flxMod import icWriteToLpGBT as writeToLpGBT
-from flxMod import icReadLpGBT as readFromLpGBT
+import os
+if 'LPGBT_LATS' in os.environ:
+    from latournettMod import LATOURNETT
+    latournett = LATOURNETT()
+else:
+    try:
+        from flxMod import icWriteToLpGBT as writeToLpGBT
+        from flxMod import icReadLpGBT as readFromLpGBT
+    except Exception as e:
+        raise Exception('Could not import FELIX library flxMod. You can try an alternative: define "export LPGBT_LATS=1" to use LATOURNETT')
+
+def writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies=False):
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.writeToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies)
+    else:
+        return icWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+
+def readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.readFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+    else:
+        return icReadLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+
+def ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL):
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.ecReadFromLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+    else:
+        return ecReadLpGBT(GBTX_I2CADDR, GBTX_ADDR, GBTX_LEN, ICEC_CHANNEL)
+
+def ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies=False):
+    if 'LPGBT_LATS' in os.environ:
+        return latournett.ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL, ignore_replies)
+    else:
+        raise Exception('should call flxMod module ecWriteToLpGBT function')
+        return ecWriteToLpGBT(GBTX_I2CADDR, GBTX_ADDR, data_orig, ICEC_CHANNEL)
+
 from datetime import datetime
 from vref import vref as vREF
 import time
@@ -8,8 +42,8 @@ import numpy as np
 #vref = 0.9
 IDAC = 106
 
-def enableDCDCConverter():
-    chip = self.chips["lpgbt12"]
+def enableDCDCConverter(chips):
+    chip = chips["lpgbt12"]
 
     piodirl = '00010100'
     piooutl = '00010100'
@@ -21,7 +55,7 @@ def enableDCDCConverter():
 
     writeToLpGBT(int(chip.i2cAddress, 2), 0x052, dataToSend, ICEC_CHANNEL = 0)
 
-    chip2 = self.chips['lpgbt13']
+    chip2 = chips['lpgbt13']
 
     piodirl = '00011100'
     piooutl = '00011100'
