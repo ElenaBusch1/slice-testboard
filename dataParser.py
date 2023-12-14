@@ -32,7 +32,7 @@ class dataParser:
 
     def __init__(self, GUI, configFile):
         self.configFile = configFile
-        self.output_directory = "./data_files/"
+        self.output_directory = f"/tmp/{os.getlogin()}/data_files/"
         self.GUI = GUI
 
         self.updatedConfigs = {}

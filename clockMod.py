@@ -200,7 +200,7 @@ def scanClocks(GUI,colutas):
                             
             GUI.takeTriggerData('clockScan') # take data
             print("Opening run", str(GUI.runNumber).zfill(4))
-            datafile = h5py.File('../Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')  # open the data
+            datafile = h5py.File(f'/tmp/{os.getlogin()}/Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')  # open the data
             m = str(len(datafile.keys())-1).zfill(3) # get the latest measurement
             print(m)
             d = datafile.get('Measurement_'+m) # data

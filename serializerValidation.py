@@ -55,7 +55,7 @@ def validateData(GUI, colutas):
 
 	GUI.takeTriggerData('serializerValidation')
 	print("Opening run", str(GUI.runNumber).zfill(4))
-	datafile = h5py.File('../Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')  # open the data
+	datafile = h5py.File(f'/tmp/{os.getlogin()}/Runs/run'+str(GUI.runNumber).zfill(4)+'.hdf5','r')  # open the data
 	m = str(len(datafile.keys())-1).zfill(3) #get latest measurement
 	d = datafile.get("Measurement_"+m) #data
 	for coluta in colutas:

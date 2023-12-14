@@ -80,6 +80,8 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             Ui_MainWindow.__init__(self)
             self.setupUi(self)
 
+        self.metadata_filename = f'/tmp/{os.getlogin()}/metadata.txt'
+
         # Used to find serial port
         self.description = 'TESTBOARDAB'
 
@@ -2071,12 +2073,12 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
             self.singleADCMode_ADC = 'trigger'
 
         # Establish output file
-        if not os.path.exists("../Runs"):
-            os.makedirs("../Runs")
+        outputDirectory = f"/tmp/{os.getlogin()}/Runs"
+        if not os.path.exists(outputDirectory):
+            os.makedirs(outputDirectory)
         if self.opened:
             # increment run number automatically when GUI opens
             self.incrementRunNumber()
-        outputDirectory = '../Runs'
         outputFile = "run"+str(self.runNumber).zfill(4)+".dat"
         stampedOutputFile = "run"+str(self.runNumber).zfill(4)+"-1.dat"
         outputPath = outputDirectory+"/"+outputFile
@@ -2105,11 +2107,11 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         self.runNumberString = str(self.runNumber)
         self.setWindowTitle("Run Number: {}".format(self.runNumberString))
 
-        with open('../metadata.txt','r') as f:
+        with open(self.metadata_filename,'r') as f:
             temp = json.load(f)
             temp['runNumber'] = self.runNumber
 
-        with open('../metadata.txt','w') as f:
+        with open(self.metadata_filename,'w') as f:
             json.dump(temp,f)
 
     def makeMetadataJSON(self):
@@ -2137,13 +2139,13 @@ class sliceBoardGUI(QtWidgets.QMainWindow, Ui_MainWindow):
         metadata['flxMapping'] = {"COLUTA"+str(i+13):str(i) for i in range(0,8)}
         metadata["allCOLUTAs"] = colutas
         metadata["allLAUROCs"] = laurocs
-        with open('../metadata.txt', 'w') as outfile:
+        with open(self.metadata_filename, 'w') as outfile:
             json.dump(metadata, outfile)
 
     def getMetadataFromJSON(self):
-        if not os.path.exists('../metadata.txt'):
+        if not os.path.exists(self.metadata_filename):
             self.makeMetadataJSON()
-        with open('../metadata.txt') as json_file:
+        with open(self.metadata_filename) as json_file:
             metadata = json.load(json_file)
             self.runNumber = metadata["runNumber"]   
             self.boardID = metadata["boardID"]
